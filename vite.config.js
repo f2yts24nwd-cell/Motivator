@@ -2,7 +2,11 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 // Relative base so the build works on GitHub Pages (/<repo>/) and any other host.
+// Build stamp shown in the app, so it's obvious which version a device is running.
+const BUILD_ID = process.env.BUILD_ID || new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
 export default defineConfig({
+  define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
   // GitHub Pages build sets BASE_PATH=/<repo>/ (absolute paths survive URLs without trailing slash)
   base: process.env.BASE_PATH || './',
   build: { chunkSizeWarningLimit: 1500 },
@@ -30,7 +34,11 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg,webp,woff2}'],
-        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        // a new deploy replaces the old one right away
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true
       }
     })
   ]

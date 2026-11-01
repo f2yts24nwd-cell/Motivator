@@ -663,6 +663,10 @@ export class Hub {
       ? 'Tippe auf den Boden zum Laufen oder direkt auf einen Automaten.'
       : 'Klicke zum Laufen (oder WASD/Pfeiltasten). Geh zu einem Automaten, um zu spielen.'));
     this.prompt = null;
+    mount(h('button.version', {
+      title: 'Neueste Version laden',
+      onclick: () => { if (confirm(`Version ${__BUILD_ID__}\n\nCache leeren und neueste Version laden?`)) window.__hardReload?.(); }
+    }, `v ${__BUILD_ID__} ↻`));
     this.wardrobeBtn = mount(h('button.icon-btn.left.wd-btn', { title: 'Avatar gestalten', onclick: () => this.openWardrobe() }, '👔'));
   }
 

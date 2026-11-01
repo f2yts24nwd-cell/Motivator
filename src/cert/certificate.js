@@ -192,8 +192,11 @@ export class CertificateScene {
       this.redrawCert();
     });
     render();
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const download = () => {
       sfx.click();
+      // iOS: the share sheet offers "Bild sichern" (save to Photos), downloads are clumsy there
+      if (isIOS && navigator.canShare) { share(); return; }
       const a = document.createElement('a');
       a.download = `Schwetz-Zertifikat${this.name ? '-' + this.name.replace(/[^\wäöüÄÖÜß-]+/g, '_') : ''}.png`;
       a.href = preview.toDataURL('image/png');
@@ -206,15 +209,20 @@ export class CertificateScene {
         const file = new File([blob], 'Schwetz-Zertifikat.png', { type: 'image/png' });
         if (navigator.canShare?.({ files: [file] })) {
           await navigator.share({ files: [file], title: 'Mein Schwetz-Zertifikat', text: `${this.stats.score} Punkte bei „Hau den Legacy!“ in der itmX Spielewelt.` });
-        } else download();
+        } else {
+          const a = document.createElement('a');
+          a.download = 'Schwetz-Zertifikat.png';
+          a.href = preview.toDataURL('image/png');
+          a.click();
+        }
       } catch { /* user cancelled */ }
     };
     mount(h('div.overlay', {}, h('div.cert-wrap.panel', {}, [
       preview,
       h('div.name', {}, [input]),
       h('div.row', {}, [
-        h('button.btn.gold', { onclick: download }, '⬇ Als Bild speichern'),
-        navigator.share ? h('button.btn.secondary', { onclick: share }, 'Teilen') : null,
+        h('button.btn.gold', { onclick: download }, isIOS ? '⬇ Speichern / Teilen' : '⬇ Als Bild speichern'),
+        navigator.share && !isIOS ? h('button.btn.secondary', { onclick: share }, 'Teilen') : null,
         h('button.btn.secondary', { onclick: () => { sfx.click(); this.app.startGame('whack'); } }, '↻ Nochmal spielen'),
         h('button.btn.secondary', { onclick: () => { sfx.click(); this.app.goHub(); } }, 'Zur Spielewelt')
       ])

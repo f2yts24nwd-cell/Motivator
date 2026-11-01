@@ -68,6 +68,11 @@ export class Hub {
     floor.receiveShadow = true;
     s.add(floor);
     this.floor = floor;
+    // dark surround so steep phone cameras never look into the void
+    const outside = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.MeshStandardMaterial({ color: 0x10131d, roughness: 1 }));
+    outside.rotation.x = -Math.PI / 2;
+    outside.position.y = -0.02;
+    s.add(outside);
 
     // rug in the middle
     const rug = new THREE.Mesh(new THREE.CircleGeometry(4, 64), new THREE.MeshStandardMaterial({
@@ -640,11 +645,15 @@ export class Hub {
 
     // proximity to cabinets
     let near = null;
+    // arcade screens animate at ~15 fps; cheaper on phones and looks retro anyway
+    this.screenT = (this.screenT || 0) + dt;
+    const redraw = this.screenT > 1 / 15;
+    if (redraw) this.screenT = 0;
     for (const cab of this.cabinets) {
       const d = Math.hypot(pos.x - cab.front.x, pos.z - cab.front.z);
       if (d < 1.9) near = cab;
       cab.glow.material.opacity = (cab.game.available ? 0.45 : 0.12) + (near === cab ? 0.35 : 0) + Math.sin(time * 3) * 0.05;
-      this.drawScreen(cab, time);
+      if (redraw) this.drawScreen(cab, time);
     }
     if (near !== this.near) {
       this.near = near;
@@ -653,10 +662,11 @@ export class Hub {
 
     // camera follow
     const camTarget = new THREE.Vector3(pos.x * 0.85, 9.5, pos.z + 11);
-    if (this.camera.aspect < 1) camTarget.set(pos.x * 0.6, 13, pos.z + 13);
+    const look = new THREE.Vector3(pos.x * 0.85, 1.6, pos.z - 2.5);
+    if (this.camera.aspect < 1) { camTarget.set(pos.x * 0.7, 15, pos.z + 10.5); look.set(pos.x * 0.8, 0.6, pos.z - 1.8); }
     if (!this.camInit) { this.camera.position.copy(camTarget); this.camInit = true; }
     this.camera.position.lerp(camTarget, clamp(dt * 3, 0, 1));
-    this.camera.lookAt(pos.x * 0.85, 1.6, pos.z - 2.5);
+    this.camera.lookAt(look);
 
     if (this.marker.visible) {
       this.markerT = (this.markerT || 0) + dt;

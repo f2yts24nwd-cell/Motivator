@@ -24,8 +24,13 @@ html, body {
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-text-size-adjust: 100%;
   overscroll-behavior: none;
+  position: fixed;
+  width: 100%;
 }
+button { touch-action: manipulation; }
 
 #gl {
   position: fixed;
@@ -188,8 +193,8 @@ html, body {
   box-shadow: inset 0 0 0 1px var(--panel-border);
   cursor: pointer;
 }
-.icon-btn.left { left: 12px; }
-.icon-btn.right { right: 12px; }
+.icon-btn.left { left: calc(12px + env(safe-area-inset-left)); }
+.icon-btn.right { right: calc(12px + env(safe-area-inset-right)); }
 
 /* ---------- whack HUD ---------- */
 .hud {
@@ -344,4 +349,32 @@ html, body {
   .goal { top: calc(124px + env(safe-area-inset-top)); }
   .card { padding: 22px 18px; }
   .legend { grid-template-columns: 1fr; }
+}
+
+/* phones in landscape (e.g. iPhone 17 quer): compact HUD so the board stays visible */
+@media (max-height: 500px) and (orientation: landscape) {
+  .hud { top: calc(6px + env(safe-area-inset-top)); width: min(560px, calc(100% - 140px - env(safe-area-inset-left) - env(safe-area-inset-right))); gap: 6px; }
+  .hud .stat { padding: 4px 10px; min-width: 64px; }
+  .hud .stat strong { font-size: 17px; }
+  .hud .stat small { font-size: 9px; }
+  .goal { top: calc(52px + env(safe-area-inset-top)); height: 6px; width: min(300px, 40vw); }
+  .icon-btn { top: calc(6px + env(safe-area-inset-top)); width: 40px; height: 40px; }
+  .card { padding: 16px 20px; max-height: calc(100dvh - 16px); }
+  .card h1 { font-size: 26px; }
+  .card p { margin: 4px 0; font-size: 14px; }
+  .legend { grid-template-columns: 1fr 1fr; gap: 6px; margin: 10px 0; }
+  .legend div { padding: 6px 10px; font-size: 12px; }
+  .overlay { padding: 8px calc(8px + env(safe-area-inset-right)) 8px calc(8px + env(safe-area-inset-left)); }
+  .hub-title { top: calc(6px + env(safe-area-inset-top)); padding: 6px 12px; font-size: 13px; }
+  .hub-hint { bottom: calc(8px + env(safe-area-inset-bottom)); font-size: 12px; padding: 6px 12px; }
+  .game-prompt { bottom: calc(10px + env(safe-area-inset-bottom)); padding: 12px; width: min(380px, calc(100% - 32px)); }
+  .game-prompt h3 { font-size: 18px; }
+  .game-prompt p { margin-bottom: 8px; font-size: 13px; }
+  .speech { bottom: calc(8px + env(safe-area-inset-bottom)); padding: 10px 14px; font-size: 14px; }
+  .speech .row { margin-top: 8px; }
+  .cert-wrap { width: min(560px, 100%); padding: 10px; }
+  .cert-wrap canvas { max-height: 52dvh; width: auto; max-width: 100%; margin: 0 auto; }
+  .cert-wrap .name { margin: 8px 0; }
+  .btn { padding: 10px 18px; font-size: 15px; min-height: 44px; }
+  .countdown { font-size: 110px; }
 }

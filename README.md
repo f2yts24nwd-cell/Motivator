@@ -17,6 +17,17 @@ Sales-Büro, und jedes Spiel ist ein Arcade-Automat.
 Steuerung: Maus oder Touch. Auf der Tastatur entsprechen die Ziffern 1–9 dem 3×3-Raster (Nummernblock-Layout).
 In der Spielewelt: Klick oder Tippen zum Laufen, alternativ WASD bzw. Pfeiltasten.
 
+## Auf dem iPhone spielen (z. B. iPhone 17)
+
+1. Die veröffentlichte Seite in **Safari** öffnen.
+2. Teilen-Symbol → **„Zum Home-Bildschirm“**. Die Spielewelt startet dann im Vollbild wie eine App und läuft auch offline.
+3. Hoch- und Querformat werden unterstützt. Im Hochformat wechselt das Spielbrett auf ein höheres Layout mit größeren Löchern.
+4. Ton: Er startet nach dem ersten Antippen. Ist der Stummschalter am iPhone aktiv, bleibt das Spiel stumm.
+
+Für iOS umgesetzt: Safe Areas (Dynamic Island, Home-Indikator), kein Pinch- oder Doppeltipp-Zoom und
+kein „Gummiband“-Scrollen, Audio-Freischaltung per Tipp, vorkompilierte Shader (kein Ruckeln beim ersten
+Treffer), adaptive Renderauflösung, Pause im Hintergrund. Das Zertifikat wird über das Teilen-Menü gespeichert („Bild sichern“).
+
 ## Entwicklung
 
 ```bash

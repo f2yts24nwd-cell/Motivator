@@ -13,6 +13,12 @@ const HOLE_R = 0.95;
 const DOWN_Y = -1.6;
 const UP_Y = BOARD_TOP + 0.72;
 const HAMMER_L = 2.1;
+// Landscape: wide board. Portrait (phones held upright): taller, narrower board so the
+// holes become as large as possible on screen.
+const LAYOUTS = {
+  landscape: { W: 10.2, D: 7.6, xs: [-3.2, 0, 3.2], zs: [-2.35, 0, 2.35] },
+  portrait: { W: 8.5, D: 9.9, xs: [-2.68, 0, 2.68], zs: [-3.3, 0, 3.3] }
+};
 const HIT_H = UP_Y + 0.62 + 0.42; // head centre when it lands on top of a risen target
 
 export class WhackGame {
@@ -28,6 +34,7 @@ export class WhackGame {
     this.state = 'idle';
     this.buildWorld();
     this.effects = new Effects(this.scene, BOARD_TOP);
+    this.effects.bounds = this.bounds;
     this.onPointerMove = this.onPointerMove.bind(this);
     this.onPointerDown = this.onPointerDown.bind(this);
     this.onKey = this.onKey.bind(this);
@@ -114,24 +121,8 @@ export class WhackGame {
     s.add(sign);
     this.sign = sign;
 
-    // board with 9 holes
+    // board with 9 holes; geometry is rebuilt for portrait/landscape (see applyLayout)
     this.holes = [];
-    const W = 10.2, D = 7.6, R = 0.7;
-    const shape = new THREE.Shape();
-    shape.moveTo(-W / 2 + R, -D / 2);
-    shape.lineTo(W / 2 - R, -D / 2); shape.quadraticCurveTo(W / 2, -D / 2, W / 2, -D / 2 + R);
-    shape.lineTo(W / 2, D / 2 - R); shape.quadraticCurveTo(W / 2, D / 2, W / 2 - R, D / 2);
-    shape.lineTo(-W / 2 + R, D / 2); shape.quadraticCurveTo(-W / 2, D / 2, -W / 2, D / 2 - R);
-    shape.lineTo(-W / 2, -D / 2 + R); shape.quadraticCurveTo(-W / 2, -D / 2, -W / 2 + R, -D / 2);
-    const positions = [];
-    for (const z of [-2.35, 0, 2.35]) for (const x of [-3.2, 0, 3.2]) positions.push(new THREE.Vector3(x, BOARD_TOP, z));
-    for (const p of positions) {
-      const hole = new THREE.Path();
-      hole.absarc(p.x, -p.z, HOLE_R, 0, Math.PI * 2, true);
-      shape.holes.push(hole);
-    }
-    const boardGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.5, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.08, bevelSegments: 4, curveSegments: 48 });
-    boardGeo.rotateX(-Math.PI / 2);
     const carbon = canvasTexture(256, 256, (g, w, hh) => {
       g.fillStyle = '#151b2d'; g.fillRect(0, 0, w, hh);
       for (let y = 0; y < hh; y += 16) for (let x = 0; x < w; x += 16) {
@@ -143,57 +134,92 @@ export class WhackGame {
     });
     carbon.wrapS = carbon.wrapT = THREE.RepeatWrapping;
     carbon.repeat.set(0.6, 0.6);
-    const boardMat = new THREE.MeshPhysicalMaterial({ map: carbon, roughness: 0.45, metalness: 0.3, clearcoat: 1, clearcoatRoughness: 0.08 });
-    const board = new THREE.Mesh(boardGeo, boardMat);
-    board.receiveShadow = true;
-    board.castShadow = true;
-    s.add(board);
-    this.board = board;
-
-    // cabinet skirt
-    const skirtMat = new THREE.MeshStandardMaterial({ color: 0x0b0f1c, roughness: 0.6, metalness: 0.4 });
-    const skirtF = new THREE.Mesh(new THREE.BoxGeometry(W, 2.2, 0.2), skirtMat);
-    skirtF.position.set(0, -1.1, D / 2 - 0.1);
-    const skirtB = skirtF.clone(); skirtB.position.z = -D / 2 + 0.1;
-    const skirtL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.2, D), skirtMat);
-    skirtL.position.set(-W / 2 + 0.1, -1.1, 0);
-    const skirtR = skirtL.clone(); skirtR.position.x = W / 2 - 0.1;
-    s.add(skirtF, skirtB, skirtL, skirtR);
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(W + 0.05, 0.06, 0.05), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.2, 1.6, 2.4), toneMapped: false }));
-    strip.position.set(0, -0.15, D / 2 + 0.02);
-    s.add(strip);
+    this.boardMat = new THREE.MeshPhysicalMaterial({ map: carbon, roughness: 0.45, metalness: 0.3, clearcoat: 1, clearcoatRoughness: 0.08 });
+    this.skirtMat = new THREE.MeshStandardMaterial({ color: 0x0b0f1c, roughness: 0.6, metalness: 0.4 });
+    this.stripMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.2, 1.6, 2.4), toneMapped: false });
 
     const pitMat = new THREE.MeshStandardMaterial({ color: 0x05070d, roughness: 1, side: THREE.BackSide });
+    const bottomMat = new THREE.MeshStandardMaterial({ color: 0x020306 });
     const pitGeo = new THREE.CylinderGeometry(HOLE_R, HOLE_R, 2.6, 40, 1, true);
     const pitBottom = new THREE.CircleGeometry(HOLE_R, 32);
     const rimGeo = new THREE.TorusGeometry(HOLE_R + 0.02, 0.09, 16, 64);
     const stalkGeo = new THREE.CylinderGeometry(0.3, 0.38, 2.2, 24);
     const stalkMat = new THREE.MeshStandardMaterial({ color: 0x2a3146, roughness: 0.4, metalness: 0.7 });
-    positions.forEach((p) => {
+    for (let i = 0; i < 9; i++) {
       const pit = new THREE.Mesh(pitGeo, pitMat);
-      pit.position.set(p.x, BOARD_TOP - 1.3, p.z);
-      const bottom = new THREE.Mesh(pitBottom, pitMat);
+      const bottom = new THREE.Mesh(pitBottom, bottomMat);
       bottom.rotation.x = -Math.PI / 2;
-      bottom.material = new THREE.MeshStandardMaterial({ color: 0x020306 });
-      bottom.position.set(p.x, BOARD_TOP - 2.55, p.z);
       const rimMat = new THREE.MeshPhysicalMaterial({ color: 0x7d879c, metalness: 0.9, roughness: 0.32, emissive: 0x19c3ff, emissiveIntensity: 0.0 });
       const rim = new THREE.Mesh(rimGeo, rimMat);
       rim.rotation.x = Math.PI / 2;
-      rim.position.set(p.x, BOARD_TOP + 0.08, p.z);
       rim.castShadow = true;
       s.add(pit, bottom, rim);
       const holder = new THREE.Group();
-      holder.position.set(p.x, DOWN_Y, p.z);
       const stalk = new THREE.Mesh(stalkGeo, stalkMat);
       stalk.position.y = -1.6;
       stalk.castShadow = true;
       holder.add(stalk);
       holder.visible = false;
+      holder.position.y = DOWN_Y;
       s.add(holder);
-      this.holes.push({ pos: p, rim, rimMat, holder, state: 'empty', t: 0, cache: {}, target: null, wasHit: false });
-    });
+      this.holes.push({ pos: new THREE.Vector3(), pit, bottom, rim, rimMat, holder, state: 'empty', t: 0, cache: {}, target: null, wasHit: false });
+    }
+    this.applyLayout('landscape');
 
     this.buildHammer();
+  }
+
+  applyLayout(name) {
+    if (this.layout === name) return;
+    this.layout = name;
+    const L = LAYOUTS[name];
+    const { W, D } = L;
+    this.bounds = { x: W / 2, z: D / 2 };
+    if (this.effects) this.effects.bounds = this.bounds;
+    if (this.boardGroup) {
+      this.scene.remove(this.boardGroup);
+      this.boardGroup.traverse((o) => o.geometry?.dispose());
+    }
+    const g = new THREE.Group();
+    const R = 0.7;
+    const shape = new THREE.Shape();
+    shape.moveTo(-W / 2 + R, -D / 2);
+    shape.lineTo(W / 2 - R, -D / 2); shape.quadraticCurveTo(W / 2, -D / 2, W / 2, -D / 2 + R);
+    shape.lineTo(W / 2, D / 2 - R); shape.quadraticCurveTo(W / 2, D / 2, W / 2 - R, D / 2);
+    shape.lineTo(-W / 2 + R, D / 2); shape.quadraticCurveTo(-W / 2, D / 2, -W / 2, D / 2 - R);
+    shape.lineTo(-W / 2, -D / 2 + R); shape.quadraticCurveTo(-W / 2, -D / 2, -W / 2 + R, -D / 2);
+    let i = 0;
+    for (const z of L.zs) for (const x of L.xs) {
+      const hole = new THREE.Path();
+      hole.absarc(x, -z, HOLE_R, 0, Math.PI * 2, true);
+      shape.holes.push(hole);
+      const h = this.holes[i++];
+      h.pos.set(x, BOARD_TOP, z);
+      h.pit.position.set(x, BOARD_TOP - 1.3, z);
+      h.bottom.position.set(x, BOARD_TOP - 2.55, z);
+      h.rim.position.set(x, BOARD_TOP + 0.08, z);
+      h.holder.position.x = x;
+      h.holder.position.z = z;
+    }
+    const boardGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.5, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.08, bevelSegments: 4, curveSegments: 48 });
+    boardGeo.rotateX(-Math.PI / 2);
+    const board = new THREE.Mesh(boardGeo, this.boardMat);
+    board.receiveShadow = true;
+    board.castShadow = true;
+    const skirtF = new THREE.Mesh(new THREE.BoxGeometry(W, 2.2, 0.2), this.skirtMat);
+    skirtF.position.set(0, -1.1, D / 2 - 0.1);
+    const skirtB = new THREE.Mesh(skirtF.geometry.clone(), this.skirtMat);
+    skirtB.position.set(0, -1.1, -D / 2 + 0.1);
+    const skirtL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.2, D), this.skirtMat);
+    skirtL.position.set(-W / 2 + 0.1, -1.1, 0);
+    const skirtR = new THREE.Mesh(skirtL.geometry.clone(), this.skirtMat);
+    skirtR.position.set(W / 2 - 0.1, -1.1, 0);
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(W + 0.05, 0.06, 0.05), this.stripMat);
+    strip.position.set(0, -0.15, D / 2 + 0.02);
+    g.add(board, skirtF, skirtB, skirtL, skirtR, strip);
+    this.scene.add(g);
+    this.boardGroup = g;
+    this.board = board;
   }
 
   buildHammer() {
@@ -250,6 +276,7 @@ export class WhackGame {
     c.addEventListener('pointerdown', this.onPointerDown);
     window.addEventListener('keydown', this.onKey);
     this.best = storeGet('whack-best', 0);
+    this.prewarm();
     this.showIntro();
   }
 
@@ -265,24 +292,57 @@ export class WhackGame {
 
   resize(w, h) {
     const aspect = w / h;
+    const portrait = aspect < 0.9;
+    this.applyLayout(portrait ? 'portrait' : 'landscape');
     this.camera.aspect = aspect;
-    if (aspect >= 1) {
+    const { x: hx, z: hz } = this.bounds;
+    if (!portrait) {
+      // fit board width and depth (with room for the HUD at the top)
       this.camera.fov = 40;
-      const fit = clamp(1.25 / aspect, 1, 2.1);
-      this.camBase.set(0, 10.5 * fit, 8.8 * fit);
-      this.camLook.set(0, 0, 0.4);
+      const vt = Math.tan(THREE.MathUtils.degToRad(20));
+      const dW = (hx + 0.6) / (vt * aspect);
+      const dD = (hz + 1.4) / vt * 1.05;
+      const dist = Math.max(dW, dD, 12);
+      // short landscape screens (phone held sideways): steeper view = taller holes
+      this.camBase.set(0, h < 500 ? 0.9 : 0.77, h < 500 ? 0.44 : 0.64).normalize().multiplyScalar(dist);
+      this.camLook.set(0, 0, 0.5);
     } else {
-      // portrait phones: look down more steeply and fit the board width
-      this.camera.fov = 52;
+      // phones held upright: steeper view onto the tall board, fit its width
+      this.camera.fov = 50;
       const hfov = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * aspect);
-      const dist = 5.9 / Math.tan(hfov / 2);
-      this.camBase.set(0, 0.84, 0.54).normalize().multiplyScalar(dist);
-      this.camBase.z += 1.4;
-      this.camLook.set(0, 0, 1.4);
+      const dist = (hx + 0.35) / Math.tan(hfov / 2);
+      this.camBase.set(0, 0.86, 0.5).normalize().multiplyScalar(dist);
+      this.camBase.z += 0.9;
+      this.camLook.set(0, 0, -1.6); // tilt up a little so the board sits lower, in thumb reach
     }
     this.camera.updateProjectionMatrix();
     this.camera.position.copy(this.camBase);
     this.camera.lookAt(this.camLook);
+  }
+
+  /** Builds every head type for every hole and compiles all shaders up front,
+   *  so nothing stutters the first time a head pops up or gets smashed (important on iPhone). */
+  prewarm() {
+    if (this.warmed) return;
+    this.warmed = true;
+    for (const hole of this.holes) {
+      for (const type of Object.keys(TARGET_TYPES)) {
+        if (!hole.cache[type]) {
+          const t = buildTarget(type);
+          hole.holder.add(t.group);
+          hole.cache[type] = t;
+        }
+        hole.cache[type].group.visible = true;
+      }
+      hole.holder.visible = true;
+    }
+    this.effects.warmup(Object.values(this.holes[0].cache));
+    this.app.gfx.renderer.compile(this.scene, this.camera);
+    for (const hole of this.holes) {
+      for (const t of Object.values(hole.cache)) t.group.visible = false;
+      hole.holder.visible = false;
+    }
+    this.effects.clear();
   }
 
   resetBoard() {
@@ -530,8 +590,8 @@ export class WhackGame {
     this.raycaster.setFromCamera(this.pointer, this.camera);
     const p = new THREE.Vector3();
     if (this.raycaster.ray.intersectPlane(this.plane, p)) {
-      p.x = clamp(p.x, -5, 5);
-      p.z = clamp(p.z, -3.6, 3.6);
+      p.x = clamp(p.x, -this.bounds.x + 0.2, this.bounds.x - 0.2);
+      p.z = clamp(p.z, -this.bounds.z + 0.2, this.bounds.z - 0.2);
       this.hammer.target.set(p.x, HIT_H, p.z);
     }
     return p;
@@ -572,7 +632,7 @@ export class WhackGame {
       const hole = this.holes.find((x) => x.holder === o);
       if (hole) return hole;
     }
-    let best = null, bd = 1.35;
+    let best = null, bd = 1.6;
     for (const hole of this.holes) {
       const d = Math.hypot(hole.pos.x - p.x, hole.pos.z - p.z);
       if (d < bd) { bd = d; best = hole; }

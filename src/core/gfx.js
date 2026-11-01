@@ -25,16 +25,23 @@ export function createRenderer(canvas) {
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
 
+  // Render resolution: phones like the iPhone 17 report devicePixelRatio 3; 2 looks just as
+  // sharp with bloom and costs far less. The adaptive loop in main.js may lower it further.
+  let maxRatio = Math.min(window.devicePixelRatio || 1, 2);
+  function setMaxPixelRatio(r) {
+    maxRatio = Math.max(1, Math.min(r, window.devicePixelRatio || 1, 2));
+    resize();
+  }
   function resize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setPixelRatio(maxRatio);
     renderer.setSize(w, h, false);
     composer.setPixelRatio(renderer.getPixelRatio());
     composer.setSize(w, h);
   }
 
-  return { renderer, composer, renderPass, bloom, envMap, resize };
+  return { renderer, composer, renderPass, bloom, envMap, resize, setMaxPixelRatio, get pixelRatio() { return maxRatio; } };
 }
 
 /** Creates a texture from a 2D-canvas drawing callback. */

@@ -18,7 +18,20 @@ function ac() {
   return ctx;
 }
 
-export function unlockAudio() { ac(); }
+export function unlockAudio() {
+  if (!ac()) return;
+  // iOS Safari only starts WebAudio after a sound was played inside a user gesture
+  if (!unlocked) {
+    const b = ctx.createBuffer(1, 1, 22050);
+    const s = ctx.createBufferSource();
+    s.buffer = b;
+    s.connect(ctx.destination);
+    s.start(0);
+    unlocked = true;
+  }
+}
+let unlocked = false;
+export function suspendAudio() { if (ctx && ctx.state === 'running') ctx.suspend(); }
 export function isMuted() { return muted; }
 export function setMuted(m) {
   muted = m;

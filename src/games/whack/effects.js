@@ -46,12 +46,24 @@ const sparkTex = canvasTexture(64, 64, (g, w, h) => {
   g.fillRect(0, 0, w, h);
 });
 
+// Shared materials (keyed by colour) so a hit never allocates/compiles new shaders,
+// which keeps frame times stable on phones.
+const matCache = new Map();
+function cached(key, make) {
+  if (!matCache.has(key)) matCache.set(key, make());
+  return matCache.get(key);
+}
+const shardMat = (col, metal) => cached(`s${col}${metal}`, () => new THREE.MeshPhysicalMaterial({ color: col, roughness: metal ? 0.2 : 0.35, metalness: metal ? 1 : 0, clearcoat: 0.6 }));
+const gooMat = (col) => cached(`g${col}`, () => new THREE.MeshPhysicalMaterial({ color: col, roughness: 0.05, clearcoat: 1, emissive: col, emissiveIntensity: 0.25 }));
+const sparkMat = (col) => cached(`p${col}`, () => new THREE.SpriteMaterial({ map: sparkTex, color: col, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false }));
+
 export class Effects {
   constructor(scene, boardY) {
     this.scene = scene;
     this.boardY = boardY;
     this.items = [];
     this.splats = [];
+    this.bounds = { x: 5.1, z: 3.8 };
     this.shake = 0;
     this.lights = [];
     // pool of flash lights (avoids shader recompiles from changing light counts)
@@ -77,10 +89,7 @@ export class Effects {
     const n = 46;
     for (let i = 0; i < n; i++) {
       const col = colors[i % colors.length];
-      const mat = new THREE.MeshPhysicalMaterial({
-        color: col, roughness: metal ? 0.2 : 0.35, metalness: metal ? 1 : 0, clearcoat: 0.6,
-        transparent: true, opacity: 1
-      });
+      const mat = shardMat(col, !!metal);
       const geo = cells && i % 2 === 0 ? cellGeo : shardGeos[i % shardGeos.length];
       const m = new THREE.Mesh(geo, mat);
       m.castShadow = true;
@@ -101,7 +110,7 @@ export class Effects {
   }
 
   goo(pos, color) {
-    const mat = new THREE.MeshPhysicalMaterial({ color, roughness: 0.05, clearcoat: 1, transmission: 0, emissive: color, emissiveIntensity: 0.25 });
+    const mat = gooMat(color);
     for (let i = 0; i < 34; i++) {
       const m = new THREE.Mesh(dropGeo, mat);
       m.position.copy(pos).add(new THREE.Vector3(0, 0.5, 0));
@@ -151,7 +160,7 @@ export class Effects {
   }
 
   sparks(pos, color, count = 40) {
-    const mat = new THREE.SpriteMaterial({ map: sparkTex, color, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false });
+    const mat = sparkMat(color);
     for (let i = 0; i < count; i++) {
       const s = new THREE.Sprite(mat);
       s.position.copy(pos).add(new THREE.Vector3(0, 0.6, 0));
@@ -178,7 +187,7 @@ export class Effects {
       it.life -= dt;
       const m = it.mesh;
       if (it.kind === 'shard' || it.kind === 'drop') {
-        const onBoard = Math.abs(m.position.x) < 5.1 && Math.abs(m.position.z) < 3.8;
+        const onBoard = Math.abs(m.position.x) < this.bounds.x && Math.abs(m.position.z) < this.bounds.z;
         const floor = onBoard ? this.boardY : -2.2;
         it.v.y += GRAV * dt;
         m.position.addScaledVector(it.v, dt);
@@ -195,10 +204,7 @@ export class Effects {
             it.w.multiplyScalar(0.6);
           }
         }
-        if (it.kind === 'shard' && it.life < 0.5) {
-          m.material.opacity = Math.max(0, it.life / 0.5);
-          m.scale.multiplyScalar(0.97);
-        }
+        if (it.kind === 'shard' && it.life < 0.5) m.scale.multiplyScalar(Math.max(0, 1 - dt * 6));
       } else if (it.kind === 'ring') {
         const k = 1 - it.life / it.max;
         m.scale.setScalar(1 + k * 6);
@@ -207,13 +213,11 @@ export class Effects {
         it.v.multiplyScalar(1 - 3 * dt);
         it.v.y += GRAV * 0.3 * dt;
         m.position.addScaledVector(it.v, dt);
-        m.material.opacity = 1;
-        m.scale.multiplyScalar(1 - 2.5 * dt);
+        m.scale.multiplyScalar(Math.max(0, 1 - 2.5 * dt));
       }
       if (it.life <= 0) {
         this.scene.remove(m);
-        if (it.kind === 'shard' || it.kind === 'ring') m.material.dispose();
-        if (it.kind === 'ring') m.geometry.dispose();
+        if (it.kind === 'ring') { m.material.dispose(); m.geometry.dispose(); }
         this.items.splice(i, 1);
       }
     }
@@ -232,6 +236,14 @@ export class Effects {
         this.splats.splice(i, 1);
       }
     }
+  }
+
+  /** Spawns one of every effect far out of sight so shaders compile before play starts. */
+  warmup(targets) {
+    const p = new THREE.Vector3(200, -40, 0);
+    for (const t of targets) this.shatter(t, p);
+    this.sparks(p, 0xffffff, 2);
+    this.shockwave(p, 0xffffff);
   }
 
   clear() {

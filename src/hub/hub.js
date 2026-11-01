@@ -212,8 +212,11 @@ export class Hub {
       c.textAlign = 'center'; c.textBaseline = 'middle';
       c.shadowColor = game.color; c.shadowBlur = 24;
       c.fillStyle = game.available ? '#ffffff' : '#8a90a0';
-      c.font = `900 ${game.title.length > 14 ? 78 : 92}px "Segoe UI", Arial`;
-      c.fillText(game.available ? game.title.toUpperCase() : 'COMING SOON', w / 2, hh / 2);
+      const label = game.available ? game.title.toUpperCase() : 'COMING SOON';
+      let px = game.title.length > 14 ? 78 : 92;
+      c.font = `900 ${px}px "Segoe UI", Arial`;
+      while (c.measureText(label).width > w - 40 && px > 30) c.font = `900 ${--px}px "Segoe UI", Arial`;
+      c.fillText(label, w / 2, hh / 2);
     });
     const marquee = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.5), new THREE.MeshBasicMaterial({ map: marqueeTex, color: new THREE.Color(1.6, 1.6, 1.6), toneMapped: false }));
     marquee.position.set(0, 3.45, 0.81);
@@ -306,6 +309,30 @@ export class Hub {
       c.fillStyle = Math.sin(time * 6) > 0 ? '#ffcc4d' : '#ffffff';
       c.font = '900 22px "Segoe UI", Arial';
       c.textAlign = 'center';
+      c.fillText('PRESS START', w / 2, hh - 18);
+    } else if (cab.game.id === 'feierabend') {
+      // attract mode: task cards rushing down three neon lanes, clock ticking towards 17:30
+      c.strokeStyle = 'rgba(255,61,154,0.55)'; c.lineWidth = 2;
+      for (const lx of [-1, 0, 1, 2]) { c.beginPath(); c.moveTo(w / 2 + (lx - 0.5) * 30, 40); c.lineTo(w / 2 + (lx - 0.5) * 150, hh); c.stroke(); }
+      const cols = ['#0f6cbd', '#5b5fc7', '#19c3ff', '#50af30', '#ffb000', '#ff3d9a'];
+      for (let i = 0; i < 5; i++) {
+        const k = ((time * 0.45 + i * 0.37) % 1);
+        const lane = (i * 2) % 3 - 1;
+        const sc = 0.25 + k * 0.85;
+        const x = w / 2 + lane * (30 + k * 110), y = 45 + k * (hh - 110);
+        c.fillStyle = cols[i % cols.length];
+        roundRect(c, x - 44 * sc, y - 22 * sc, 88 * sc, 44 * sc, 8 * sc); c.fill();
+        c.fillStyle = 'rgba(255,255,255,0.85)';
+        c.fillRect(x - 30 * sc, y - 6 * sc, 60 * sc, 5 * sc);
+        c.fillRect(x - 30 * sc, y + 4 * sc, 40 * sc, 5 * sc);
+      }
+      const mins = 9 * 60 + Math.floor(((time * 40) % 510));
+      c.fillStyle = '#ffffff';
+      c.font = '900 34px "Segoe UI", Arial';
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(`${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`, w / 2, 24);
+      c.fillStyle = Math.sin(time * 6) > 0 ? '#ffcc4d' : '#ffffff';
+      c.font = '900 22px "Segoe UI", Arial';
       c.fillText('PRESS START', w / 2, hh - 18);
     } else {
       // static noise + question mark

@@ -3,7 +3,7 @@
 // running through a generated concert-hall reverb, plus a lookahead music sequencer.
 
 let ctx = null;
-let master, comp, musicBus, sfxBus, reverb, reverbSend;
+let master, comp, musicBus, sfxBus, reverb, reverbSend, delaySend;
 let muted = false;
 let unlocked = false;
 try { muted = localStorage.getItem('sw-muted') === '1'; } catch { /* ignore */ }
@@ -55,6 +55,19 @@ function ac() {
     verbTone.frequency.value = 5200;
     reverbSend = ctx.createGain();
     reverbSend.connect(reverb).connect(verbTone).connect(ret).connect(master);
+    // tempo-synced feedback delay (dotted 8th at 124 BPM) for the techno plucks and leads
+    delaySend = ctx.createGain();
+    const dl = ctx.createDelay(1.5);
+    dl.delayTime.value = (60 / 124) * 0.75;
+    const fb = ctx.createGain();
+    fb.gain.value = 0.38;
+    const dTone = ctx.createBiquadFilter();
+    dTone.type = 'lowpass';
+    dTone.frequency.value = 2600;
+    const dRet = ctx.createGain();
+    dRet.gain.value = 0.5;
+    delaySend.connect(dl).connect(dTone).connect(fb).connect(dl);
+    dTone.connect(dRet).connect(master);
   }
   if (ctx.state === 'suspended' && unlocked) ctx.resume();
   return ctx;
@@ -98,7 +111,7 @@ function noise() {
 }
 
 /** Output node with optional pan + reverb send. */
-function out(bus, { pan = 0, wet = 0.25 } = {}) {
+function out(bus, { pan = 0, wet = 0.25, delay = 0 } = {}) {
   const g = ctx.createGain();
   let node = g;
   if (pan && ctx.createStereoPanner) {
@@ -112,6 +125,11 @@ function out(bus, { pan = 0, wet = 0.25 } = {}) {
     const s = ctx.createGain();
     s.gain.value = wet;
     node.connect(s).connect(reverbSend);
+  }
+  if (delay > 0) {
+    const d = ctx.createGain();
+    d.gain.value = delay;
+    node.connect(d).connect(delaySend);
   }
   return g;
 }
@@ -274,6 +292,86 @@ const inst = {
   }
 };
 
+// ------------------------------------------------------------------ techno instruments
+Object.assign(inst, {
+  /** 909-style kick: pitch-dropping sine + click */
+  kick(bus, t, vol = 1) {
+    const dest = out(bus, { wet: 0 });
+    const o = osc('sine', 160, t, t + 0.5);
+    o.frequency.exponentialRampToValueAtTime(46, t + 0.11);
+    const g = ctx.createGain();
+    adsr(g.gain, t, { a: 0.001, d: 0.38, s: 0.0001, r: 0.1, peak: 0.95 * vol, dur: 0.01 });
+    const sh = ctx.createWaveShaper();
+    const curve = new Float32Array(256);
+    for (let i = 0; i < 256; i++) { const x = i / 128 - 1; curve[i] = Math.tanh(x * 1.8); }
+    sh.curve = curve;
+    o.connect(g).connect(sh).connect(dest);
+    const n = noise();
+    const f = ctx.createBiquadFilter();
+    f.type = 'highpass'; f.frequency.value = 2500;
+    const ng = ctx.createGain();
+    adsr(ng.gain, t, { a: 0.0005, d: 0.012, s: 0.0001, r: 0.01, peak: 0.35 * vol, dur: 0.002 });
+    n.connect(f).connect(ng).connect(dest);
+    n.start(t, Math.random()); n.stop(t + 0.05);
+  },
+  hat(bus, t, vol = 0.1, open = false, pan = 0) {
+    const dest = out(bus, { pan, wet: open ? 0.2 : 0.05 });
+    const n = noise();
+    const f = ctx.createBiquadFilter();
+    f.type = 'highpass'; f.frequency.value = open ? 6500 : 8000;
+    const b = ctx.createBiquadFilter();
+    b.type = 'peaking'; b.frequency.value = 10500; b.gain.value = 6;
+    const g = ctx.createGain();
+    adsr(g.gain, t, { a: 0.001, d: open ? 0.32 : 0.045, s: 0.0001, r: open ? 0.1 : 0.02, peak: vol, dur: 0.003 });
+    n.connect(f).connect(b).connect(g).connect(dest);
+    n.start(t, Math.random()); n.stop(t + (open ? 0.6 : 0.15));
+  },
+  clap(bus, t, vol = 0.3) {
+    const dest = out(bus, { wet: 0.4, pan: 0.05 });
+    const n = noise();
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass'; f.frequency.value = 1300; f.Q.value = 1.4;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    for (const k of [0, 0.011, 0.022]) {
+      g.gain.setValueAtTime(vol, t + k);
+      g.gain.exponentialRampToValueAtTime(vol * 0.15, t + k + 0.009);
+    }
+    g.gain.setValueAtTime(vol * 0.8, t + 0.033);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+    n.connect(f).connect(g).connect(dest);
+    n.start(t, Math.random()); n.stop(t + 0.3);
+  },
+  /** rolling techno bass: saw + sub, resonant lowpass with a snappy envelope */
+  bass(bus, t, midi, dur, { vol = 0.11, cutoff = 520, q = 7 } = {}) {
+    const dest = out(bus, { wet: 0.04 });
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass'; f.Q.value = q;
+    f.frequency.setValueAtTime(cutoff * 3.2, t);
+    f.frequency.exponentialRampToValueAtTime(cutoff, t + Math.min(0.09, dur));
+    const g = ctx.createGain();
+    adsr(g.gain, t, { a: 0.003, d: 0.08, s: 0.6, r: 0.04, peak: vol, dur });
+    f.connect(g).connect(dest);
+    osc('sawtooth', mtof(midi), t, t + dur + 0.1, rnd(-4, 4)).connect(f);
+    const sub = osc('sine', mtof(midi - 12), t, t + dur + 0.1);
+    const sg = ctx.createGain(); sg.gain.value = 0.9;
+    sub.connect(sg).connect(g);
+  },
+  /** bright pluck with filter envelope, sent into the delay */
+  arp(bus, t, midi, { vol = 0.04, pan = 0, cutoff = 2600, delay = 0.45, wet = 0.35 } = {}) {
+    const dest = out(bus, { pan, wet, delay });
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass'; f.Q.value = 3;
+    f.frequency.setValueAtTime(cutoff * 2.5, t);
+    f.frequency.exponentialRampToValueAtTime(Math.max(200, cutoff * 0.35), t + 0.22);
+    const g = ctx.createGain();
+    adsr(g.gain, t, { a: 0.002, d: 0.25, s: 0.0001, r: 0.1, peak: vol, dur: 0.01 });
+    f.connect(g).connect(dest);
+    for (const det of [-7, 7]) osc('sawtooth', mtof(midi), t, t + 0.6, det).connect(f);
+    osc('square', mtof(midi + 12), t, t + 0.3).connect(f);
+  }
+});
+
 // ------------------------------------------------------------------ music themes
 // D minor heroic progression i–VI–VII–V and friends; chords as midi roots + quality.
 const CH = {
@@ -365,6 +463,77 @@ const THEMES = {
         if (acc > 64) break;
       }
     }
+  }
+};
+
+// Melodic techno for "Rettet den Feierabend!" (A minor, 124 BPM).
+// intensity: -1 breakdown (no kick), 0 groove, 1 + clap & arp, 2 + open hats & pads, 3 drop with lead
+const TECH = {
+  Am: { root: 33, tones: [57, 60, 64, 67] },
+  F: { root: 29, tones: [53, 57, 60, 64] },
+  C: { root: 36, tones: [55, 60, 64, 67] },
+  G: { root: 31, tones: [55, 59, 62, 67] },
+  Em: { root: 28, tones: [55, 59, 64, 67] }
+};
+THEMES.techno = {
+  bpm: 124,
+  prog: ['Am', 'Am', 'F', 'F', 'C', 'C', 'G', 'Em'],
+  arpPat: [0, 2, 1, 3, 2, 0, 3, 1, 0, 2, 1, 3, 2, 3, 1, 2],
+  lead: [[76, 6], [74, 2], [72, 4], [71, 4], [72, 6], [74, 2], [76, 8], [79, 6], [77, 2], [76, 4], [74, 4], [72, 8], [71, 8]],
+  step(bus, s, t, sd, bar, I) {
+    if (this.duckBus !== bus) {
+      // sidechain bus: pads, bass and arps pump with the kick
+      this.duck = ctx.createGain();
+      this.duck.connect(bus);
+      this.duckBus = bus;
+    }
+    const D = this.duck;
+    const ch = TECH[this.prog[bar % this.prog.length]];
+    const brk = I < 0;
+    if (!brk && s % 4 === 0) {
+      inst.kick(bus, t, s === 0 ? 1 : 0.92);
+      D.gain.cancelScheduledValues(t);
+      D.gain.setValueAtTime(0.28, t);
+      D.gain.linearRampToValueAtTime(1, t + sd * 3.2);
+    }
+    if (brk && s === 0) { D.gain.cancelScheduledValues(t); D.gain.setValueAtTime(1, t); }
+    // rolling bass on the off-16ths
+    if (!brk && s % 4 !== 0) {
+      const oct = s % 4 === 2 && (bar % 2 === 1) ? 12 : 0;
+      inst.bass(D, t, ch.root + 12 + oct, sd * 0.85, { vol: 0.1, cutoff: 380 + Math.max(0, I) * 160 + (s % 4 === 2 ? 120 : 0) });
+    }
+    // hats
+    if (!brk) {
+      if (s % 4 === 2) inst.hat(bus, t, I >= 2 ? 0.07 : 0.09, I >= 2, 0.15);
+      if (I >= 1 && s % 2 === 1) inst.hat(bus, t, 0.025 + (s % 4 === 3 ? 0.012 : 0), false, -0.25);
+      if (I >= 3 && s % 4 === 0) inst.hat(bus, t, 0.03, false, 0.3);
+    }
+    if (!brk && I >= 1 && (s === 4 || s === 12)) inst.clap(bus, t, 0.24);
+    // pads (every 2 bars)
+    if (s === 0 && bar % 2 === 0 && (I >= 2 || brk)) {
+      for (const m of ch.tones) inst.ens(D, t, m - 12, sd * 31, { vol: brk ? 0.02 : 0.014, cutoff: brk ? 900 : 1600, a: 0.9, r: 1.5, voices: 2, spread: 12, wet: 0.7 });
+    }
+    // arpeggio
+    if (I >= 1 || brk) {
+      const every = I >= 2 || brk ? 1 : 2;
+      if (s % every === 0) {
+        const n = ch.tones[this.arpPat[s]] + (s >= 8 && I >= 2 ? 12 : 0);
+        const open = 0.5 + 0.5 * Math.sin((bar * 16 + s) / 32 * Math.PI);
+        inst.arp(D, t, n, { vol: brk ? 0.03 : 0.028, pan: (s % 4 - 1.5) * 0.25, cutoff: brk ? 900 : 1200 + open * 2600 });
+      }
+    }
+    // lead melody on the drop
+    if (I >= 3) {
+      const pos = (bar % 4) * 16 + s;
+      let acc = 0;
+      for (const [m, len] of this.lead) {
+        if (acc === pos) inst.ens(D, t, m, sd * len * 0.92, { vol: 0.03, cutoff: 3000, a: 0.01, r: 0.25, voices: 3, spread: 14, filterEnv: 1.8, wet: 0.35 });
+        acc += len;
+        if (acc > 64) break;
+      }
+    }
+    if (!brk && s === 0 && bar % 8 === 0 && I >= 2) inst.crash(bus, t, 0.07);
+    if (!brk && bar % 8 === 7 && s === 0 && I >= 1) inst.swell(bus, t, sd * 16, 0.04 + I * 0.012, 600, 8000);
   }
 };
 
@@ -584,5 +753,67 @@ export const sfx = {
   whoosh() {
     if (!ready()) return;
     inst.swell(sfxBus, T0(), 0.35, 0.2, 300, 2500);
+  },
+  /** tool bolt launched */
+  zap(pan = 0) {
+    if (!ready()) return;
+    const t = T0();
+    const dest = out(sfxBus, { pan, wet: 0.2, delay: 0.15 });
+    const o = osc('sawtooth', 260, t, t + 0.18);
+    o.frequency.exponentialRampToValueAtTime(2200, t + 0.12);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass'; f.Q.value = 3;
+    f.frequency.setValueAtTime(600, t);
+    f.frequency.exponentialRampToValueAtTime(5000, t + 0.12);
+    const g = ctx.createGain();
+    adsr(g.gain, t, { a: 0.003, d: 0.12, s: 0.0001, r: 0.04, peak: 0.16, dur: 0.01 });
+    o.connect(f).connect(g).connect(dest);
+  },
+  /** low hanging fruit picked */
+  fruit() {
+    if (!ready()) return;
+    const t = T0();
+    [69, 73, 76, 81, 85].forEach((m, i) => inst.arp(sfxBus, t + i * 0.045, m + 12, { vol: 0.07, cutoff: 3500, delay: 0.3, pan: (i - 2) * 0.3 }));
+    inst.taiko(sfxBus, t, 0.4, 0, 2);
+  },
+  /** paper lands on the stack */
+  rustle(vol = 1) {
+    if (!ready()) return;
+    const t = T0();
+    for (let i = 0; i < 4; i++) {
+      const n = noise();
+      const f = ctx.createBiquadFilter();
+      f.type = 'bandpass'; f.frequency.value = rnd(2200, 4200); f.Q.value = 1.2;
+      const g = ctx.createGain();
+      adsr(g.gain, t + i * 0.035, { a: 0.004, d: 0.05, s: 0.0001, r: 0.03, peak: 0.35 * vol, dur: 0.01 });
+      n.connect(f).connect(g).connect(out(sfxBus, { wet: 0.2, pan: rnd(-0.4, 0.4) }));
+      n.start(t + i * 0.035, Math.random()); n.stop(t + i * 0.035 + 0.15);
+    }
+    inst.taiko(sfxBus, t, 0.35 * vol, 0.3, 1.8);
+  },
+  /** "Richtig gelassen" chime */
+  chime() {
+    if (!ready()) return;
+    const t = T0();
+    inst.arp(sfxBus, t, 79, { vol: 0.07, cutoff: 3000, delay: 0.35 });
+    inst.arp(sfxBus, t + 0.12, 84, { vol: 0.07, cutoff: 3000, delay: 0.35 });
+  },
+  /** the Extra Meile drop */
+  drop() {
+    if (!ready()) return;
+    const t = T0();
+    inst.braam(sfxBus, t, [33, 40, 45], 1.8, 0.11);
+    inst.crash(sfxBus, t, 0.16);
+    inst.kick(sfxBus, t, 1.2);
+  },
+  riser(dur = 1.6) {
+    if (!ready()) return;
+    inst.swell(sfxBus, T0(), dur, 0.18, 400, 9000);
+  },
+  avalanche() {
+    if (!ready()) return;
+    const t = T0();
+    inst.braam(sfxBus, t, [28, 29, 35], 2.2, 0.14);
+    for (let i = 0; i < 10; i++) setTimeout(() => sfx.rustle(0.8), i * 70);
   }
 };

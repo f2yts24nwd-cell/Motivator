@@ -3,7 +3,8 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // Relative base so the build works on GitHub Pages (/<repo>/) and any other host.
 export default defineConfig({
-  base: './',
+  // GitHub Pages build sets BASE_PATH=/<repo>/ (absolute paths survive URLs without trailing slash)
+  base: process.env.BASE_PATH || './',
   build: { chunkSizeWarningLimit: 1500 },
   plugins: [
     VitePWA({

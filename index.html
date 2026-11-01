@@ -9,14 +9,41 @@
   <meta name="apple-mobile-web-app-title" content="Spielewelt" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="description" content="itmX Spielewelt – Action-Minispiele für Sales-Helden." />
-  <link rel="icon" href="icons/icon-192.png" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <link rel="icon" href="%BASE_URL%icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="%BASE_URL%icons/apple-touch-icon.png" />
   <title>itmX Spielewelt</title>
 </head>
 <body>
   <canvas id="gl"></canvas>
   <div id="ui"></div>
-  <div id="loader"><div class="spinner"></div><p>Spielewelt wird geladen …</p></div>
+  <div id="loader" style="position:fixed;inset:0;display:grid;place-content:center;justify-items:center;gap:16px;background:#0b0f1a;color:#eef3ff;font:16px system-ui,-apple-system,sans-serif;text-align:center;padding:24px"><div class="spinner"></div><p id="loader-msg">Spielewelt wird geladen …</p></div>
+  <script>
+    // Shows load problems on screen (no dev tools on an iPhone) and offers a clean reload.
+    (function () {
+      function show(msg) {
+        var el = document.getElementById('loader-msg');
+        if (!el || window.__app) return;
+        el.innerHTML = 'Laden fehlgeschlagen:<br><small style="opacity:.7">' + String(msg).replace(/</g, '&lt;') + '</small><br><br>' +
+          '<button onclick="window.__hardReload()" style="font:inherit;padding:12px 22px;border:0;border-radius:999px;background:#19c3ff;color:#04121f;font-weight:700">Neu laden</button>';
+      }
+      window.__hardReload = function () {
+        var done = function () { location.replace(location.pathname.replace(/\/?$/, '/') + '?r=' + Date.now()); };
+        try {
+          Promise.all([
+            navigator.serviceWorker ? navigator.serviceWorker.getRegistrations().then(function (r) { return Promise.all(r.map(function (x) { return x.unregister(); })); }) : 0,
+            window.caches ? caches.keys().then(function (k) { return Promise.all(k.map(function (x) { return caches.delete(x); })); }) : 0
+          ]).then(done, done);
+        } catch (e) { done(); }
+      };
+      window.addEventListener('error', function (e) {
+        var t = e.target;
+        if (t && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) show('Datei nicht gefunden: ' + (t.src || t.href));
+        else show(e.message || e);
+      }, true);
+      window.addEventListener('unhandledrejection', function (e) { show(e.reason && e.reason.message || e.reason); });
+      setTimeout(function () { show('Zeitüberschreitung (15 s). Bitte neu laden.'); }, 15000);
+    })();
+  </script>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

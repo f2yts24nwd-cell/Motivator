@@ -4,12 +4,11 @@ import { canvasTexture, roundRect, rand, clamp, lerp, easeOutBack } from '../../
 import { sfx, music, unlockAudio, isMuted, setMuted } from '../../core/audio.js';
 import { h, mount, clearUI, storeGet, storeSet } from '../../core/ui.js';
 import { buildTarget } from '../whack/targets.js';
+import { FeierabendFinale } from './finale.js';
 import { Effects } from '../whack/effects.js';
-import { buildSchwetz } from '../../cert/schwetz.js';
-import { RANKS } from '../whack/ranks.js';
 import {
-  TOOLS, TOOL, TASKS, LASSEN, LEGACY, QUOTE_SCHWETZ, TIM, SCHWETZ_LINES,
-  RANKS_FB, rankForFb, SCHWETZ_RANK, iconSVG, loadIcon
+  TOOLS, TOOL, TASKS, LASSEN, LEGACY, QUOTE_LASSEN, TIM, BRIEFING_LINES,
+  rankForFb, iconSVG, loadIcon
 } from './content.js';
 
 // "Rettet den Feierabend!" – tasks rush down a neon data highway towards Tim X.'s deadline.
@@ -19,7 +18,7 @@ export const DAY_TIME = 90; // seconds for 09:00 → 17:30
 const DAY_START = 9 * 60, DAY_END = 17 * 60 + 30;
 const Z_SPAWN = -34, Z_DEAD = 2.6;
 const MAX_STACK = 5;
-const SCHWETZ_AT = 24; // seconds into the day
+const BRIEFING_AT = 24; // seconds into the day (about 11:00)
 const EXTRA_TIME = 10;
 const CARD_W = 2.5, CARD_H = 1.4;
 const BASE = import.meta.env.BASE_URL;
@@ -58,7 +57,7 @@ export class FeierabendGame {
     this.onPointerDown = this.onPointerDown.bind(this);
     this.onKey = this.onKey.bind(this);
     this.iconsReady = Promise.all(TOOLS.map(async (t) => { this.icons[t.id] = await loadIcon(t.id, '#ffffff'); }));
-    loadIcon('mug', '#ffcc4d').then((img) => { this.mugImg = img; });
+    loadIcon('hourglass', '#ffcc4d').then((img) => { this.lassenImg = img; });
   }
 
   // ================================================================== world
@@ -290,12 +289,6 @@ export class FeierabendGame {
     });
     this.fruitLabelMat = new THREE.SpriteMaterial({ map: fl, transparent: true, depthWrite: false, toneMapped: false });
 
-    // ---- Dumêz G. Schwetz (walks in once per day)
-    this.schwetz = buildSchwetz();
-    this.schwetz.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-    this.schwetz.root.visible = false;
-    s.add(this.schwetz.root);
-
     this.applyLayout('landscape');
   }
 
@@ -344,7 +337,7 @@ export class FeierabendGame {
     clearUI();
     clearTimeout(this.timTimer);
     clearInterval(this.typer);
-    document.body.classList.remove('fb-schwetz', 'fb-extra');
+    document.body.classList.remove('fb-briefing', 'fb-extra');
   }
 
   resize(w, hgt) {
@@ -380,9 +373,7 @@ export class FeierabendGame {
     }
     this.effects.warmup(LEGACY.map((type) => this.legacyPool[type][0]));
     this.effects.shatter({ colors: [0xffffff, 0x19c3ff], goo: 0x19c3ff, cells: true }, far);
-    this.schwetz.root.visible = true;
     this.app.gfx.renderer.compile(this.scene, this.camera);
-    this.schwetz.root.visible = false;
     for (const type of LEGACY) for (const t of this.legacyPool[type]) { t.group.visible = false; t.busy = false; }
     this.effects.clear();
   }
@@ -411,7 +402,6 @@ export class FeierabendGame {
     this.flying.length = 0;
     this.clearPile();
     this.effects?.clear();
-    this.schwetz.root.visible = false;
     this.dangerLight.intensity = 0;
     this.extra = 0;
     this.applyExtraLook(false);
@@ -443,7 +433,7 @@ export class FeierabendGame {
       h('div.legend.fb-legend', {}, [
         h('div', {}, [h('b', {}, '🍏 Low Hanging Fruits'), 'Goldene Früchte direkt antippen: schnelle Bonus-Minuten.']),
         h('div', {}, [h('b', {}, '🏁 Die Extra Meile'), 'Lange Combo = Extra Meile: doppelte Minuten und volle Beats.']),
-        h('div', {}, [h('b', {}, '☕ Schwetz-Aufträge'), `„${QUOTE_SCHWETZ}“ Was das heißt, erklärt dir der Chef persönlich.`])
+        h('div', {}, [h('b', {}, '⏳ Zeitfresser'), `„${QUOTE_LASSEN}“ Was das heißt, erklärt dir Tim X. um 11:00.`])
       ]),
       this.best ? h('p', {}, `Dein Rekord: ${this.best} Minuten gespart`) : null,
       h('div.row', {}, [h('button.btn', { onclick: () => { unlockAudio(); sfx.click(); this.startCountdown(); } }, '▶ Arbeitstag starten')])
@@ -524,7 +514,7 @@ export class FeierabendGame {
     this.score = 0; this.combo = 0; this.bestCombo = 0; this.solved = 0; this.missed = 0;
     this.stackCount = 0; this.elapsed = 0; this.spawnTimer = 1.2; this.fruitTimer = rand(7, 10);
     this.extra = 0; this.extraCount = 0; this.nextExtraAt = 6; this.fruitsPicked = 0;
-    this.lassenOk = 0; this.lassenBad = 0; this.legacyKilled = 0; this.schwetzDone = false;
+    this.lassenOk = 0; this.lassenBad = 0; this.legacyKilled = 0; this.briefed = false;
     this.used = {};
     this.selected = null;
     this.resetWorld();
@@ -564,7 +554,7 @@ export class FeierabendGame {
       life: lerp(9.5, 5.0, p),
       maxActive: 2 + Math.floor(p * 2.6),
       legacy: 0.15 + p * 0.08,
-      lassen: this.schwetzDone ? 0.15 : 0
+      lassen: this.briefed ? 0.15 : 0
     };
   }
 
@@ -623,8 +613,8 @@ export class FeierabendGame {
       g.fillText(fmtClock(minute), w - 36, 56);
       g.textAlign = 'left';
       if (lassen) {
-        // little coffee mug as Schwetz's signature
-        const img = this.mugImg;
+        // hourglass marks the Zeitfresser
+        const img = this.lassenImg;
         if (img) g.drawImage(img, w - 118, hh - 112, 80, 80);
       }
       // body text (wrapped, auto-sized)
@@ -847,13 +837,13 @@ export class FeierabendGame {
         this.popup(pos.clone().setY(pos.y + 2.1), `COMBO x${this.multiplier()}!`, 'combo');
       }
     } else if (it.kind === 'lassen') {
-      // the Schwetz rule: some things you just leave alone
+      // the Zeitfresser rule: some things you just leave alone
       this.combo = 0;
       this.lassenBad++;
       this.score = Math.max(0, this.score - 5);
       this.smash(it, pos, 0xffcc4d, true);
       this.popup(pos.clone().setY(pos.y + 1.2), '−5 Min', 'bad');
-      this.banner(QUOTE_SCHWETZ, 'Schwetz-Aufträge einfach durchrauschen lassen!', '.gold');
+      this.banner(QUOTE_LASSEN, 'Zeitfresser einfach durchrauschen lassen!', '.gold');
       this.tim(TIM.lassenBad);
       sfx.error();
     } else {
@@ -905,36 +895,33 @@ export class FeierabendGame {
     document.body.classList.toggle('fb-extra', on);
   }
 
-  startSchwetz() {
-    this.state = 'schwetz';
-    this.schwetzDone = true;
-    document.body.classList.add('fb-schwetz');
+  /** Mid-morning: Tim X. explains the Zeitfresser rule (music breaks down, the quote drops). */
+  startBriefing() {
+    this.state = 'briefing';
+    this.briefed = true;
     this.selected = null;
+    document.body.classList.add('fb-briefing');
     music.setIntensity(-1);
-    const z = this.schwetz;
-    z.root.visible = true;
-    const portrait = this.layoutName === 'portrait';
-    this.sz = { t: 0, from: new THREE.Vector3(this.halfW + 7, 0, Z_DEAD - 3.5), to: new THREE.Vector3(portrait ? this.halfW - 1.4 : this.halfW - 1.6, 0, Z_DEAD - (portrait ? 3.6 : 2.6)), leaving: false };
-    z.root.position.copy(this.sz.from);
-    z.root.rotation.y = -Math.PI / 2;
-    z.root.scale.setScalar(portrait ? 1.25 : 1.35);
-    // speech bubble with typewriter; tap to continue
     let i = -1;
     const text = h('span');
     const btn = h('button.btn.secondary', {}, 'Weiter …');
-    const bubble = mount(h('div.speech.panel.fb-speech', {}, [h('b', {}, 'Dumêz G. Schwetz'), text, h('div.row', {}, btn)]));
+    const bubble = mount(h('div.speech.panel.fb-speech', {}, [
+      h('div.fb-speaker', {}, [h('img', { src: `${BASE}game2/tim-x.png`, alt: '' }), h('b', {}, 'Tim X.')]),
+      text,
+      h('div.row', {}, btn)
+    ]));
     const next = () => {
       i++;
-      if (i >= SCHWETZ_LINES.length) {
+      if (i >= BRIEFING_LINES.length) {
         bubble.remove();
-        this.endSchwetz();
+        this.endBriefing();
         return;
       }
-      const full = SCHWETZ_LINES[i];
-      const isQuote = full === QUOTE_SCHWETZ;
+      const full = BRIEFING_LINES[i];
+      const isQuote = full === QUOTE_LASSEN;
       bubble.classList.toggle('quote', isQuote);
-      if (isQuote) { this.banner(`„${QUOTE_SCHWETZ}“`, '– Dumêz G. Schwetz', '.gold.quote'); sfx.drop(); }
-      btn.textContent = i === SCHWETZ_LINES.length - 1 ? 'Alles klar, weiter!' : 'Weiter …';
+      if (isQuote) { this.banner(`„${QUOTE_LASSEN}“`, 'Die goldene Regel für Zeitfresser', '.gold.quote'); sfx.drop(); }
+      btn.textContent = i === BRIEFING_LINES.length - 1 ? 'Alles klar, weiter!' : 'Weiter …';
       let n = 0;
       clearInterval(this.typer);
       this.typer = setInterval(() => {
@@ -945,17 +932,15 @@ export class FeierabendGame {
       }, 24);
     };
     btn.addEventListener('click', () => { sfx.click(); next(); });
-    setTimeout(next, 700);
+    setTimeout(next, 500);
     sfx.whoosh();
   }
 
-  endSchwetz() {
-    this.sz.leaving = true;
-    this.sz.t = 0;
+  endBriefing() {
     sfx.riser(1.3);
     setTimeout(() => {
-      document.body.classList.remove('fb-schwetz');
-      if (this.state !== 'schwetz') return;
+      document.body.classList.remove('fb-briefing');
+      if (this.state !== 'briefing') return;
       this.state = 'play';
       sfx.drop();
       this.effects.shake = 0.8;
@@ -1041,23 +1026,14 @@ export class FeierabendGame {
     }
     // remaining items fade out
     for (const it of [...this.items]) { this.items.splice(this.items.indexOf(it), 1); this.disposeItem(it); }
-    const R = RANKS.find((r) => r.id === rank.id);
-    const stats = {
-      game: 'feierabend',
-      score: this.score, hits: this.solved, bestCombo: this.bestCombo, rank: rank.id,
-      subtitle: '— itmX Spielewelt · Rettet den Feierabend —',
-      body: [
-        `${this.solved} Aufgaben mit itmX customer realtimeXperience erledigt,`,
-        `${this.score} Minuten gespart und ${this.extraCount}× die Extra Meile gegangen ist.`,
-        `Stufe ${R.name}: ${rank.title}. ${rank.line}`
-      ],
-      speech: SCHWETZ_RANK[rank.id],
-      shareText: `${this.score} Minuten gespart bei „Rettet den Feierabend!“ in der itmX Spielewelt.`
-    };
-    setTimeout(() => this.showResults(reason, rank, R, stats), reason === 'stack' ? 1800 : 1500);
+    setTimeout(() => this.showResults(reason, rank), reason === 'stack' ? 1800 : 1500);
   }
 
-  showResults(reason, rank, R, stats) {
+  showResults(reason, rank) {
+    const stats = {
+      score: this.score, solved: this.solved, extraCount: this.extraCount, fruits: this.fruitsPicked,
+      rank: rank.id, rankName: rank.name, title: rank.title, line: rank.line
+    };
     if (this.state !== 'over') return;
     music.play('techno');
     music.setIntensity(-1);
@@ -1076,7 +1052,8 @@ export class FeierabendGame {
     mount(h('div.overlay', {}, h('div.card.panel.fb-result', {}, [
       h('div.kicker', {}, kicker),
       h('h1', {}, `${this.score} Minuten gespart`),
-      h('div', {}, h(`span.rank.${rank.id}`, {}, `${R.name}: ${rank.title}`)),
+      h('div', {}, h(`span.rank.${rank.id}`, {}, `${rank.name}: ${rank.title}`)),
+      h('p', {}, rank.line),
       h('p', {}, `${this.solved} Aufgaben erledigt · ${this.missed} auf Papier · beste Combo ${this.bestCombo} · Rekord ${this.best} Min.`),
       h('div.fb-buzz', {}, [
         h('div', {}, [h('b', {}, String(this.fruitsPicked)), 'Low Hanging Fruits']),
@@ -1087,7 +1064,7 @@ export class FeierabendGame {
       h('div.kicker', {}, 'Das hast du heute gelernt'),
       h('div.fb-learns', {}, cards),
       h('div.row', {}, [
-        h('button.btn.gold', { onclick: () => { sfx.click(); this.app.showCertificate(stats); } }, '🏆 Zertifikat abholen'),
+        h('button.btn.gold', { onclick: () => { sfx.click(); this.app.showScene('feierabend-finale', (a) => new FeierabendFinale(a), stats); } }, '🏆 Urkunde von Tina X. abholen'),
         h('button.btn.secondary', { onclick: () => { sfx.click(); this.startCountdown(); } }, '↻ Neuer Arbeitstag')
       ])
     ])));
@@ -1106,7 +1083,7 @@ export class FeierabendGame {
     if (playing) {
       this.elapsed += wdt;
       const p = this.elapsed / DAY_TIME;
-      if (!this.schwetzDone && this.elapsed >= SCHWETZ_AT) this.startSchwetz();
+      if (!this.briefed && this.elapsed >= BRIEFING_AT) this.startBriefing();
       this.spawnTimer -= wdt;
       const d = this.difficulty();
       if (this.spawnTimer <= 0 && this.state === 'play') {
@@ -1123,7 +1100,7 @@ export class FeierabendGame {
       if (p > 0.82 && !this.lateSaid) { this.lateSaid = true; this.tim(TIM.late); }
       if (p < 0.82) this.lateSaid = false;
       // soundtrack follows the day
-      music.setIntensity(this.extra > 0 || p > 0.85 ? 3 : this.schwetzDone ? 2 : p > 0.1 ? 1 : 0);
+      music.setIntensity(this.extra > 0 || p > 0.85 ? 3 : this.briefed ? 2 : p > 0.1 ? 1 : 0);
       if (this.elapsed >= DAY_TIME) { this.elapsed = DAY_TIME; this.endGame('time'); }
       if (Math.floor((this.elapsed - wdt) * 4) !== Math.floor(this.elapsed * 4)) this.updateHUD();
     }
@@ -1149,7 +1126,7 @@ export class FeierabendGame {
         }
         if (moving && it.k >= 1) {
           if (it.kind === 'lassen') {
-            // left alone: exactly what Schwetz wanted
+            // left alone: exactly right
             it.state = 'gone';
             this.items.splice(this.items.indexOf(it), 1);
             const pos = it.obj.position.clone();
@@ -1237,34 +1214,6 @@ export class FeierabendGame {
       p.mesh.rotation.x += p.w.x * dt; p.mesh.rotation.y += p.w.y * dt; p.mesh.rotation.z += p.w.z * dt;
       if (p.mesh.position.y < 0.02) { p.mesh.position.y = 0.02; p.v.set(0, 0, 0); p.w.multiplyScalar(0.8); }
       if (p.life <= 0) { this.scene.remove(p.mesh); this.flying.splice(i, 1); }
-    }
-
-    // ---- Schwetz walk-in
-    if (this.schwetz.root.visible && this.sz) {
-      const z = this.schwetz;
-      this.sz.t += dt;
-      if (!this.sz.leaving) {
-        const k = clamp(this.sz.t / 1.1, 0, 1);
-        z.root.position.lerpVectors(this.sz.from, this.sz.to, 1 - Math.pow(1 - k, 3));
-        z.root.rotation.y = lerp(-Math.PI / 2, -0.35, clamp((k - 0.6) / 0.4, 0, 1));
-        z.root.position.y = k < 1 ? Math.abs(Math.sin(this.sz.t * 9)) * 0.08 : 0;
-        z.armR.shoulder.rotation.x = k < 1 ? Math.sin(this.sz.t * 9) * 0.4 : -1.2 + Math.sin(time * 3) * 0.15;
-        z.armR.shoulder.rotation.z = k < 1 ? 0 : 0.3;
-      } else {
-        const k = clamp(this.sz.t / 1.0, 0, 1);
-        z.root.rotation.y = -Math.PI / 2 + Math.PI;
-        z.root.position.lerpVectors(this.sz.to, this.sz.from, k * k);
-        z.armR.shoulder.rotation.x = Math.sin(this.sz.t * 9) * 0.4;
-        if (k >= 1) z.root.visible = false;
-      }
-      z.hairPivot.rotation.z = Math.sin(time * 1.7) * 0.04;
-      z.head.rotation.z = Math.sin(time * 1.3) * 0.06;
-      for (const f of z.flies) {
-        const a = time * f.s + f.o;
-        f.f.position.set(Math.cos(a) * f.r + Math.sin(a * 2.3) * 0.1, f.y + Math.sin(a * 3.1) * 0.15, Math.sin(a) * f.r * 0.7);
-        f.f.children[1].rotation.y = Math.sin(time * 90) * 0.8;
-        f.f.children[2].rotation.y = -Math.sin(time * 90) * 0.8;
-      }
     }
 
     // ---- world animation: speed, arches, clock, sky, danger

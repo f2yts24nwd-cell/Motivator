@@ -26,8 +26,8 @@ Ein Arbeitstag im Leben von Tim X. (nach „A Day in the Life of a Salesman“ a
 - Was die Deadline erreicht, fliegt auf den Papierstapel. Bei 5 Stapeln kommt die Papierlawine und der Tag ist vorbei.
 - **Low Hanging Fruits:** Goldene Früchte hängen tief über der Strecke. Direkt antippen gibt Bonus-Minuten.
 - **Die Extra Meile:** Eine lange Combo startet die Extra Meile mit doppelten Minuten, goldener Strecke und dem Drop im Soundtrack.
-- **„Das eine nicht tun, dafür das andere lassen!“** Um 11:00 kommt Dumêz G. Schwetz vorbei. Danach mischen sich seine Aufträge darunter (Meetings über Meetings, Reports, die keiner liest). Richtig ist: lassen.
-- Am Ende gibt es Lernkarten zu jeder Funktion mit Link zum passenden itmX-Video und das Schwetz-Zertifikat.
+- **„Das eine nicht tun, dafür das andere lassen!“** Um 11:00 hält Tim X. kurz inne und erklärt die Regel. Danach mischen sich Zeitfresser unter die Aufgaben (Meetings über Meetings, Reports, die keiner liest). Richtig ist: lassen.
+- Am Ende gibt es Lernkarten zu jeder Funktion mit Link zum passenden itmX-Video. Danach überreicht **Tina X.**, Top-Verkäuferin, auf der Dachterrasse die **Feierabend-Urkunde** (mit Namen, als PNG speicher- und teilbar).
 - Soundtrack: Melodic Techno mit 124 BPM, ebenfalls komplett per WebAudio erzeugt (Kick, rollender Bass mit Sidechain, Hi-Hats, Arpeggio mit Delay, Pads, Supersaw-Lead). Die Intensität folgt dem Tag.
 
 Steuerung: Werkzeuge antippen oder Tasten 1–9. Eine Karte antippen wählt sie gezielt aus, sonst trifft das Werkzeug die dringendste Aufgabe.

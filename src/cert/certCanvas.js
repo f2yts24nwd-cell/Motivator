@@ -9,7 +9,7 @@ const SEAL = {
 };
 
 // Renders the "Schwetz-Zertifikat" onto a canvas (used for the 3D prop and the PNG download).
-export function drawCertificate(canvas, { name = '', score = 0, hits = 0, bestCombo = 0, rank = 'gold', date = new Date(), subtitle = null, body = null } = {}) {
+export function drawCertificate(canvas, { name = '', score = 0, hits = 0, bestCombo = 0, rank = 'gold', date = new Date() } = {}) {
   const R = RANKS.find((r) => r.id === rank) || RANKS[0];
   const [s0, s1, s2, s3] = SEAL[R.id];
   const W = 1600, H = 1131;
@@ -59,7 +59,7 @@ export function drawCertificate(canvas, { name = '', score = 0, hits = 0, bestCo
   g.textAlign = 'center';
   g.fillStyle = '#3b2a0c';
   g.font = '700 34px Georgia, "Times New Roman", serif';
-  g.fillText(subtitle || '— itmX Spielewelt · Legacy Smash —', W / 2, 160);
+  g.fillText('— itmX Spielewelt · Legacy Smash —', W / 2, 160);
   g.font = '900 104px Georgia, "Times New Roman", serif';
   g.fillStyle = '#6b4a10';
   g.fillText('Schwetz-Zertifikat', W / 2, 285);
@@ -78,8 +78,7 @@ export function drawCertificate(canvas, { name = '', score = 0, hits = 0, bestCo
 
   g.fillStyle = '#3b2a0c';
   g.font = '32px Georgia, serif';
-  // games can bring their own wording; the default is "Hau den Legacy!"
-  const lines = body || [
+  const lines = [
     `${hits} Legacy-Systeme mit dem CRM-Hammer zerlegt und dabei`,
     `${score.toLocaleString('de-DE')} Punkte erzielt hat (beste Combo: ${bestCombo}).`,
     `Stufe ${R.name}: ${R.title}. ${R.line}`

@@ -374,7 +374,7 @@ export class WhackGame {
       h('p', {}, `Hau alles weg, was deinen Vertrieb ausbremst. ${GAME_TIME} Sekunden, Ziel: ${GOAL.toLocaleString('de-DE')} Punkte.`),
       h('div.legend', {}, [
         h('div.bad', {}, [h('b', {}, '✔ Draufhauen'), enemies]),
-        h('div.good', {}, [h('b', {}, '✖ Verschonen: itmX'), `Wer itmX trifft, kassiert ${TARGET_TYPES.itmx.points} Punkte und einen Fehler. Nach ${MAX_ERRORS} Fehlern ist Schluss.`]),
+        h('div.good', {}, [h('b', {}, ['✖ Verschonen: ', h('img.brand', { src: `${import.meta.env.BASE_URL}brand/itmx-logo.png`, alt: '' }), ' itmX']), `Wer itmX trifft, kassiert ${TARGET_TYPES.itmx.points} Punkte und einen Fehler. Nach ${MAX_ERRORS} Fehlern ist Schluss.`]),
         h('div', {}, [h('b', {}, '🔥 Combo'), 'Alle 5 Treffer am Stück steigt der Multiplikator (bis x5).']),
         h('div', {}, [h('b', {}, '🏆 Belohnung'), 'Wer das Ziel schafft, bekommt das Schwetz-Zertifikat für CRM-Expertise.'])
       ]),
@@ -524,7 +524,7 @@ export class WhackGame {
     hole.upDur = d.up * rand(0.85, 1.2);
     hole.wasHit = false;
     hole.holder.visible = true;
-    hole.rimMat.emissive.set(t.friendly ? 0x19c3ff : 0xff3b5c);
+    hole.rimMat.emissive.set(t.friendly ? 0x50af30 : 0xff3b5c);
     sfx.pop();
   }
 

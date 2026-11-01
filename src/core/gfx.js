@@ -77,25 +77,42 @@ export function loadBrandLogo() {
     const img = new Image();
     img.onload = () => { brandImg = img; resolve(img); };
     img.onerror = () => resolve(null);
-    img.src = new URL(`${import.meta.env.BASE_URL}brand/itmx-logo.svg`, document.baseURI).href;
+    img.src = new URL(`${import.meta.env.BASE_URL}brand/itmx-logo.png`, document.baseURI).href;
   });
 }
 export function getBrandImage() { return brandImg; }
 
-/** Draws the itmX logo into a rectangle (falls back to a wordmark). */
-export function drawBrand(g, x, y, w, h) {
-  if (brandImg) {
-    const s = Math.min(w / brandImg.width, h / brandImg.height);
-    const bw = brandImg.width * s;
-    const bh = brandImg.height * s;
-    g.drawImage(brandImg, x + (w - bw) / 2, y + (h - bh) / 2, bw, bh);
-  } else {
-    g.fillStyle = '#ffffff';
-    g.font = `900 ${h * 0.6}px Segoe UI, Arial, sans-serif`;
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText('itmX', x + w / 2, y + h / 2);
+export const BRAND_GREEN = '#50af30';
+
+/**
+ * Draws the itmX logo into a rectangle (centered, aspect preserved).
+ * wordmark: symbol + "itmX" lettering (for signs/badges), otherwise the symbol only.
+ */
+export function drawBrand(g, x, y, w, h, { wordmark = false, color = '#ffffff' } = {}) {
+  const img = brandImg;
+  const ar = img ? img.width / img.height : 0.925;
+  if (!wordmark) {
+    const s = Math.min(w / ar, h);
+    const bw = s * ar, bh = s;
+    if (img) g.drawImage(img, x + (w - bw) / 2, y + (h - bh) / 2, bw, bh);
+    return;
   }
+  // symbol + wordmark: symbol height = h, text to the right
+  g.save();
+  g.font = `800 ${h * 0.78}px "Segoe UI", Arial, Helvetica, sans-serif`;
+  g.textBaseline = 'middle';
+  g.textAlign = 'left';
+  const gap = h * 0.22;
+  const tw = g.measureText('itmX').width;
+  const total = h * ar + gap + tw;
+  const k = Math.min(1, w / total);
+  const sh = h * k;
+  g.font = `800 ${h * 0.78 * k}px "Segoe UI", Arial, Helvetica, sans-serif`;
+  const sx = x + (w - total * k) / 2;
+  if (img) g.drawImage(img, sx, y + (h - sh) / 2, sh * ar, sh);
+  g.fillStyle = color;
+  g.fillText('itmX', sx + sh * ar + gap * k, y + h / 2 + sh * 0.04);
+  g.restore();
 }
 
 export const rand = (a, b) => a + Math.random() * (b - a);

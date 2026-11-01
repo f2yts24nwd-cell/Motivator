@@ -380,3 +380,90 @@ button { touch-action: manipulation; }
 }
 
 img.brand { height: 1.1em; width: auto; vertical-align: -0.18em; }
+
+/* ---------- wardrobe / avatar editor ---------- */
+.wardrobe {
+  position: absolute;
+  left: calc(8px + env(safe-area-inset-left));
+  right: calc(8px + env(safe-area-inset-right));
+  bottom: calc(8px + env(safe-area-inset-bottom));
+  max-height: 46dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: rgba(12, 17, 31, 0.94);
+  animation: sheetUp .3s cubic-bezier(.2,1.2,.4,1);
+}
+@keyframes sheetUp { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+.wd-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.wd-head strong { font-size: 18px; }
+.wd-head .btn { padding: 8px 20px; min-height: 40px; font-size: 15px; }
+.wardrobe .name input {
+  width: 100%;
+  font: inherit; font-size: 16px;
+  padding: 10px 14px; border-radius: 999px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+  -webkit-user-select: text; user-select: text;
+}
+.wd-tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; flex: none; padding-bottom: 2px; }
+.wd-tabs::-webkit-scrollbar { display: none; }
+.wd-tab {
+  flex: none; border: 0; border-radius: 999px; padding: 8px 14px; font: inherit; font-size: 14px; font-weight: 600;
+  color: var(--muted); background: rgba(255,255,255,.06); cursor: pointer; min-height: 38px;
+}
+.wd-tab.on { color: #04121f; background: var(--accent); }
+.wd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.wd-opt {
+  border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 12px 10px; font: inherit; font-size: 14px;
+  color: var(--text); background: rgba(255,255,255,.05); cursor: pointer; text-align: left; min-height: 46px;
+  display: flex; align-items: center; gap: 8px;
+}
+.wd-opt.on { border-color: var(--accent); background: rgba(25,195,255,.14); box-shadow: inset 0 0 0 1px var(--accent); }
+.wd-opt i { width: 22px; height: 22px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 2px rgba(255,255,255,.35); }
+.wd-btn { font-size: 22px; }
+
+.slap-toast {
+  position: absolute;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(420px, calc(100% - 32px));
+  padding: 14px 18px;
+  text-align: center;
+  border-color: rgba(255, 59, 92, .6);
+  animation: slapIn 3.6s ease forwards;
+  display: grid;
+  gap: 4px;
+  font-size: 16px;
+}
+.slap-toast b { color: var(--bad); font-size: 20px; }
+.slap-toast small { color: var(--muted); font-size: 13px; }
+@keyframes slapIn {
+  0% { transform: translate(-50%, -30px) scale(.8); opacity: 0; }
+  6% { transform: translate(-50%, 0) scale(1.08); opacity: 1; }
+  10% { transform: translate(-50%, 0) scale(1); }
+  88% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -10px); }
+}
+
+/* rank badge on the end card */
+.rank { display: inline-block; margin: 6px 0 2px; padding: 6px 14px; border-radius: 999px; font-weight: 800; letter-spacing: .04em; }
+.rank.gold { background: linear-gradient(135deg, #ffb703, #ffe08a); color: #3b2a0c; }
+.rank.silber { background: linear-gradient(135deg, #b9c2cf, #eef2f7); color: #1d2430; }
+.rank.bronze { background: linear-gradient(135deg, #b0703c, #e7b07c); color: #2e1a0a; }
+.rank.teilnahme { background: rgba(255,255,255,.12); color: var(--text); }
+.goal b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: rgba(255,255,255,.55); }
+
+@media (min-aspect-ratio: 1/1) {
+  .slap-toast { left: 27%; width: min(420px, 46vw); }
+  .wardrobe { left: auto; top: calc(64px + env(safe-area-inset-top)); width: min(440px, 48vw); max-height: none; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .wardrobe { top: calc(8px + env(safe-area-inset-top)); padding: 10px; gap: 6px; }
+  .wd-opt { padding: 8px; min-height: 40px; font-size: 13px; }
+  .wd-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+  .slap-toast { bottom: calc(8px + env(safe-area-inset-bottom)); padding: 8px 12px; font-size: 14px; }
+}

@@ -2,9 +2,9 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { canvasTexture, rand } from '../core/gfx.js';
 
-// "Der Zottel": a scruffy, long-haired, unkempt fictional character built from primitives.
+// "Dumêz G. Schwetz": a scruffy, long-haired, unkempt fictional character built from primitives.
 
-export function buildZottel() {
+export function buildSchwetz() {
   const root = new THREE.Group();
   const body = new THREE.Group();
   root.add(body);

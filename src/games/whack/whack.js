@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { canvasTexture, rand, clamp, lerp, easeOutBack, easeInCubic } from '../../core/gfx.js';
-import { sfx, unlockAudio, isMuted, setMuted } from '../../core/audio.js';
+import { sfx, music, unlockAudio, isMuted, setMuted } from '../../core/audio.js';
 import { h, mount, clearUI, storeGet, storeSet } from '../../core/ui.js';
 import { buildTarget, pickEnemyType, TARGET_TYPES } from './targets.js';
 import { Effects } from './effects.js';
+import { RANKS, rankFor } from './ranks.js';
 
-export const GAME_TIME = 60;
-export const GOAL = 2000;
+export const GAME_TIME = 90;
+export const GOAL = RANKS[0].min; // progress bar runs up to Gold
 const MAX_ERRORS = 3;
 const BOARD_TOP = 0.5;
 const HOLE_R = 0.95;
@@ -371,12 +372,12 @@ export class WhackGame {
     mount(h('div.overlay', {}, h('div.card.panel', {}, [
       h('div.kicker', {}, 'Spiel 1 · Legacy Smash'),
       h('h1', {}, 'Hau den Legacy!'),
-      h('p', {}, `Hau alles weg, was deinen Vertrieb ausbremst. ${GAME_TIME} Sekunden, Ziel: ${GOAL.toLocaleString('de-DE')} Punkte.`),
+      h('p', {}, `Hau alles weg, was deinen Vertrieb ausbremst. ${GAME_TIME} Sekunden Vollgas. Ab ${RANKS[2].min.toLocaleString('de-DE')} Punkten Bronze, ab ${RANKS[1].min.toLocaleString('de-DE')} Silber, ab ${GOAL.toLocaleString('de-DE')} Gold.`),
       h('div.legend', {}, [
         h('div.bad', {}, [h('b', {}, '✔ Draufhauen'), enemies]),
         h('div.good', {}, [h('b', {}, ['✖ Verschonen: ', h('img.brand', { src: `${import.meta.env.BASE_URL}brand/itmx-logo.png`, alt: '' }), ' itmX']), `Wer itmX trifft, kassiert ${TARGET_TYPES.itmx.points} Punkte und einen Fehler. Nach ${MAX_ERRORS} Fehlern ist Schluss.`]),
         h('div', {}, [h('b', {}, '🔥 Combo'), 'Alle 5 Treffer am Stück steigt der Multiplikator (bis x5).']),
-        h('div', {}, [h('b', {}, '🏆 Belohnung'), 'Wer das Ziel schafft, bekommt das Schwetz-Zertifikat für CRM-Expertise.'])
+        h('div', {}, [h('b', {}, '🏆 Belohnung'), 'Jede:r bekommt von Dumêz G. Schwetz persönlich das Schwetz-Zertifikat, je nach Punkten in Gold, Silber, Bronze oder Teilnahme.'])
       ]),
       this.best ? h('p', {}, `Dein Rekord: ${this.best.toLocaleString('de-DE')} Punkte`) : null,
       h('div.row', {}, [h('button.btn', { onclick: () => { unlockAudio(); sfx.click(); this.startCountdown(); } }, '▶ Los geht’s')])
@@ -393,7 +394,8 @@ export class WhackGame {
     this.hud = { score: stat('score', 'Punkte'), time: stat('time', 'Zeit'), combo: stat('combo', 'Combo'), errors: stat('errors', 'Fehler') };
     mount(h('div.hud.passthrough', {}, Object.values(this.hud).map((s) => s.el)));
     this.goalBar = h('i');
-    this.goalEl = mount(h('div.goal.passthrough', {}, this.goalBar));
+    const ticks = RANKS.slice(1, 3).map((r) => h('b', { style: `left:${(r.min / GOAL) * 100}%` }));
+    this.goalEl = mount(h('div.goal.passthrough', {}, [this.goalBar, ...ticks]));
     this.updateHUD();
   }
 
@@ -427,13 +429,15 @@ export class WhackGame {
     this.resetBoard();
     this.buildHUD();
     this.state = 'countdown';
+    music.stop(0.6);
+    music.setIntensity(0);
     const cd = mount(h('div.countdown.passthrough'));
     let n = 3;
     const tick = () => {
       if (this.state !== 'countdown') { cd.remove(); return; }
       cd.replaceChildren(h('span', {}, n > 0 ? String(n) : 'HAU!'));
       sfx.beep(n === 0);
-      if (n === 0) { this.state = 'play'; setTimeout(() => cd.remove(), 800); return; }
+      if (n === 0) { this.state = 'play'; music.play('game'); setTimeout(() => cd.remove(), 800); return; }
       n--;
       setTimeout(tick, 750);
     };
@@ -446,44 +450,33 @@ export class WhackGame {
     if (this.state !== 'play') return;
     this.state = 'over';
     for (const hole of this.holes) if (hole.state === 'up' || hole.state === 'rising') { hole.state = 'lowering'; hole.t = 0; }
-    const won = reason === 'time' && this.score >= GOAL;
     if (this.score > this.best) { this.best = this.score; storeSet('whack-best', this.best); }
     this.updateHUD();
-    const stats = { score: this.score, hits: this.hits, bestCombo: this.bestCombo, errors: this.errors };
-    if (won) {
-      sfx.win();
-      for (let i = 0; i < 6; i++) setTimeout(() => {
-        const p = new THREE.Vector3(rand(-4, 4), BOARD_TOP + rand(0.5, 2), rand(-2, 2));
-        this.effects.sparks(p, [0xffcc4d, 0x19c3ff, 0x3ddc84, 0xff3d9a][i % 4], 50);
-        this.effects.shockwave(p, 0xffcc4d);
-      }, i * 160);
-      setTimeout(() => {
-        mount(h('div.overlay', {}, h('div.card.panel', {}, [
-          h('div.kicker', {}, 'Ziel erreicht'),
-          h('h1', {}, `${this.score.toLocaleString('de-DE')} Punkte!`),
-          h('p', {}, `${this.hits} Legacy-Systeme zerlegt · beste Combo ${this.bestCombo} · ${this.errors} Fehler`),
-          h('p', {}, 'Da hinten schlurft schon jemand mit deinem Zertifikat an …'),
-          h('div.row', {}, [h('button.btn.gold', { onclick: () => { sfx.click(); this.app.showCertificate(stats); } }, '🏆 Zertifikat abholen')])
-        ])));
-      }, 1300);
-    } else {
-      sfx.lose();
-      const msg = reason === 'errors'
-        ? `Du hast ${MAX_ERRORS}× itmX erwischt. Der beste CRM-Partner hat das nicht verdient!`
-        : `Noch ${(GOAL - this.score).toLocaleString('de-DE')} Punkte bis zum Schwetz-Zertifikat.`;
-      setTimeout(() => {
-        mount(h('div.overlay', {}, h('div.card.panel', {}, [
-          h('div.kicker', {}, reason === 'errors' ? 'Game over' : 'Zeit abgelaufen'),
-          h('h1', {}, `${this.score.toLocaleString('de-DE')} Punkte`),
-          h('p', {}, msg),
-          h('p', {}, `Rekord: ${this.best.toLocaleString('de-DE')} · beste Combo ${this.bestCombo}`),
-          h('div.row', {}, [
-            h('button.btn', { onclick: () => { sfx.click(); this.startCountdown(); } }, '↻ Nochmal'),
-            h('button.btn.secondary', { onclick: () => { sfx.click(); this.app.goHub(); } }, 'Zur Spielewelt')
-          ])
-        ])));
-      }, 900);
-    }
+    music.stop(0.4);
+    const rank = rankFor(this.score);
+    const stats = { score: this.score, hits: this.hits, bestCombo: this.bestCombo, errors: this.errors, rank: rank.id };
+    // everyone gets a certificate; the rank decides how epic the finale is
+    if (rank.id === 'teilnahme' || reason === 'errors') sfx.timeUp(); else sfx.win();
+    const bursts = rank.id === 'gold' ? 8 : rank.id === 'silber' ? 5 : rank.id === 'bronze' ? 3 : 1;
+    for (let i = 0; i < bursts; i++) setTimeout(() => {
+      const p = new THREE.Vector3(rand(-4, 4), BOARD_TOP + rand(0.5, 2), rand(-2, 2));
+      this.effects.sparks(p, [0xffcc4d, 0x19c3ff, 0x50af30, 0xff3d9a][i % 4], 50);
+      this.effects.shockwave(p, 0xffcc4d);
+    }, i * 160);
+    const kicker = reason === 'errors' ? `${MAX_ERRORS}× itmX getroffen – Runde vorbei` : 'Zeit abgelaufen';
+    setTimeout(() => {
+      mount(h('div.overlay', {}, h('div.card.panel', {}, [
+        h('div.kicker', {}, kicker),
+        h('h1', {}, `${this.score.toLocaleString('de-DE')} Punkte`),
+        h('div', {}, h(`span.rank.${rank.id}`, {}, `${rank.name}: ${rank.title}`)),
+        h('p', {}, `${this.hits} Legacy-Systeme zerlegt · beste Combo ${this.bestCombo} · ${this.errors} Fehler · Rekord ${this.best.toLocaleString('de-DE')}`),
+        h('p', {}, 'Da hinten schlurft schon Dumêz G. Schwetz mit deinem Zertifikat an …'),
+        h('div.row', {}, [
+          h('button.btn.gold', { onclick: () => { sfx.click(); this.app.showCertificate(stats); } }, '🏆 Zertifikat abholen'),
+          h('button.btn.secondary', { onclick: () => { sfx.click(); this.startCountdown(); } }, '↻ Nochmal')
+        ])
+      ])));
+    }, 1300);
   }
 
   // ------------------------------------------------------------------ spawning
@@ -656,7 +649,7 @@ export class WhackGame {
     const hittable = hole && hole.target && (hole.state === 'up' || (hole.state === 'rising' && hole.t > hole.riseDur * 0.3) || (hole.state === 'lowering' && hole.t < 0.12));
     if (!hittable) {
       const p = pending.point.clone(); p.y = BOARD_TOP;
-      sfx.thud();
+      sfx.thud(pending.point.x / 5);
       this.effects.sparks(p, 0x99a3b8, 10);
       this.effects.shockwave(p, 0x5a6378);
       this.effects.shake = Math.max(this.effects.shake, 0.25);
@@ -706,8 +699,8 @@ export class WhackGame {
       this.effects.flash(pos, tgt.goo, 70);
       this.effects.shake = Math.max(this.effects.shake, 0.55 + mult * 0.08);
       this.hitStop = 0.055;
-      sfx.smash(rand(0.9, 1.15));
-      sfx.splat();
+      sfx.smash(rand(0.9, 1.15), hole.pos.x / 5);
+      sfx.splat(hole.pos.x / 5);
       this.popup(pos.clone().setY(UP_Y + 1.2), `+${pts}`, 'good');
       if (this.combo % 5 === 0 && mult > 1) {
         sfx.combo(mult);
@@ -733,6 +726,8 @@ export class WhackGame {
         this.spawnTimer = d.interval * rand(0.75, 1.25);
       }
       if (this.timeLeft <= 0) { this.timeLeft = 0; this.endGame('time'); }
+      // soundtrack gets more epic as the round goes on
+      music.setIntensity(this.elapsed < 15 ? 0 : this.elapsed < 40 ? 1 : this.timeLeft > 15 ? 2 : 3);
       if (Math.floor(this.timeLeft + wdt) !== Math.floor(this.timeLeft)) this.updateHUD();
     }
 

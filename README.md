@@ -10,12 +10,24 @@ Sales-Büro, und jedes Spiel ist ein Arcade-Automat.
 - Draufhauen gibt Punkte. Getroffene Köpfe zerspringen mit Splittern, Farb-Splatter, Funken,
   Schockwelle, Kamera-Shake und Hit-Stop.
 - **itmX verschonen!** Der itmX-Kopf ist das echte Logo als 3D-Objekt (grüne Kachel, weißes X, Heiligenschein). Ein Treffer kostet 250 Punkte und einen Fehler. Nach 3 Fehlern ist Game over.
-- 60 Sekunden, Ziel 2.000 Punkte. Combo-Multiplikator bis x5, das Tempo steigt mit der Zeit.
-- Wer gewinnt, bekommt vom Zottel das **Schwetz-Zertifikat für CRM-Expertise**: mit Namen, als PNG
-  zum Speichern oder Teilen.
+- 90 Sekunden. Combo-Multiplikator bis x5, das Tempo steigt mit der Zeit.
+- Jede Runde endet mit dem **Schwetz-Zertifikat für CRM-Expertise**, überreicht von **Dumêz G. Schwetz**. Die Stufe richtet sich nach den Punkten: Gold ab 6.000, Silber ab 3.500, Bronze ab 1.500, sonst Teilnahme. Das Zertifikat trägt deinen Namen und lässt sich als PNG speichern oder teilen. Dein Avatar steht bei der Übergabe mit auf der Bühne.
 
 Steuerung: Maus oder Touch. Auf der Tastatur entsprechen die Ziffern 1–9 dem 3×3-Raster (Nummernblock-Layout).
 In der Spielewelt: Klick oder Tippen zum Laufen, alternativ WASD bzw. Pfeiltasten.
+
+## Avatar & Kleiderschrank
+
+Über den 👔-Knopf im Büro gestaltest du deinen Avatar: Oberteil, Hose oder Rock, Schuhe, Accessoire, Farben,
+Frisur, Hautton und Name (der Name landet auf dem Zertifikat). Erlaubt ist nur Business-Look. Wer Hoodie,
+Feinripp, Hawaiihemd, kurze Hose, Jogginghose, Sandalen, Socken in Sandalen, Badelatschen, Goldkette, Basecap
+oder Bauchtasche wählt, bekommt von oben einen Nackenklatscher samt Hinweis, und das Teil ist wieder weg.
+
+## Sound
+
+Der orchestrale Soundtrack wird komplett im Browser erzeugt (WebAudio, keine Audiodateien): Taiko-Drums,
+Streicher-Ostinato, Blechbläser, Chor, Hall, Riser und „Braaam“-Impacts. Im Spiel steigert sich die
+Intensität über die 90 Sekunden. Büro und Zertifikatsübergabe haben jeweils ein eigenes Thema.
 
 ## Auf dem iPhone spielen (z. B. iPhone 17)
 
@@ -50,7 +62,8 @@ src/
   hub/hub.js           Begehbares 3D-Büro mit Arcade-Automaten
   games/registry.js    Liste aller Spiele (hier neue Spiele eintragen)
   games/whack/         „Hau den Legacy!“ (Köpfe, Effekte, Spiellogik)
-  cert/                Zottel-Figur, Übergabe-Szene, Zertifikat-Rendering
+  cert/                Dumêz G. Schwetz, Übergabe-Szene, Zertifikat-Rendering
+  hub/avatar.js        Avatar und Kleiderschrank (Business-Look-Pflicht)
 public/brand/          offizielles itmX-Logo (PNG)
 ```
 

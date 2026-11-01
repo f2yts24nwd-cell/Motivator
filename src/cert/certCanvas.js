@@ -1,7 +1,17 @@
 import { drawBrand, roundRect } from '../core/gfx.js';
+import { RANKS } from '../games/whack/ranks.js';
+
+const SEAL = {
+  gold: ['#ffe08a', '#b8860b', '#7a5a1e', '#5a3d05'],
+  silber: ['#f4f7fb', '#9aa3b0', '#5d6673', '#2c333d'],
+  bronze: ['#f0c08f', '#a0612f', '#6b3d18', '#3e220c'],
+  teilnahme: ['#e9e3d3', '#b6ab92', '#857a62', '#4a4234']
+};
 
 // Renders the "Schwetz-Zertifikat" onto a canvas (used for the 3D prop and the PNG download).
-export function drawCertificate(canvas, { name = '', score = 0, hits = 0, bestCombo = 0, date = new Date() } = {}) {
+export function drawCertificate(canvas, { name = '', score = 0, hits = 0, bestCombo = 0, rank = 'gold', date = new Date() } = {}) {
+  const R = RANKS.find((r) => r.id === rank) || RANKS[0];
+  const [s0, s1, s2, s3] = SEAL[R.id];
   const W = 1600, H = 1131;
   canvas.width = W;
   canvas.height = H;
@@ -30,7 +40,7 @@ export function drawCertificate(canvas, { name = '', score = 0, hits = 0, bestCo
     g.beginPath(); g.arc(x, y, 16, 0, Math.PI * 2); g.fill();
   }
 
-  // coffee ring (it's the Zottel's certificate after all)
+  // coffee ring (Dumêz G. Schwetz had his certificate stack next to the coffee)
   g.save();
   g.strokeStyle = 'rgba(110,65,20,0.28)';
   g.lineWidth = 16;
@@ -71,30 +81,35 @@ export function drawCertificate(canvas, { name = '', score = 0, hits = 0, bestCo
   const lines = [
     `${hits} Legacy-Systeme mit dem CRM-Hammer zerlegt und dabei`,
     `${score.toLocaleString('de-DE')} Punkte erzielt hat (beste Combo: ${bestCombo}).`,
-    'Excel-Listen, Disketten und Karl Klammer zittern ab sofort.'
+    `Stufe ${R.name}: ${R.title}. ${R.line}`
   ];
-  lines.forEach((l, i) => g.fillText(l, W / 2, 665 + i * 48));
+  lines.forEach((l, i) => {
+    let px = 32;
+    g.font = `${px}px Georgia, serif`;
+    while (g.measureText(l).width > W - 300 && px > 20) g.font = `${--px}px Georgia, serif`;
+    g.fillText(l, W / 2, 665 + i * 48);
+  });
 
   // seal
   const sx = W / 2, sy = 905;
   g.save();
   g.translate(sx, sy);
-  g.fillStyle = '#b8860b';
+  g.fillStyle = s1;
   for (let i = 0; i < 24; i++) {
     g.rotate(Math.PI / 12);
     g.beginPath(); g.moveTo(0, -105); g.lineTo(18, -82); g.lineTo(-18, -82); g.fill();
   }
   const sg = g.createRadialGradient(-20, -20, 10, 0, 0, 90);
-  sg.addColorStop(0, '#ffe08a'); sg.addColorStop(1, '#b8860b');
+  sg.addColorStop(0, s0); sg.addColorStop(1, s1);
   g.fillStyle = sg;
   g.beginPath(); g.arc(0, 0, 86, 0, Math.PI * 2); g.fill();
-  g.strokeStyle = '#7a5a1e'; g.lineWidth = 4;
+  g.strokeStyle = s2; g.lineWidth = 4;
   g.beginPath(); g.arc(0, 0, 70, 0, Math.PI * 2); g.stroke();
-  g.fillStyle = '#5a3d05';
-  g.font = '900 46px Georgia, serif';
-  g.fillText('CRM', 0, 4);
-  g.font = '700 18px Georgia, serif';
-  g.fillText('GEPRÜFT', 0, 34);
+  g.fillStyle = s3;
+  g.font = '900 40px Georgia, serif';
+  g.fillText('CRM', 0, -6);
+  g.font = `800 ${R.name.length > 6 ? 17 : 22}px Georgia, serif`;
+  g.fillText(R.name.toUpperCase(), 0, 26);
   g.restore();
 
   // signature + date
@@ -122,7 +137,7 @@ export function drawCertificate(canvas, { name = '', score = 0, hits = 0, bestCo
   g.beginPath(); g.moveTo(W - 520, 975); g.lineTo(W - 170, 975); g.stroke();
   g.fillStyle = '#3b2a0c';
   g.font = '22px Georgia, serif';
-  g.fillText('Der Zottel, i. A. des Schwetz-Komitees', W - 170, 1005);
+  g.fillText('Dumêz G. Schwetz, Schwetz-Komitee', W - 170, 1005);
 
   // presented-by badge with the itmX logo
   g.fillStyle = '#0d1424';

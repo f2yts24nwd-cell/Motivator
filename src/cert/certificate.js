@@ -1,14 +1,23 @@
 import * as THREE from 'three';
 import { canvasTexture, rand, clamp, lerp } from '../core/gfx.js';
-import { sfx } from '../core/audio.js';
+import { sfx, music } from '../core/audio.js';
+import { loadAvatar, buildAvatar, disposeAvatar } from '../hub/avatar.js';
+import { RANKS } from '../games/whack/ranks.js';
 import { h, mount, clearUI, storeGet, storeSet } from '../core/ui.js';
-import { buildZottel } from './zottel.js';
+import { buildSchwetz } from './schwetz.js';
 import { drawCertificate } from './certCanvas.js';
 
-const LINES = [
-  'Ey … Moment … *schlurf* … bist du das mit dem Hammer?',
-  'Krass, Alter. Ich hab gesehen, wie du die ganzen Excel-Listen zerlegt hast. Hat mich voll an 1998 erinnert.',
-  'Hier. Dein Schwetz-Zertifikat für CRM-Expertise. Is’ nur ’n bisschen vollgekrümelt, sorry.'
+const SPEAKER = 'Dumêz G. Schwetz';
+const RANK_LINES = {
+  gold: 'Alter … ich hab gesehen, wie du die Legacy-Systeme zerlegt hast. So was gab’s seit 1998 nicht mehr.',
+  silber: 'Nicht schlecht. Excel hat geweint, SAP hat kurz überlegt zu kündigen.',
+  bronze: 'Okay, ein paar Disketten hast du erwischt. Respekt … irgendwie.',
+  teilnahme: 'Ehrlich gesagt hab ich in der Zeit mehr Chips gegessen als du gehauen hast. Aber egal, Urkunde ist Urkunde.'
+};
+const linesFor = (rank) => [
+  'Moin … *schlurf* … Dumêz G. Schwetz mein Name. Ich bin hier für die Zertifikate zuständig.',
+  RANK_LINES[rank.id],
+  `Hier. Dein Schwetz-Zertifikat, Stufe ${rank.name}. Is’ nur ’n bisschen vollgekrümelt, sorry.`
 ];
 
 export class CertificateScene {
@@ -77,7 +86,7 @@ export class CertificateScene {
 
     // props: pizza box + crumpled paper
     const pizza = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.07, 0.8), new THREE.MeshStandardMaterial({ color: 0xc9a46b, roughness: 0.9 }));
-    pizza.position.set(-1.7, 0.035, 0.6);
+    pizza.position.set(-2.9, 0.035, 1.6);
     pizza.rotation.y = 0.4;
     pizza.castShadow = true;
     s.add(pizza);
@@ -88,7 +97,7 @@ export class CertificateScene {
       s.add(ball);
     }
 
-    this.z = buildZottel();
+    this.z = buildSchwetz();
     this.z.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
     s.add(this.z.root);
 
@@ -115,7 +124,17 @@ export class CertificateScene {
   }
 
   enter(stats) {
-    this.stats = stats || { score: 0, hits: 0, bestCombo: 0 };
+    this.stats = { rank: 'teilnahme', score: 0, hits: 0, bestCombo: 0, ...(stats || {}) };
+    this.rank = RANKS.find((r) => r.id === this.stats.rank) || RANKS[RANKS.length - 1];
+    this.lines = linesFor(this.rank);
+    // the player's own avatar receives the certificate
+    if (this.player) { this.scene.remove(this.player.root); disposeAvatar(this.player); }
+    this.player = buildAvatar(loadAvatar());
+    this.player.root.position.set(-1.35, 0, 0.6);
+    this.player.root.rotation.y = 0.5;
+    this.player.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    this.scene.add(this.player.root);
+    music.play('cert');
     this.name = storeGet('player-name', '');
     this.t = 0;
     this.phase = 'walk';
@@ -135,9 +154,11 @@ export class CertificateScene {
     const aspect = w / hgt;
     this.camera.aspect = aspect;
     this.camera.updateProjectionMatrix();
-    const d = aspect < 1 ? 7.6 / aspect * 0.7 : 7.6;
-    this.camera.position.set(0.4, 2.4, d);
-    this.camera.lookAt(0, 1.85, 0);
+    // keep both the player avatar (left) and Dumêz G. Schwetz (right) in frame
+    const hfov = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * aspect);
+    const d = Math.max(7.6, 2.5 / Math.tan(hfov / 2));
+    this.camera.position.set(-0.15, 2.4 + (aspect < 1 ? 0.6 : 0), d);
+    this.camera.lookAt(-0.15, aspect < 1 ? 1.4 : 1.8, 0);
   }
 
   redrawCert() {
@@ -158,7 +179,7 @@ export class CertificateScene {
     this.lineIdx = i;
     document.querySelector('.speech')?.remove();
     const text = h('span');
-    const last = i === LINES.length - 1;
+    const last = i === this.lines.length - 1;
     const btn = h('button.btn' + (last ? '.gold' : '.secondary'), {
       onclick: () => {
         sfx.click();
@@ -166,9 +187,9 @@ export class CertificateScene {
         else this.say(i + 1);
       }
     }, last ? '📜 Zertifikat ansehen' : 'Weiter …');
-    mount(h('div.speech.panel', {}, [h('b', {}, 'Der Zottel'), text, h('div.row', {}, btn)]));
+    mount(h('div.speech.panel', {}, [h('b', {}, SPEAKER), text, h('div.row', {}, btn)]));
     // typewriter
-    const full = LINES[i];
+    const full = this.lines[i];
     let n = 0;
     clearInterval(this.typer);
     this.typer = setInterval(() => {
@@ -232,9 +253,20 @@ export class CertificateScene {
   update(dt, time) {
     const z = this.z;
     this.t += dt;
+    // player avatar: idle sway, cheers once the certificate is presented
+    if (this.player) {
+      const P = this.player;
+      const cheer = this.phase === 'present';
+      P.body.position.y = cheer ? Math.abs(Math.sin(time * 6)) * 0.12 : Math.sin(time * 2) * 0.01;
+      P.arms.forEach((arm, i) => {
+        const s = i === 0 ? -1 : 1;
+        arm.rotation.z = lerp(arm.rotation.z, cheer ? s * (2.5 + Math.sin(time * 6 + i) * 0.2) : s * 0.05, 0.12);
+      });
+      P.neck.rotation.y = lerp(P.neck.rotation.y, this.phase === 'walk' ? 0.6 : 0.25, 0.05);
+    }
     if (this.phase === 'walk') {
       const k = clamp(this.t / 2.6, 0, 1);
-      z.root.position.x = lerp(4.5, 0.2, k);
+      z.root.position.x = lerp(4.5, 0.95, k);
       z.body.position.y = Math.abs(Math.sin(this.t * 7)) * 0.06;
       z.body.rotation.z = Math.sin(this.t * 7) * 0.05;
       z.armR.shoulder.rotation.x = Math.sin(this.t * 7) * 0.4;
@@ -243,7 +275,7 @@ export class CertificateScene {
       if (k >= 1) { this.phase = 'turn'; this.t = 0; }
     } else if (this.phase === 'turn') {
       const k = clamp(this.t / 0.6, 0, 1);
-      z.root.rotation.y = lerp(-Math.PI / 2, 0.1, k);
+      z.root.rotation.y = lerp(-Math.PI / 2, -0.3, k);
       z.body.position.y = lerp(z.body.position.y, 0, 0.2);
       z.armR.shoulder.rotation.x = lerp(z.armR.shoulder.rotation.x, 0, 0.2);
       z.armL.shoulder.rotation.x = lerp(z.armL.shoulder.rotation.x, -0.4, 0.2);

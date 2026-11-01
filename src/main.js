@@ -7,7 +7,28 @@ import { CertificateScene } from './cert/certificate.js';
 import { registerSW } from 'virtual:pwa-register';
 import { unlockAudio, suspendAudio } from './core/audio.js';
 
-registerSW({ immediate: true });
+// Offline cache (service worker). New deploys are installed in the background and the page
+// reloads itself once they are active. iOS checks rarely on its own, so we ask actively:
+// on start, every minute and whenever the app comes back to the foreground.
+registerSW({
+  immediate: true,
+  onRegisteredSW(_url, reg) {
+    if (!reg) return;
+    const check = () => { if (navigator.onLine !== false) reg.update().catch(() => {}); };
+    check();
+    setInterval(check, 60 * 1000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
+    window.addEventListener('pageshow', check);
+  }
+});
+let reloading = false;
+const hadController = !!navigator.serviceWorker?.controller; // first install: no reload needed
+navigator.serviceWorker?.addEventListener('controllerchange', () => {
+  if (reloading || !hadController) return;
+  reloading = true;
+  location.reload();
+});
+window.__BUILD_ID__ = __BUILD_ID__;
 
 async function boot() {
   await loadBrandLogo();

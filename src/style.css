@@ -467,3 +467,18 @@ img.brand { height: 1.1em; width: auto; vertical-align: -0.18em; }
   .wd-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
   .slap-toast { bottom: calc(8px + env(safe-area-inset-bottom)); padding: 8px 12px; font-size: 14px; }
 }
+
+.version {
+  position: absolute;
+  right: calc(10px + env(safe-area-inset-right));
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font: 600 11px/1 system-ui, -apple-system, sans-serif;
+  color: var(--muted);
+  background: rgba(14, 20, 36, 0.7);
+  box-shadow: inset 0 0 0 1px var(--panel-border);
+  cursor: pointer;
+}
+@media (max-width: 520px) { .hub-hint { bottom: calc(46px + env(safe-area-inset-bottom)); } }

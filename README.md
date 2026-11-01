@@ -16,6 +16,22 @@ Sales-Büro, und jedes Spiel ist ein Arcade-Automat.
 Steuerung: Maus oder Touch. Auf der Tastatur entsprechen die Ziffern 1–9 dem 3×3-Raster (Nummernblock-Layout).
 In der Spielewelt: Klick oder Tippen zum Laufen, alternativ WASD bzw. Pfeiltasten.
 
+## Spiel 2: „Rettet den Feierabend!“
+
+Ein Arbeitstag im Leben von Tim X. (nach „A Day in the Life of a Salesman“ auf itmx.de), in 90 Sekunden von 09:00 bis 17:30.
+
+- Aufgaben rasen als Glas-Hologrammkarten über eine Neon-Datenautobahn auf die Deadline zu: Anrufe, Mails, Kundenfragen, Angebote, Reklamationen.
+- Unten liegt der Werkzeuggürtel mit 9 itmX-Funktionen: Outlook + CRM, Teams-Anruf, Globale Suche, Customer 360, Pipeline, Bericht per Sprache, Angebot in SAP, Ticket und „Ab in die Tonne“ für Legacy-Kram.
+  Das richtige Werkzeug zerlegt die Karte (Splitter, Schockwelle, Hit-Stop) und spart Minuten. Über dem Gürtel steht die aktuelle Aufgabe groß lesbar.
+- Was die Deadline erreicht, fliegt auf den Papierstapel. Bei 5 Stapeln kommt die Papierlawine und der Tag ist vorbei.
+- **Low Hanging Fruits:** Goldene Früchte hängen tief über der Strecke. Direkt antippen gibt Bonus-Minuten.
+- **Die Extra Meile:** Eine lange Combo startet die Extra Meile mit doppelten Minuten, goldener Strecke und dem Drop im Soundtrack.
+- **„Das eine nicht tun, dafür das andere lassen!“** Um 11:00 kommt Dumêz G. Schwetz vorbei. Danach mischen sich seine Aufträge darunter (Meetings über Meetings, Reports, die keiner liest). Richtig ist: lassen.
+- Am Ende gibt es Lernkarten zu jeder Funktion mit Link zum passenden itmX-Video und das Schwetz-Zertifikat.
+- Soundtrack: Melodic Techno mit 124 BPM, ebenfalls komplett per WebAudio erzeugt (Kick, rollender Bass mit Sidechain, Hi-Hats, Arpeggio mit Delay, Pads, Supersaw-Lead). Die Intensität folgt dem Tag.
+
+Steuerung: Werkzeuge antippen oder Tasten 1–9. Eine Karte antippen wählt sie gezielt aus, sonst trifft das Werkzeug die dringendste Aufgabe.
+
 ## Avatar & Kleiderschrank
 
 Über den 👔-Knopf im Büro gestaltest du deinen Avatar: Oberteil, Hose oder Rock, Schuhe, Accessoire, Farben,

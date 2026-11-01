@@ -603,6 +603,7 @@ body.fb-extra .fb-tool { box-shadow: inset 0 1px 0 rgba(255,255,255,.28), inset 
   100% { opacity: 0; transform: translate(-50%, -62%) scale(1); }
 }
 .fb-speech { z-index: 5; }
+.fb-tina b { color: #ff7ac0; }
 .fb-speaker { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
 .fb-speaker img { width: 44px; height: 44px; border-radius: 50%; border: 2px solid #50af30; }
 .fb-speaker b { margin: 0; color: #6cc84a; }

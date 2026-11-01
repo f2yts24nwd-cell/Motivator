@@ -4,6 +4,7 @@ import { canvasTexture, roundRect, rand, clamp, lerp, easeOutBack } from '../../
 import { sfx, music, unlockAudio, isMuted, setMuted } from '../../core/audio.js';
 import { h, mount, clearUI, storeGet, storeSet } from '../../core/ui.js';
 import { buildTarget } from '../whack/targets.js';
+import { FeierabendFinale } from './finale.js';
 import { Effects } from '../whack/effects.js';
 import {
   TOOLS, TOOL, TASKS, LASSEN, LEGACY, QUOTE_LASSEN, TIM, BRIEFING_LINES,
@@ -1029,6 +1030,10 @@ export class FeierabendGame {
   }
 
   showResults(reason, rank) {
+    const stats = {
+      score: this.score, solved: this.solved, extraCount: this.extraCount, fruits: this.fruitsPicked,
+      rank: rank.id, rankName: rank.name, title: rank.title, line: rank.line
+    };
     if (this.state !== 'over') return;
     music.play('techno');
     music.setIntensity(-1);
@@ -1059,8 +1064,8 @@ export class FeierabendGame {
       h('div.kicker', {}, 'Das hast du heute gelernt'),
       h('div.fb-learns', {}, cards),
       h('div.row', {}, [
-        h('button.btn', { onclick: () => { sfx.click(); this.startCountdown(); } }, '↻ Neuer Arbeitstag'),
-        h('button.btn.secondary', { onclick: () => { sfx.click(); this.app.goHub(); } }, 'Zurück ins Büro')
+        h('button.btn.gold', { onclick: () => { sfx.click(); this.app.showScene('feierabend-finale', (a) => new FeierabendFinale(a), stats); } }, '🏆 Urkunde von Tina X. abholen'),
+        h('button.btn.secondary', { onclick: () => { sfx.click(); this.startCountdown(); } }, '↻ Neuer Arbeitstag')
       ])
     ])));
   }

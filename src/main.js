@@ -34,6 +34,7 @@ async function boot() {
   await loadBrandLogo();
   const gfx = createRenderer(document.getElementById('gl'));
   const games = new Map();
+  const extraScenes = new Map();
   let current = null;
 
   const app = {
@@ -46,6 +47,11 @@ async function boot() {
       setScene(games.get(id));
     },
     showCertificate(stats) { setScene(cert, stats); },
+    /** Extra scenes owned by a game (e.g. a finale), created on first use. */
+    showScene(key, create, arg) {
+      if (!extraScenes.has(key)) extraScenes.set(key, create(app));
+      setScene(extraScenes.get(key), arg);
+    },
     get current() { return current; }
   };
 

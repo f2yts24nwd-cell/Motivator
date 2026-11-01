@@ -28,7 +28,8 @@ function addEyes(group, { y = 0.25, z = 0.2, spread = 0.24, mood = 'angry', scal
   const eyes = [];
   for (const s of [-1, 1]) {
     const eye = new THREE.Group();
-    eye.position.set(s * spread, y, z);
+    const yy = Array.isArray(y) ? y[s < 0 ? 0 : 1] : y;
+    eye.position.set(s * spread, yy, z);
     eye.scale.setScalar(scale);
     const white = new THREE.Mesh(eyeGeo, eyeWhite);
     white.castShadow = true;
@@ -39,7 +40,7 @@ function addEyes(group, { y = 0.25, z = 0.2, spread = 0.24, mood = 'angry', scal
     eyes.push({ eye, pupil });
     if (mood !== 'none') {
       const brow = new THREE.Mesh(browGeo, browMat);
-      brow.position.set(s * spread, y + 0.2 * scale, z + 0.08);
+      brow.position.set(s * spread, yy + 0.2 * scale, z + 0.08);
       brow.rotation.z = mood === 'angry' ? s * -0.45 : s * 0.25;
       brow.scale.setScalar(scale);
       group.add(brow);
@@ -234,29 +235,54 @@ function buildCloud() {
   return { group: g, eyes, colors: [0x00a1e0, 0x7fd6f7, 0xffffff], goo: 0x00a1e0 };
 }
 
+// ---------- itmX: the official logo shape as a real 3D object ----------
+// Outline traced from public/brand/itmx-logo.png (766 x 828 px).
+const LOGO_W = 766, LOGO_H = 828, LOGO_S = 1.3 / LOGO_H;
+const LOGO_TILE = [[0, 152], [766, 2], [766, 828], [0, 828]];
+const LOGO_X = [
+  [112, 248], [258, 220], [274, 238], [274, 296], [360, 374], [400, 374], [490, 296], [490, 180],
+  [505, 168], [637, 142], [654, 160], [654, 352], [560, 440], [560, 465], [654, 548], [654, 700],
+  [637, 716], [510, 716], [492, 700], [492, 618], [400, 538], [360, 538], [274, 618], [274, 700],
+  [258, 716], [128, 716], [112, 700], [112, 548], [205, 465], [205, 440], [112, 358]
+];
+function logoShape(pts, radiusPx) {
+  const v = pts.map(([x, y]) => new THREE.Vector2((x - LOGO_W / 2) * LOGO_S, (LOGO_H / 2 - y) * LOGO_S));
+  const shape = new THREE.Shape();
+  const n = v.length;
+  for (let i = 0; i < n; i++) {
+    const p = v[i], prev = v[(i + n - 1) % n], next = v[(i + 1) % n];
+    const r = Math.min(radiusPx * LOGO_S, p.distanceTo(prev) / 2, p.distanceTo(next) / 2);
+    const a = p.clone().add(prev.clone().sub(p).normalize().multiplyScalar(r));
+    const b = p.clone().add(next.clone().sub(p).normalize().multiplyScalar(r));
+    if (i === 0) shape.moveTo(a.x, a.y); else shape.lineTo(a.x, a.y);
+    shape.quadraticCurveTo(p.x, p.y, b.x, b.y);
+  }
+  shape.closePath();
+  return shape;
+}
+const logoTopY = (px) => (LOGO_H / 2 - (152 - (150 * px) / LOGO_W)) * LOGO_S;
+
 function buildItmx() {
   const g = new THREE.Group();
-  const t = tex('itmx', 512, 512, (c, w, h) => {
-    const grd = c.createRadialGradient(w / 2, h * 0.4, 30, w / 2, h / 2, w * 0.55);
-    grd.addColorStop(0, '#24324f');
-    grd.addColorStop(1, '#0d1424');
-    c.fillStyle = grd;
-    c.fillRect(0, 0, w, h);
-    drawBrand(c, 70, 170, 372, 190);
-  });
-  const rimMat = phys({ color: 0x19c3ff, emissive: 0x19c3ff, emissiveIntensity: 1.2, metalness: 0.3 });
-  const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.26, 64), [phys({ color: 0x0d1424 }), phys({ map: t, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.35 }), phys({ color: 0x0d1424 })]);
-  disc.rotation.set(Math.PI / 2, Math.PI / 2, 0); // spin cap so the logo reads upright
-  disc.castShadow = true;
-  g.add(disc);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.71, 0.05, 16, 80), rimMat);
-  g.add(rim);
-  const halo = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.04, 12, 48), new THREE.MeshStandardMaterial({ color: 0xffe27a, emissive: 0xffd34d, emissiveIntensity: 2.2 }));
+  const green = phys({ color: 0x50af30, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.15, emissive: 0x50af30, emissiveIntensity: 0.04 });
+  const white = phys({ color: 0xffffff, roughness: 0.25, clearcoat: 1, emissive: 0xffffff, emissiveIntensity: 0.12 });
+  const tileGeo = new THREE.ExtrudeGeometry(logoShape(LOGO_TILE, 24), { depth: 0.26, bevelEnabled: true, bevelThickness: 0.035, bevelSize: 0.03, bevelSegments: 4, curveSegments: 6 });
+  tileGeo.translate(0, 0, -0.13);
+  const tile = new THREE.Mesh(tileGeo, green);
+  tile.castShadow = true;
+  const xGeo = new THREE.ExtrudeGeometry(logoShape(LOGO_X, 14), { depth: 0.07, bevelEnabled: true, bevelThickness: 0.025, bevelSize: 0.018, bevelSegments: 3, curveSegments: 4 });
+  xGeo.translate(0, 0, 0.15);
+  const x = new THREE.Mesh(xGeo, white);
+  x.castShadow = true;
+  g.add(tile, x);
+  const halo = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.04, 12, 48), new THREE.MeshStandardMaterial({ color: 0xffe27a, emissive: 0xffd34d, emissiveIntensity: 2.2 }));
   halo.rotation.x = Math.PI / 2 - 0.3;
   halo.position.y = 1.05;
   g.add(halo);
-  const eyes = addEyes(g, { y: 0.78, z: 0.02, spread: 0.24, mood: 'happy', scale: 0.85 });
-  return { group: g, eyes, colors: [0x19c3ff, 0x0d1424, 0xffffff], goo: 0x19c3ff, halo, friendly: true };
+  // friendly eyes sitting on the slanted top edge
+  const sp = 0.23;
+  const eyes = addEyes(g, { y: [logoTopY(LOGO_W / 2 - sp / LOGO_S) + 0.06, logoTopY(LOGO_W / 2 + sp / LOGO_S) + 0.06], z: 0.02, spread: sp, mood: 'happy', scale: 0.85 });
+  return { group: g, eyes, colors: [0x50af30, 0xffffff, 0x3c8a22], goo: 0x50af30, halo, friendly: true };
 }
 
 export const TARGET_TYPES = {

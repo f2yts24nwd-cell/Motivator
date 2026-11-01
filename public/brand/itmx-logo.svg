@@ -1,5 +1,0 @@
-<!-- PLATZHALTER: Durch das offizielle itmX-Logo aus dem Styleguide (itmx.de) ersetzen.
-     Dateiname beibehalten (itmx-logo.svg) – width/height-Attribute angeben. -->
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="256" viewBox="0 0 512 256">
-  <text x="256" y="168" text-anchor="middle" font-family="Segoe UI, Arial, Helvetica, sans-serif" font-size="150" font-weight="800" letter-spacing="-4" fill="#ffffff">itm<tspan fill="#19c3ff">X</tspan></text>
-</svg>

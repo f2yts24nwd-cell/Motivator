@@ -126,9 +126,9 @@ export function drawCertificate(canvas, { name = '', score = 0, hits = 0, bestCo
 
   // presented-by badge with the itmX logo
   g.fillStyle = '#0d1424';
-  roundRect(g, W / 2 - 110, H - 128, 220, 64, 14);
+  roundRect(g, W / 2 - 120, H - 130, 240, 68, 14);
   g.fill();
-  drawBrand(g, W / 2 - 95, H - 122, 190, 52);
+  drawBrand(g, W / 2 - 105, H - 122, 210, 52, { wordmark: true });
   return canvas;
 }
 

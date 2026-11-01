@@ -9,7 +9,7 @@ Sales-Büro, und jedes Spiel ist ein Arcade-Automat.
   Alle sind eigene, stilisierte 3D-Nachbauten mit Glubschaugen, keine Original-Logodateien.
 - Draufhauen gibt Punkte. Getroffene Köpfe zerspringen mit Splittern, Farb-Splatter, Funken,
   Schockwelle, Kamera-Shake und Hit-Stop.
-- **itmX verschonen!** Ein Treffer kostet 250 Punkte und einen Fehler. Nach 3 Fehlern ist Game over.
+- **itmX verschonen!** Der itmX-Kopf ist das echte Logo als 3D-Objekt (grüne Kachel, weißes X, Heiligenschein). Ein Treffer kostet 250 Punkte und einen Fehler. Nach 3 Fehlern ist Game over.
 - 60 Sekunden, Ziel 2.000 Punkte. Combo-Multiplikator bis x5, das Tempo steigt mit der Zeit.
 - Wer gewinnt, bekommt vom Zottel das **Schwetz-Zertifikat für CRM-Expertise**: mit Namen, als PNG
   zum Speichern oder Teilen.
@@ -51,7 +51,7 @@ src/
   games/registry.js    Liste aller Spiele (hier neue Spiele eintragen)
   games/whack/         „Hau den Legacy!“ (Köpfe, Effekte, Spiellogik)
   cert/                Zottel-Figur, Übergabe-Szene, Zertifikat-Rendering
-public/brand/          itmX-Logo (Platzhalter, siehe README dort)
+public/brand/          offizielles itmX-Logo (PNG)
 ```
 
 ### Neues Spiel hinzufügen

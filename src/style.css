@@ -154,7 +154,7 @@ button { touch-action: manipulation; }
   white-space: nowrap;
   font-size: 15px;
 }
-.hub-title span { color: var(--accent); }
+.hub-title span { color: #6cc84a; }
 .hub-hint {
   position: absolute;
   bottom: calc(16px + env(safe-area-inset-bottom));
@@ -378,3 +378,5 @@ button { touch-action: manipulation; }
   .btn { padding: 10px 18px; font-size: 15px; min-height: 44px; }
   .countdown { font-size: 110px; }
 }
+
+img.brand { height: 1.1em; width: auto; vertical-align: -0.18em; }

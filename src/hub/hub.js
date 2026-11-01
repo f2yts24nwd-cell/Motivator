@@ -81,7 +81,7 @@ export class Hub {
         g.strokeStyle = '#19c3ff'; g.lineWidth = 10;
         g.beginPath(); g.arc(w / 2, hh / 2, w / 2 - 30, 0, Math.PI * 2); g.stroke();
         g.globalAlpha = 0.35;
-        drawBrand(g, w * 0.2, hh * 0.35, w * 0.6, hh * 0.3);
+        drawBrand(g, w * 0.15, hh * 0.37, w * 0.7, hh * 0.26, { wordmark: true });
         g.globalAlpha = 1;
       }), roughness: 1
     }));
@@ -135,9 +135,9 @@ export class Hub {
       g.shadowColor = '#19c3ff'; g.shadowBlur = 28;
       g.fillStyle = '#c9f4ff';
       g.font = '900 150px "Segoe UI", Arial';
-      g.fillText('SPIELEWELT', w / 2 + 170, hh / 2);
-      g.shadowColor = '#ffffff';
-      drawBrand(g, 30, 40, 360, 220);
+      g.fillText('SPIELEWELT', w / 2 + 210, hh / 2);
+      g.shadowColor = '#50af30';
+      drawBrand(g, 10, 50, 520, 200, { wordmark: true });
     });
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(11, 2.36), new THREE.MeshBasicMaterial({ map: signTex, transparent: true, color: new THREE.Color(2, 2, 2), toneMapped: false, depthWrite: false }));
     sign.position.set(0, 5.4, -ROOM_D / 2 + 0.25);
@@ -274,15 +274,17 @@ export class Hub {
           const up = Math.min(1, (ph - 0.2) * 3);
           const [col, txt] = items[i % items.length];
           const friendly = i === 4;
-          c.fillStyle = friendly ? '#0d1424' : col;
-          roundRect(c, x - 30, y + 18 - 52 * up, 60, 50 * up, 8);
-          c.fill();
-          if (friendly) { c.strokeStyle = '#19c3ff'; c.lineWidth = 3; c.stroke(); }
+          if (friendly) drawBrand(c, x - 28, y + 18 - 54 * up, 56, 54 * up);
+          else {
+            c.fillStyle = col;
+            roundRect(c, x - 30, y + 18 - 52 * up, 60, 50 * up, 8);
+            c.fill();
+          }
           if (up > 0.8) {
             c.fillStyle = '#fff';
             c.font = '900 24px "Segoe UI", Arial';
             c.textAlign = 'center'; c.textBaseline = 'middle';
-            if (friendly) drawBrand(c, x - 26, y - 22, 52, 30); else c.fillText(txt, x, y - 8);
+            if (!friendly) c.fillText(txt, x, y - 8);
           }
         }
       }
@@ -520,7 +522,7 @@ export class Hub {
 
   buildUI() {
     clearUI();
-    mount(h('div.hub-title.panel.passthrough', { html: '<span>itmX</span> Spielewelt' }));
+    mount(h('div.hub-title.panel.passthrough', { html: `<img class="brand" src="${import.meta.env.BASE_URL}brand/itmx-logo.png" alt=""> <span>itmX</span> Spielewelt` }));
     const mute = mount(h('button.icon-btn.right', { title: 'Ton an/aus', onclick: () => { setMuted(!isMuted()); mute.textContent = isMuted() ? '🔇' : '🔊'; } }, isMuted() ? '🔇' : '🔊'));
     this.hint = mount(h('div.hub-hint.panel.passthrough', {}, matchMedia('(pointer: coarse)').matches
       ? 'Tippe auf den Boden zum Laufen oder direkt auf einen Automaten.'

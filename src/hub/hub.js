@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { canvasTexture, rand, clamp, lerp, drawBrand, roundRect } from '../core/gfx.js';
-import { sfx, unlockAudio, isMuted, setMuted } from '../core/audio.js';
-import { h, mount, clearUI } from '../core/ui.js';
+import { sfx, music, unlockAudio, isMuted, setMuted } from '../core/audio.js';
+import { h, mount, clearUI, storeGet, storeSet } from '../core/ui.js';
+import { WARDROBE, loadAvatar, saveAvatar, buildAvatar, disposeAvatar } from './avatar.js';
 import { GAMES } from '../games/registry.js';
 
 const ROOM_W = 26, ROOM_D = 18;
@@ -134,10 +135,10 @@ export class Hub {
       g.textAlign = 'center'; g.textBaseline = 'middle';
       g.shadowColor = '#19c3ff'; g.shadowBlur = 28;
       g.fillStyle = '#c9f4ff';
-      g.font = '900 150px "Segoe UI", Arial';
-      g.fillText('SPIELEWELT', w / 2 + 210, hh / 2);
+      g.font = '900 118px "Segoe UI", Arial';
+      g.fillText('SPIELEWELT', 1020, hh / 2);
       g.shadowColor = '#50af30';
-      drawBrand(g, 10, 50, 520, 200, { wordmark: true });
+      drawBrand(g, 20, 60, 560, 180, { wordmark: true });
     });
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(11, 2.36), new THREE.MeshBasicMaterial({ map: signTex, transparent: true, color: new THREE.Color(2, 2, 2), toneMapped: false, depthWrite: false }));
     sign.position.set(0, 5.4, -ROOM_D / 2 + 0.25);
@@ -170,7 +171,12 @@ export class Hub {
     this.addCoffee(11.6, -1.6);
 
     this.player = this.buildPlayer();
+    this.avatar = loadAvatar();
+    this.applyAvatar(this.avatar);
     s.add(this.player.root);
+    this.hand = this.buildSlapHand();
+    this.mode = 'walk';
+    this.shake = 0;
     this.player.root.position.set(0, 0, 4);
     this.walkTarget = null;
 
@@ -434,63 +440,190 @@ export class Hub {
   }
 
   buildPlayer() {
-    const root = new THREE.Group();
-    const body = new THREE.Group();
-    root.add(body);
-    const suit = new THREE.MeshPhysicalMaterial({ color: 0x22305a, roughness: 0.6, sheen: 0.6 });
-    const skin = new THREE.MeshStandardMaterial({ color: 0xf0c4a6, roughness: 0.6 });
-    const legs = [];
-    for (const s of [-1, 1]) {
-      const pivot = new THREE.Group();
-      pivot.position.set(s * 0.17, 0.95, 0);
-      const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.65, 4, 10), new THREE.MeshStandardMaterial({ color: 0x1a2238 }));
-      leg.position.y = -0.45;
-      leg.castShadow = true;
-      const shoe = new THREE.Mesh(new RoundedBoxGeometry(0.22, 0.14, 0.38, 2, 0.05), new THREE.MeshPhysicalMaterial({ color: 0x1a0f0a, clearcoat: 1, roughness: 0.3 }));
-      shoe.position.set(0, -0.88, 0.07);
-      pivot.add(leg, shoe);
-      body.add(pivot);
-      legs.push(pivot);
+    return { root: new THREE.Group(), phase: 0, speed: 0 };
+  }
+
+  applyAvatar(cfg) {
+    const pl = this.player;
+    if (pl.av) { pl.root.remove(pl.av.root); disposeAvatar(pl.av); }
+    const av = buildAvatar(cfg);
+    pl.root.add(av.root);
+    Object.assign(pl, { av, body: av.body, legs: av.legs, arms: av.arms, neck: av.neck });
+  }
+
+  buildSlapHand() {
+    const g = new THREE.Group();
+    const skin = new THREE.MeshPhysicalMaterial({ color: 0xe9bf9f, roughness: 0.55, sheen: 0.4, sheenColor: new THREE.Color(0xff9a8a) });
+    const palm = new THREE.Mesh(new RoundedBoxGeometry(0.62, 0.7, 0.18, 3, 0.07), skin);
+    palm.position.y = -0.35;
+    g.add(palm);
+    for (let i = 0; i < 4; i++) {
+      const f = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.42 - Math.abs(i - 1.5) * 0.06, 4, 10), skin);
+      f.position.set(-0.23 + i * 0.155, -0.92 + Math.abs(i - 1.5) * 0.03, 0);
+      g.add(f);
     }
-    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.34, 0.6, 6, 16), suit);
-    torso.position.y = 1.5;
-    torso.castShadow = true;
-    const shirt = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.5), new THREE.MeshStandardMaterial({ color: 0xffffff }));
-    shirt.position.set(0, 1.68, 0.335);
-    const tie = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.45, 4), new THREE.MeshStandardMaterial({ color: 0x19c3ff, emissive: 0x0a4a66 }));
-    tie.rotation.x = Math.PI;
-    tie.position.set(0, 1.62, 0.36);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 24, 18), skin);
-    head.position.y = 2.3;
-    head.castShadow = true;
-    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.29, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), new THREE.MeshStandardMaterial({ color: 0x2b1d14, roughness: 0.5 }));
-    hair.position.y = 2.34;
-    hair.rotation.x = -0.25;
-    for (const s of [-1, 1]) {
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8), new THREE.MeshStandardMaterial({ color: 0x111111 }));
-      eye.position.set(s * 0.1, 2.33, 0.25);
-      body.add(eye);
+    const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.3, 4, 10), skin);
+    thumb.position.set(0.38, -0.42, 0.04);
+    thumb.rotation.z = 0.7;
+    g.add(thumb);
+    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.16, 20), new THREE.MeshStandardMaterial({ color: 0xf7f7f5 }));
+    cuff.position.y = 0.06;
+    cuff.scale.z = 0.55;
+    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.32, 3.4, 20), new THREE.MeshPhysicalMaterial({ color: 0x1f2c52, roughness: 0.6, sheen: 0.6 }));
+    sleeve.position.y = 1.85;
+    sleeve.scale.z = 0.6;
+    const link = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.05), new THREE.MeshStandardMaterial({ color: 0xd9b45a, metalness: 1, roughness: 0.25 }));
+    link.position.set(0, 0.06, 0.16);
+    g.add(cuff, sleeve, link);
+    g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    g.scale.setScalar(1.25);
+    g.visible = false;
+    this.scene.add(g);
+    // dizzy stars
+    const starTex = canvasTexture(64, 64, (c, w, hh) => {
+      c.translate(w / 2, hh / 2); c.fillStyle = '#ffd34d'; c.beginPath();
+      for (let i = 0; i < 10; i++) { const r = i % 2 ? 12 : 30, a = (i / 10) * Math.PI * 2 - Math.PI / 2; c.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+      c.fill();
+    });
+    this.stars = [];
+    for (let i = 0; i < 5; i++) {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: starTex, transparent: true, depthWrite: false, toneMapped: false, color: new THREE.Color(1.6, 1.6, 1.6) }));
+      sp.scale.setScalar(0.22);
+      sp.visible = false;
+      this.scene.add(sp);
+      this.stars.push(sp);
     }
-    const arms = [];
-    for (const s of [-1, 1]) {
-      const pivot = new THREE.Group();
-      pivot.position.set(s * 0.45, 1.9, 0);
-      const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.6, 4, 10), suit);
-      arm.position.y = -0.4;
-      arm.castShadow = true;
-      pivot.add(arm);
-      body.add(pivot);
-      arms.push(pivot);
+    return g;
+  }
+
+  // ------------------------------------------------------------------ wardrobe
+  openWardrobe() {
+    if (this.mode === 'wardrobe') return;
+    unlockAudio();
+    sfx.click();
+    this.mode = 'wardrobe';
+    this.walkTarget = null;
+    this.marker.visible = false;
+    this.hidePrompt();
+    this.near = null;
+    if (this.hint) this.hint.style.display = 'none';
+    this.wardrobeBtn.style.display = 'none';
+    let tab = this.wardrobeTab || 'top';
+    const tabs = h('div.wd-tabs');
+    const grid = h('div.wd-grid');
+    const nameInput = h('input', { type: 'text', maxlength: '40', placeholder: 'Dein Name (fürs Zertifikat)', value: storeGet('player-name', '') });
+    nameInput.addEventListener('input', () => storeSet('player-name', nameInput.value));
+    const render = () => {
+      tabs.replaceChildren(...WARDROBE.map((c) => h('button.wd-tab' + (c.id === tab ? '.on' : ''), { onclick: () => { tab = c.id; this.wardrobeTab = tab; sfx.click(); render(); } }, c.label)));
+      const cat = WARDROBE.find((c) => c.id === tab);
+      grid.replaceChildren(...cat.options.map((o) => {
+        const on = this.avatar[cat.id] === o.id;
+        const btn = h('button.wd-opt' + (on ? '.on' : '') + (cat.swatch ? '.sw' : ''), { onclick: () => this.pickOutfit(cat, o, render) }, cat.swatch
+          ? [h('i', { style: `background:#${o.color.toString(16).padStart(6, '0')}` }), o.label]
+          : o.label);
+        return btn;
+      }));
+    };
+    render();
+    this.wardrobe = mount(h('div.wardrobe.panel', {}, [
+      h('div.wd-head', {}, [h('strong', {}, 'Dein Business-Look'), h('button.btn', { onclick: () => this.closeWardrobe() }, 'Fertig')]),
+      h('div.name', {}, nameInput),
+      tabs,
+      grid
+    ]));
+  }
+
+  closeWardrobe() {
+    if (this.slap) return;
+    sfx.click();
+    this.mode = 'walk';
+    this.wardrobe?.remove();
+    this.wardrobe = null;
+    this.wardrobeBtn.style.display = '';
+    if (this.hint) this.hint.style.display = '';
+  }
+
+  pickOutfit(cat, opt, render) {
+    if (this.slap) return;
+    if (opt.forbidden) {
+      // put it on for a moment ... then the hand comes
+      const prev = { ...this.avatar };
+      this.applyAvatar({ ...this.avatar, [cat.id]: opt.id });
+      this.slap = { t: 0, prev, msg: opt.forbidden, hit: false };
+      this.hand.visible = true;
+      sfx.whoosh();
+      return;
     }
-    const bag = new THREE.Mesh(new RoundedBoxGeometry(0.5, 0.36, 0.14, 2, 0.04), new THREE.MeshPhysicalMaterial({ color: 0x5a3214, roughness: 0.4, clearcoat: 0.6 }));
-    bag.position.set(0, -0.9, 0);
-    arms[1].add(bag);
-    body.add(torso, shirt, tie, head, hair);
-    const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.5, 24), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25, depthWrite: false }));
-    shadow.rotation.x = -Math.PI / 2;
-    shadow.position.y = 0.012;
-    root.add(shadow);
-    return { root, body, legs, arms, phase: 0, speed: 0 };
+    sfx.click();
+    this.avatar[cat.id] = opt.id;
+    saveAvatar(this.avatar);
+    this.applyAvatar(this.avatar);
+    render();
+  }
+
+  updateSlap(dt) {
+    const S = this.slap;
+    if (!S) return;
+    S.t += dt;
+    const t = S.t;
+    const neck = new THREE.Vector3();
+    this.player.neck.getWorldPosition(neck);
+    const yaw = this.player.root.rotation.y;
+    const back = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)); // behind the avatar
+    const hand = this.hand;
+    hand.rotation.y = yaw;
+    const ease = (x) => 1 - Math.pow(1 - clamp(x, 0, 1), 3);
+    if (t < 0.45) {
+      // comes down from the sky behind the avatar
+      const k = ease(t / 0.45);
+      hand.position.copy(neck).addScaledVector(back, 0.75).add(new THREE.Vector3(0, lerp(6, 1.25, k), 0));
+      hand.rotation.x = -0.15;
+    } else if (t < 0.62) {
+      // wind-up
+      const k = ease((t - 0.45) / 0.17);
+      hand.position.copy(neck).addScaledVector(back, lerp(0.75, 1.05, k)).add(new THREE.Vector3(0, 1.25, 0));
+      hand.rotation.x = lerp(-0.15, -0.75, k);
+    } else if (t < 0.7) {
+      // WHAP
+      const k = clamp((t - 0.62) / 0.08, 0, 1);
+      hand.position.copy(neck).addScaledVector(back, lerp(1.05, 0.42, k)).add(new THREE.Vector3(0, lerp(1.25, 1.0, k), 0));
+      hand.rotation.x = lerp(-0.75, 0.25, k);
+      if (t >= 0.68 && !S.hit) {
+        S.hit = true;
+        sfx.slap();
+        this.shake = 0.5;
+        this.jolt = 0;
+        const toast = mount(h('div.slap-toast.panel.passthrough', {}, [h('b', {}, '👋 Nackenklatscher!'), S.msg, h('small', {}, 'So gammlig läuft bei der Arbeit niemand rum. Business-Look, bitte.')]));
+        setTimeout(() => toast.remove(), 3600);
+      }
+    } else if (t < 1.25) {
+      if (!S.hit) { S.hit = true; sfx.slap(); this.shake = 0.5; this.jolt = 0; }
+      hand.position.copy(neck).addScaledVector(back, 0.42).add(new THREE.Vector3(0, 1.0, 0));
+    } else if (t < 1.7) {
+      const k = (t - 1.25) / 0.45;
+      hand.position.copy(neck).addScaledVector(back, 0.42 + k * 0.6).add(new THREE.Vector3(0, 1.0 + k * k * 7, 0));
+    }
+    if (S.hit) {
+      this.jolt += dt;
+      const j = this.jolt;
+      this.player.neck.rotation.x = 0.55 * Math.cos(j * 22) * Math.exp(-j * 4.5);
+      // dizzy stars
+      this.stars.forEach((sp, i) => {
+        sp.visible = j < 1.8;
+        const a = j * 5 + (i / this.stars.length) * Math.PI * 2;
+        sp.position.copy(neck).add(new THREE.Vector3(Math.cos(a) * 0.42, 0.75 + Math.sin(j * 7 + i) * 0.05, Math.sin(a) * 0.42));
+      });
+    }
+    if (t >= 1.9) {
+      // outfit is "confiscated" -> back to the previous look
+      this.hand.visible = false;
+      this.stars.forEach((sp) => (sp.visible = false));
+      this.player.neck.rotation.x = 0;
+      this.avatar = S.prev;
+      this.applyAvatar(this.avatar);
+      sfx.whoosh();
+      this.slap = null;
+    }
   }
 
   // ------------------------------------------------------------------ lifecycle
@@ -501,7 +634,9 @@ export class Hub {
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
     this.near = null;
+    this.mode = 'walk';
     this.buildUI();
+    music.play('hub');
     // after a game, step back in front of its cabinet
     if (this.lastGame) {
       const cab = this.cabinets.find((x) => x.game.id === this.lastGame);
@@ -528,6 +663,7 @@ export class Hub {
       ? 'Tippe auf den Boden zum Laufen oder direkt auf einen Automaten.'
       : 'Klicke zum Laufen (oder WASD/Pfeiltasten). Geh zu einem Automaten, um zu spielen.'));
     this.prompt = null;
+    this.wardrobeBtn = mount(h('button.icon-btn.left.wd-btn', { title: 'Avatar gestalten', onclick: () => this.openWardrobe() }, '👔'));
   }
 
   showPrompt(cab) {
@@ -567,6 +703,7 @@ export class Hub {
 
   onDown(e) {
     unlockAudio();
+    if (this.mode === 'wardrobe') return;
     const r = this.app.gfx.renderer.domElement.getBoundingClientRect();
     const p = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     this.raycaster.setFromCamera(p, this.camera);
@@ -599,6 +736,8 @@ export class Hub {
       (k.has('d') || k.has('arrowright') ? 1 : 0) - (k.has('a') || k.has('arrowleft') ? 1 : 0), 0,
       (k.has('s') || k.has('arrowdown') ? 1 : 0) - (k.has('w') || k.has('arrowup') ? 1 : 0)
     );
+    const wardrobe = this.mode === 'wardrobe';
+    if (wardrobe) dir.set(0, 0, 0);
     if (dir.lengthSq() > 0) { this.walkTarget = null; this.marker.visible = false; }
     else if (this.walkTarget) {
       dir.subVectors(this.walkTarget, pos).setY(0);
@@ -657,17 +796,31 @@ export class Hub {
       cab.glow.material.opacity = (cab.game.available ? 0.45 : 0.12) + (near === cab ? 0.35 : 0) + Math.sin(time * 3) * 0.05;
       if (redraw) this.drawScreen(cab, time);
     }
-    if (near !== this.near) {
+    if (wardrobe) near = null;
+    if (near !== this.near && !wardrobe) {
       this.near = near;
       if (near) this.showPrompt(near); else this.hidePrompt();
     }
 
-    // camera follow
+    // camera follow (or close-up in the wardrobe)
     const camTarget = new THREE.Vector3(pos.x * 0.85, 9.5, pos.z + 11);
     const look = new THREE.Vector3(pos.x * 0.85, 1.6, pos.z - 2.5);
     if (this.camera.aspect < 1) { camTarget.set(pos.x * 0.7, 15, pos.z + 10.5); look.set(pos.x * 0.8, 0.6, pos.z - 1.8); }
+    if (wardrobe) {
+      // face the camera, turn slowly; frame the avatar next to / above the wardrobe panel
+      let diff = Math.sin(time * 0.6) * 0.35 - pl.root.rotation.y;
+      diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+      if (!this.slap) pl.root.rotation.y += diff * clamp(dt * 4, 0, 1);
+      if (this.camera.aspect < 1) { camTarget.set(pos.x + 0.9, 3.2, pos.z + 6.4); look.set(pos.x, 0.25, pos.z); }
+      else { camTarget.set(pos.x + 1.0, 2.6, pos.z + 5.2); look.set(pos.x + 1.35, 1.45, pos.z); }
+      // during the slap: swing round to a 3/4 side view so the hand + neck are visible
+      if (this.slap) { camTarget.x += 3.2; camTarget.z -= 1.6; camTarget.y += 0.6; }
+    }
+    this.updateSlap(dt);
     if (!this.camInit) { this.camera.position.copy(camTarget); this.camInit = true; }
-    this.camera.position.lerp(camTarget, clamp(dt * 3, 0, 1));
+    this.camera.position.lerp(camTarget, clamp(dt * (wardrobe ? 4 : 3), 0, 1));
+    this.shake = Math.max(0, this.shake - dt * 1.6);
+    if (this.shake > 0) this.camera.position.add(new THREE.Vector3((Math.random() - 0.5) * this.shake, (Math.random() - 0.5) * this.shake, 0));
     this.camera.lookAt(look);
 
     if (this.marker.visible) {

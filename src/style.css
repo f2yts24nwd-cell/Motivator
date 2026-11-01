@@ -537,7 +537,7 @@ img.brand { height: 1.1em; width: auto; vertical-align: -0.18em; }
 .fb-ico svg { width: 30px; height: 30px; display: block; filter: drop-shadow(0 0 6px var(--c)); }
 .fb-name { font-size: 12.5px; font-weight: 800; line-height: 1.1; text-align: center; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
 .fb-tool kbd { position: absolute; top: 5px; right: 7px; font: 700 10px/1 ui-monospace, Menlo, monospace; opacity: .55; }
-body.fb-schwetz .fb-belt { opacity: .25; pointer-events: none; }
+body.fb-briefing .fb-belt, body.fb-briefing .fb-focus { opacity: .25; pointer-events: none; }
 body.fb-extra .fb-tool { box-shadow: inset 0 1px 0 rgba(255,255,255,.28), inset 0 0 0 2px var(--gold), 0 6px 0 #6b4a10, 0 0 22px rgba(255,204,77,.45); }
 
 /* focus panel: the task the next tool press will hit */
@@ -581,7 +581,7 @@ body.fb-extra .fb-tool { box-shadow: inset 0 1px 0 rgba(255,255,255,.28), inset 
 .fb-timbox img { width: 56px; height: 56px; border-radius: 50%; border: 3px solid #50af30; flex: none; box-shadow: 0 6px 18px rgba(0,0,0,.5); }
 .fb-timbox span { background: #fff; color: #0b1020; font-weight: 800; font-size: 15px; padding: 9px 13px; border-radius: 14px 14px 14px 4px; box-shadow: 0 6px 18px rgba(0,0,0,.45); }
 
-/* big banners: Extra Meile, Schwetz quote, Feierabend */
+/* big banners: Extra Meile, quote, Feierabend */
 .fb-banner {
   position: absolute; left: 50%; top: 34%;
   transform: translate(-50%, -50%);
@@ -603,6 +603,9 @@ body.fb-extra .fb-tool { box-shadow: inset 0 1px 0 rgba(255,255,255,.28), inset 
   100% { opacity: 0; transform: translate(-50%, -62%) scale(1); }
 }
 .fb-speech { z-index: 5; }
+.fb-speaker { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.fb-speaker img { width: 44px; height: 44px; border-radius: 50%; border: 2px solid #50af30; }
+.fb-speaker b { margin: 0; color: #6cc84a; }
 .fb-speech.quote span { font-weight: 800; color: #ffe9a8; font-size: 19px; }
 
 /* results */

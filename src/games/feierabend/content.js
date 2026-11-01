@@ -14,7 +14,7 @@ const PATHS = {
   offer: '<path d="M6 2.5h8l4.5 4.5v13a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 20V4A1.5 1.5 0 0 1 6 2.5z"/><path d="M14 2.5V7h4.5"/><path d="M14.4 12.4a3 3 0 1 0 0 4.4M8.6 13.8h4.6M8.6 15.5h4.6"/>',
   ticket: '<path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h15A1.5 1.5 0 0 1 21 7.5V10a2 2 0 0 0 0 4v2.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 16.5V14a2 2 0 0 0 0-4z"/><path d="M15 6.5v1.6M15 11.2v1.6M15 15.9v1.6"/><path d="M6.5 10.5h5M6.5 13.5h3.5"/>',
   trash: '<path d="M4 6.5h16M9.5 6.5V4.4h5v2.1M6 6.5l1 13a1.5 1.5 0 0 0 1.5 1.4h7a1.5 1.5 0 0 0 1.5-1.4l1-13M10 10.5v6.5M14 10.5v6.5"/>',
-  mug: '<path d="M4.5 8h11v7a4.5 4.5 0 0 1-4.5 4.5H9A4.5 4.5 0 0 1 4.5 15z"/><path d="M15.5 9.5h1.7a2.6 2.6 0 0 1 0 5.2h-1.7"/><path d="M8 3.5c-.8 1 .8 1.6 0 2.8M11.5 3.5c-.8 1 .8 1.6 0 2.8"/>',
+  hourglass: '<path d="M6.5 3h11M6.5 21h11M7.5 3v2.5c0 2.5 4.5 4.2 4.5 6.5S7.5 16 7.5 18.5V21M16.5 3v2.5c0 2.5-4.5 4.2-4.5 6.5s4.5 4 4.5 6.5V21"/><path d="M9.5 18.6c.8-1 1.6-1.4 2.5-1.4s1.7.4 2.5 1.4"/>',
   legacy: '<rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M3.5 9h17M3.5 14.5h17M9 3.5v17M14.5 3.5v17"/>'
 };
 
@@ -62,16 +62,16 @@ export const TASKS = [
   { tool: 'ticket', who: 'Reklamation', what: ['Artikel fehlt in der Lieferung!', 'Kunde beschwert sich per Mail', 'Ware beschädigt angekommen'] }
 ];
 
-// "Das andere lassen": busywork from Dumêz G. Schwetz. Correct move: do nothing.
+// "Das andere lassen": Zeitfresser. Correct move: do nothing and let them pass.
 export const LASSEN = {
-  who: 'Auftrag von Schwetz',
+  who: 'Zeitfresser',
   what: ['Meeting zur Vorbereitung des Meetings', 'Statusmail an alle, zur Sicherheit', 'Folien für die Folien', 'Report, den keiner liest', 'Ablage nach Farben sortieren']
 };
 
 // Legacy junk flies in as the googly-eyed heads from "Hau den Legacy!"
 export const LEGACY = ['excel', 'access', 'floppy', 'ie', 'clippy'];
 
-export const QUOTE_SCHWETZ = 'Das eine nicht tun, dafür das andere lassen!';
+export const QUOTE_LASSEN = 'Das eine nicht tun, dafür das andere lassen!';
 
 export const TIM = {
   start: 'Okay. 17:30 ist Feierabend. Los geht’s!',
@@ -87,25 +87,18 @@ export const TIM = {
   stack: 'Achtung, der Stapel kippt gleich!'
 };
 
-export const SCHWETZ_LINES = [
-  'Moin … *schlurf* … kurze Durchsage vom Chef persönlich:',
-  'Ab jetzt kommen auch meine Aufträge rein. Meetings, Reports, Statusmails …',
-  QUOTE_SCHWETZ,
-  'Heißt: Meine Aufträge einfach durchrauschen lassen. Ich merk das eh nicht.'
+// Tim X. introduces the Zeitfresser rule mid-morning
+export const BRIEFING_LINES = [
+  'Kurz durchatmen. Ab jetzt mischen sich Zeitfresser unter meine Aufgaben: Meetings über Meetings, Reports, die keiner liest …',
+  QUOTE_LASSEN,
+  'Heißt für mich: Zeitfresser gar nicht erst anfassen, einfach durchrauschen lassen. Das spart Minuten!'
 ];
 
 // Ranks in "Minuten gespart" (90 s round = one working day)
 export const RANKS_FB = [
-  { id: 'gold', min: 420, title: 'Feierabend-Legende', line: 'Pünktlich raus und trotzdem alles erledigt.' },
-  { id: 'silber', min: 260, title: 'Zeitspar-Profi', line: 'Viel geschafft, fast nichts auf Papier.' },
-  { id: 'bronze', min: 130, title: 'CRM-Aufsteiger:in', line: 'Die Richtung stimmt. Morgen wird’s noch besser.' },
-  { id: 'teilnahme', min: 0, title: 'Zettel-Sammler:in', line: 'Morgen bitte mehr CRM und weniger Papier.' }
+  { id: 'gold', name: 'Gold', min: 420, title: 'Feierabend-Legende', line: 'Pünktlich raus und trotzdem alles erledigt.' },
+  { id: 'silber', name: 'Silber', min: 260, title: 'Zeitspar-Profi', line: 'Viel geschafft, fast nichts auf Papier.' },
+  { id: 'bronze', name: 'Bronze', min: 130, title: 'CRM-Aufsteiger:in', line: 'Die Richtung stimmt. Morgen wird’s noch besser.' },
+  { id: 'teilnahme', name: 'Teilnahme', min: 0, title: 'Zettel-Sammler:in', line: 'Morgen bitte mehr CRM und weniger Papier.' }
 ];
 export const rankForFb = (min) => RANKS_FB.find((r) => min >= r.min) || RANKS_FB[RANKS_FB.length - 1];
-
-export const SCHWETZ_RANK = {
-  gold: 'Alter … Feierabend um 17:30 und kein Blatt Papier auf dem Tisch. Das hab ich selbst noch nie geschafft.',
-  silber: 'Nicht schlecht. Ein paar Zettel, aber die Extra Meile kennst du schon.',
-  bronze: 'Okay, die Low Hanging Fruits hast du mitgenommen. Der Rest … nächstes Mal.',
-  teilnahme: 'Dein Schreibtisch sieht aus wie meiner. Das ist kein Kompliment.'
-};

@@ -14,9 +14,9 @@ const RANK_LINES = {
   bronze: 'Okay, ein paar Disketten hast du erwischt. Respekt … irgendwie.',
   teilnahme: 'Ehrlich gesagt hab ich in der Zeit mehr Chips gegessen als du gehauen hast. Aber egal, Urkunde ist Urkunde.'
 };
-const linesFor = (rank, stats) => [
+const linesFor = (rank) => [
   'Moin … *schlurf* … Dumêz G. Schwetz mein Name. Ich bin hier für die Zertifikate zuständig.',
-  stats.speech || RANK_LINES[rank.id],
+  RANK_LINES[rank.id],
   `Hier. Dein Schwetz-Zertifikat, Stufe ${rank.name}. Is’ nur ’n bisschen vollgekrümelt, sorry.`
 ];
 
@@ -126,7 +126,7 @@ export class CertificateScene {
   enter(stats) {
     this.stats = { rank: 'teilnahme', score: 0, hits: 0, bestCombo: 0, ...(stats || {}) };
     this.rank = RANKS.find((r) => r.id === this.stats.rank) || RANKS[RANKS.length - 1];
-    this.lines = linesFor(this.rank, this.stats);
+    this.lines = linesFor(this.rank);
     // the player's own avatar receives the certificate
     if (this.player) { this.scene.remove(this.player.root); disposeAvatar(this.player); }
     this.player = buildAvatar(loadAvatar());
@@ -229,7 +229,7 @@ export class CertificateScene {
         const blob = await new Promise((r) => preview.toBlob(r, 'image/png'));
         const file = new File([blob], 'Schwetz-Zertifikat.png', { type: 'image/png' });
         if (navigator.canShare?.({ files: [file] })) {
-          await navigator.share({ files: [file], title: 'Mein Schwetz-Zertifikat', text: this.stats.shareText || `${this.stats.score} Punkte bei „Hau den Legacy!“ in der itmX Spielewelt.` });
+          await navigator.share({ files: [file], title: 'Mein Schwetz-Zertifikat', text: `${this.stats.score} Punkte bei „Hau den Legacy!“ in der itmX Spielewelt.` });
         } else {
           const a = document.createElement('a');
           a.download = 'Schwetz-Zertifikat.png';

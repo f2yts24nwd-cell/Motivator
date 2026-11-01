@@ -77,7 +77,7 @@ export function loadBrandLogo() {
     const img = new Image();
     img.onload = () => { brandImg = img; resolve(img); };
     img.onerror = () => resolve(null);
-    img.src = new URL('brand/itmx-logo.svg', document.baseURI).href;
+    img.src = new URL(`${import.meta.env.BASE_URL}brand/itmx-logo.svg`, document.baseURI).href;
   });
 }
 export function getBrandImage() { return brandImg; }

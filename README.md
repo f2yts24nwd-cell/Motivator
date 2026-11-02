@@ -32,6 +32,24 @@ Ein Arbeitstag im Leben von Tim X. (nach „A Day in the Life of a Salesman“ a
 
 Steuerung: Werkzeuge antippen oder Tasten 1–9. Eine Karte antippen wählt sie gezielt aus, sonst trifft das Werkzeug die dringendste Aufgabe.
 
+## Spiel 3: „Mission RC 0“
+
+Das Downtime-Wochenende einer SAP S/4HANA-Conversion, in 90 Sekunden von Samstag 18:00 bis Montag 06:00.
+Das CRM-Add-on der **Ludlein Crew** (Team Rocket (Frontend), ABAP Pros, PM Experts: Danny the Boss, The Good Twin, Saar DEV, Finest CUT, Whity) muss sauber durch die Conversion.
+
+- Transportaufträge rollen über ein Förderband durchs Rechenzentrum. Antippen importiert sie nach PRD. Nur die Transporte der aktuellen Phase geben **RC 0**:
+  1. Conversion Kit installieren, 2. Backup in (schwurbelige) Z-Tabellen, 3. altes CRM deinstallieren, 4. die Conversion (SUM), 5. das neue itmX CRM der Ludlein Crew, 6. Restore aus den Z-Tabellen.
+- Return Codes: RC 4 für schon erledigte Phasen, RC 8 für zu frühe Transporte, RC 12 für Müll („Bitte nicht importieren!“) und gestempelte Fälschungen („UNGETESTET“). RC 8 und RC 12 sind Kurzdumps im SAP-GUI-Look. Bei 5 Kurzdumps ist Systemstillstand.
+- **Endgegner SAP Business Partner:** Zu Beginn der Conversion bricht ein dreiköpfiges Stammdaten-Monster (Debitor, Ansprechpartner, Kreditor) ein und schießt CVI-Fehler. Fehler abschießen, Köpfe treffen. Besiegt bleibt er als Maskottchen: „Ich bin trotzdem Pflicht.“
+- **Product Management** ist das allwissende Orakel (3 Joker): Es lässt die richtigen Transporte golden leuchten oder zeigt die Schwachstelle des Bosses. Mit jeder Frage wird es sichtbar müder.
+- **CRX-Turbo:** RC 0 lädt den Turbo. Dann fährt der Ludlein-CRX mit dickem Auspuff übers Band, importiert alles Richtige und verbrennt den Müll.
+- Der Consultant (Fantasienamen wie Kai Ahnung, Rainer Zufall, Theo Retisch) schwitzt sichtbar mit, inklusive Achselflecken.
+- **Humor-Modus:** „Kunde & Partner“ (höflich, Standard) oder „Intern“ (dreckig). Die Wahl steht auf dem Startbildschirm und wird gespeichert.
+- Am Ende Lernkarten zu Transporten und Conversion (Return Codes, Add-ons, SUM/DMO, Business Partner/CVI …). Danach überreicht **Hannah aka S4HANNAH** im Rechenzentrum das **S4 Patent** (mit Namen, als PNG speicher- und teilbar).
+- Soundtrack: 90er Eurodance mit 140 BPM, per WebAudio erzeugt, im Bosskampf mit Kriegstrommeln. Dazu Motor und Fehlzündungen des CRX, Orakel-Chor und eine traurige Posaune fürs alte CRM.
+
+Steuerung: Transporte, Fehler und Köpfe antippen. Tastatur: 1–3 importiert den vordersten Transport der Spur, Q fragt Product Management, Leertaste zündet den Turbo.
+
 ## Avatar & Kleiderschrank
 
 Über den 👔-Knopf im Büro gestaltest du deinen Avatar: Oberteil, Hose oder Rock, Schuhe, Accessoire, Farben,
@@ -78,6 +96,7 @@ src/
   hub/hub.js           Begehbares 3D-Büro mit Arcade-Automaten
   games/registry.js    Liste aller Spiele (hier neue Spiele eintragen)
   games/whack/         „Hau den Legacy!“ (Köpfe, Effekte, Spiellogik)
+  games/conversion/    „Mission RC 0“ (Förderband, Business Partner, CRX, Orakel, S4 Patent)
   cert/                Dumêz G. Schwetz, Übergabe-Szene, Zertifikat-Rendering
   hub/avatar.js        Avatar und Kleiderschrank (Business-Look-Pflicht)
 public/brand/          offizielles itmX-Logo (PNG)

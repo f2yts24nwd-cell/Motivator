@@ -334,6 +334,41 @@ export class Hub {
       c.fillStyle = Math.sin(time * 6) > 0 ? '#ffcc4d' : '#ffffff';
       c.font = '900 22px "Segoe UI", Arial';
       c.fillText('PRESS START', w / 2, hh - 18);
+    } else if (cab.game.id === 'conversion') {
+      // attract mode: numbered transport crates on a conveyor, RC 0 beams, downtime clock
+      c.fillStyle = '#1a2032';
+      c.beginPath(); c.moveTo(w / 2 - 40, 50); c.lineTo(w / 2 + 40, 50); c.lineTo(w / 2 + 170, hh); c.lineTo(w / 2 - 170, hh); c.fill();
+      c.strokeStyle = '#ffb000'; c.lineWidth = 3;
+      c.beginPath(); c.moveTo(w / 2 - 40, 50); c.lineTo(w / 2 - 170, hh); c.moveTo(w / 2 + 40, 50); c.lineTo(w / 2 + 170, hh); c.stroke();
+      const cols = ['#19c3ff', '#ffb000', '#ff3b5c', '#a46bff', '#50af30', '#ff7ac0'];
+      for (let i = 0; i < 4; i++) {
+        const k = ((time * 0.35 + i * 0.25) % 1);
+        const lane = (i * 2) % 3 - 1;
+        const sc = 0.3 + k * 0.8;
+        const x = w / 2 + lane * (14 + k * 70), y = 55 + k * (hh - 115);
+        const n = (Math.floor(time * 0.35 + i * 0.25) + i) % 6;
+        c.fillStyle = cols[n];
+        roundRect(c, x - 40 * sc, y - 22 * sc, 80 * sc, 44 * sc, 6 * sc); c.fill();
+        c.fillStyle = '#05070d';
+        c.font = `900 ${Math.round(30 * sc)}px "Segoe UI", Arial`;
+        c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.fillText(String(n + 1), x, y + 2 * sc);
+        if (k > 0.55 && k < 0.7 && i % 2 === 0) {
+          c.fillStyle = 'rgba(61,220,132,0.35)';
+          c.fillRect(x - 30 * sc, 0, 60 * sc, y);
+          c.fillStyle = '#3ddc84';
+          c.font = '900 22px "Segoe UI", Arial';
+          c.fillText('RC 0', x, y - 40 * sc);
+        }
+      }
+      c.fillStyle = '#ffe2a0';
+      c.font = '900 30px ui-monospace, Menlo, monospace';
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      const m = 18 * 60 + Math.floor((time * 60) % 2160);
+      c.fillText(`${['Sa', 'So', 'Mo'][Math.floor(m / 1440)]} ${String(Math.floor((m % 1440) / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`, w / 2, 24);
+      c.fillStyle = Math.sin(time * 6) > 0 ? '#ffcc4d' : '#ffffff';
+      c.font = '900 22px "Segoe UI", Arial';
+      c.fillText('PRESS START', w / 2, hh - 18);
     } else {
       // static noise + question mark
       const img = c.getImageData(0, 0, w, hh);

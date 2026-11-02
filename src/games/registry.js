@@ -1,5 +1,6 @@
 import { WhackGame } from './whack/whack.js';
 import { FeierabendGame } from './feierabend/feierabend.js';
+import { ConversionGame } from './conversion/conversion.js';
 
 // Every game in the world gets its own arcade cabinet in the office hub.
 // To add a new game: create a class with enter()/exit()/update(dt,time)/resize(w,h)
@@ -21,6 +22,13 @@ export const GAMES = [
     available: true,
     create: (app) => new FeierabendGame(app)
   },
-  { id: 'soon-2', title: 'Bald verfügbar', tagline: 'Hier entsteht das nächste Spiel.', color: '#ffcc4d', available: false },
+  {
+    id: 'conversion',
+    title: 'Mission RC 0',
+    tagline: 'Die S/4HANA-Conversion: Transporte in der richtigen Reihenfolge importieren, den SAP Business Partner besiegen und das neue CRM der Ludlein Crew live bringen.',
+    color: '#ffb000',
+    available: true,
+    create: (app) => new ConversionGame(app)
+  },
   { id: 'soon-3', title: 'Bald verfügbar', tagline: 'Hier entsteht das nächste Spiel.', color: '#3ddc84', available: false }
 ];

@@ -537,6 +537,77 @@ THEMES.techno = {
   }
 };
 
+// 90s Eurodance / tuner soundtrack for "Mission RC 0" (F minor, 140 BPM).
+// intensity: -1 breakdown, 0 groove, 1 + stabs & claps, 2 + arp & pads, 3 + lead, 4 boss fight (taiko + braams)
+const RUSH = {
+  Fm: { root: 29, tones: [53, 56, 60] },
+  Db: { root: 25, tones: [49, 53, 56] },
+  Ab: { root: 32, tones: [56, 60, 63] },
+  Eb: { root: 27, tones: [51, 55, 58] }
+};
+THEMES.rush = {
+  bpm: 140,
+  prog: ['Fm', 'Fm', 'Db', 'Db', 'Ab', 'Ab', 'Eb', 'Eb'],
+  stabs: [0, 3, 6, 10, 12],
+  lead: [[72, 3], [72, 3], [75, 2], [77, 4], [75, 4], [72, 6], [70, 2], [68, 4], [67, 4], [68, 3], [70, 3], [72, 10], [0, 16]],
+  step(bus, s, t, sd, bar, I) {
+    if (this.duckBus !== bus) {
+      this.duck = ctx.createGain();
+      this.duck.connect(bus);
+      this.duckBus = bus;
+    }
+    const D = this.duck;
+    const ch = RUSH[this.prog[bar % this.prog.length]];
+    const brk = I < 0;
+    if (!brk && s % 4 === 0) {
+      inst.kick(bus, t, 1);
+      D.gain.cancelScheduledValues(t);
+      D.gain.setValueAtTime(0.3, t);
+      D.gain.linearRampToValueAtTime(1, t + sd * 2.8);
+    }
+    if (brk && s === 0) { D.gain.cancelScheduledValues(t); D.gain.setValueAtTime(1, t); }
+    // the pumping off-beat octave bass
+    if (!brk && s % 4 === 2) inst.bass(D, t, ch.root + 24, sd * 1.6, { vol: 0.12, cutoff: 700 + Math.max(0, I) * 180, q: 5 });
+    if (!brk && I >= 2 && s % 4 === 3) inst.bass(D, t, ch.root + 12, sd * 0.7, { vol: 0.07, cutoff: 500 });
+    // hats + claps
+    if (!brk) {
+      if (s % 4 === 2) inst.hat(bus, t, 0.08, true, 0.1);
+      if (I >= 1) inst.hat(bus, t, s % 2 ? 0.03 : 0.018, false, s % 2 ? -0.25 : 0.25);
+      if (I >= 1 && (s === 4 || s === 12)) inst.clap(bus, t, 0.26);
+    }
+    // supersaw stabs
+    if (!brk && I >= 1 && this.stabs.includes(s)) {
+      for (const m of ch.tones) inst.ens(D, t, m + 12, sd * 1.3, { vol: 0.022, cutoff: 3200, a: 0.004, r: 0.12, voices: 3, spread: 18, filterEnv: 1.6, wet: 0.3 });
+    }
+    // pads
+    if (s === 0 && bar % 2 === 0 && (I >= 2 || brk)) {
+      for (const m of ch.tones) inst.ens(D, t, m, sd * 31, { vol: brk ? 0.022 : 0.012, cutoff: brk ? 1000 : 1800, a: 0.8, r: 1.4, voices: 2, spread: 12, wet: 0.7 });
+    }
+    // pluck arpeggio
+    if (I >= 2 || brk) {
+      const n = ch.tones[s % 3] + 12 + (s >= 8 ? 12 : 0);
+      if (s % 2 === 0 || I >= 3) inst.arp(D, t, n, { vol: brk ? 0.03 : 0.024, pan: (s % 4 - 1.5) * 0.25, cutoff: brk ? 1000 : 2600, delay: 0.25 });
+    }
+    // lead hook
+    if (I >= 3) {
+      const pos = (bar % 4) * 16 + s;
+      let acc = 0;
+      for (const [m, len] of this.lead) {
+        if (acc === pos && m) inst.ens(D, t, m, sd * len * 0.9, { vol: 0.03, cutoff: 3400, a: 0.01, r: 0.2, voices: 3, spread: 16, filterEnv: 1.6, wet: 0.35 });
+        acc += len;
+        if (acc > 64) break;
+      }
+    }
+    // boss fight: war drums and braams on top
+    if (I >= 4) {
+      if (s === 0 || s === 6 || s === 8 || s === 11) inst.taiko(bus, t, s === 0 ? 1 : 0.6, (s % 3 - 1) * 0.3, 0.8);
+      if (s === 0 && bar % 2 === 0) inst.braam(bus, t, [ch.root + 12, ch.root + 19], 1.4, 0.05);
+    }
+    if (!brk && s === 0 && bar % 8 === 0 && I >= 1) inst.crash(bus, t, 0.07);
+    if (!brk && bar % 8 === 7 && s === 0 && I >= 1) inst.swell(bus, t, sd * 16, 0.05, 600, 9000);
+  }
+};
+
 // ------------------------------------------------------------------ sequencer
 export const music = {
   current: null,
@@ -815,5 +886,77 @@ export const sfx = {
     const t = T0();
     inst.braam(sfxBus, t, [28, 29, 35], 2.2, 0.14);
     for (let i = 0; i < 10; i++) setTimeout(() => sfx.rustle(0.8), i * 70);
+  },
+  /** exhaust backfire: crack + thump */
+  backfire(pan = 0) {
+    if (!ready()) return;
+    const t = T0();
+    const n = noise();
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.setValueAtTime(3800, t);
+    f.frequency.exponentialRampToValueAtTime(300, t + 0.2);
+    const g = ctx.createGain();
+    adsr(g.gain, t, { a: 0.001, d: 0.12, s: 0.0001, r: 0.05, peak: 0.9, dur: 0.01 });
+    n.connect(f).connect(g).connect(out(sfxBus, { pan, wet: 0.3 }));
+    n.start(t, Math.random()); n.stop(t + 0.3);
+    const sub = osc('sine', 90, t, t + 0.3);
+    sub.frequency.exponentialRampToValueAtTime(35, t + 0.25);
+    const sg = ctx.createGain();
+    adsr(sg.gain, t, { a: 0.001, d: 0.2, s: 0.0001, r: 0.05, peak: 0.8, dur: 0.01 });
+    sub.connect(sg).connect(out(sfxBus, { pan, wet: 0.1 }));
+  },
+  /** engine rev of the CRX, ending in backfires */
+  rev(dur = 1.4) {
+    if (!ready()) return;
+    const t = T0();
+    const dest = out(sfxBus, { wet: 0.15 });
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass'; f.Q.value = 4;
+    f.frequency.setValueAtTime(300, t);
+    f.frequency.exponentialRampToValueAtTime(2200, t + dur * 0.8);
+    const g = ctx.createGain();
+    adsr(g.gain, t, { a: 0.08, d: 0.2, s: 0.9, r: 0.3, peak: 0.22, dur: dur * 0.85 });
+    for (const det of [0, 9]) {
+      const o = osc('sawtooth', 55, t, t + dur + 0.3, det);
+      o.frequency.setValueAtTime(55, t);
+      o.frequency.exponentialRampToValueAtTime(95, t + dur * 0.3);
+      o.frequency.exponentialRampToValueAtTime(70, t + dur * 0.4);
+      o.frequency.exponentialRampToValueAtTime(190, t + dur * 0.85);
+      // rumble: fast amplitude wobble of a big engine
+      const lfo = osc('square', 28, t, t + dur + 0.3);
+      const lg = ctx.createGain(); lg.gain.value = 10;
+      lfo.connect(lg).connect(o.frequency);
+      o.connect(f);
+    }
+    f.connect(g).connect(dest);
+    [0.9, 1.0, 1.18].forEach((k) => setTimeout(() => sfx.backfire((Math.random() - 0.5) * 0.6), dur * k * 1000));
+  },
+  /** the oracle speaks: choir chord, shimmer and bells */
+  oracle() {
+    if (!ready()) return;
+    const t = T0();
+    for (const m of [62, 66, 69, 74]) inst.choir(sfxBus, t, m, 2.4, 0.05);
+    inst.swell(sfxBus, t, 1.2, 0.1, 2000, 12000);
+    [86, 90, 93, 98].forEach((m, i) => inst.pluck(sfxBus, t + 0.2 + i * 0.12, m, 0.04, (i - 1.5) * 0.4));
+  },
+  /** sad trombone for the uninstalled CRM */
+  sadTrombone() {
+    if (!ready()) return;
+    const t = T0();
+    [[58, 0, 0.42], [57, 0.45, 0.42], [56, 0.9, 0.42], [55, 1.35, 1.3]].forEach(([m, d, len], i) => {
+      const dest = out(sfxBus, { wet: 0.3 });
+      const o = osc('sawtooth', mtof(m - 12), t + d, t + d + len + 0.1);
+      if (i === 3) {
+        const lfo = osc('sine', 6, t + d, t + d + len + 0.1);
+        const lg = ctx.createGain(); lg.gain.value = 4;
+        lfo.connect(lg).connect(o.frequency);
+      }
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass'; f.frequency.value = 900; f.Q.value = 6;
+      const g = ctx.createGain();
+      adsr(g.gain, t + d, { a: 0.04, d: 0.1, s: 0.8, r: 0.15, peak: 0.12, dur: len });
+      o.connect(f).connect(g).connect(dest);
+    });
   }
 };

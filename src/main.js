@@ -99,7 +99,8 @@ async function boot() {
     const dt = Math.min(raw, 1 / 20);
     time += dt;
     current.update(dt, time);
-    gfx.composer.render(dt);
+    // 2D games that cover the whole screen (overlay) draw themselves, the 3D scene can rest
+    if (!current.overlay) gfx.composer.render(dt);
     acc += raw; frames++; settle += raw;
     if (acc >= 2) {
       const avg = acc / frames;

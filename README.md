@@ -70,6 +70,25 @@ Drei Tage und drei Nächte, insgesamt rund 4 Minuten.
 
 Steuerung: Antippen zum Laufen, Abbauen, Handeln und Monster treffen. Ziehen dreht die Kamera, das Mausrad zoomt. Tastatur: H öffnet den Handel, 1–6 springt direkt zu einem Händler, Esc schließt.
 
+## Spiel 5: „Lead Rush“
+
+Ein Endless Runner im Hochformat: Kundentour zu Fuß durch das Gewerbegebiet Ludlein-Süd. Gebaut für Wischen mit dem Daumen, optimiert fürs iPhone 17 Pro.
+
+- **Pipeline als Spielmechanik:** 10 Leads ergeben eine Opportunity, eine Opportunity plus ein Angebot ergibt einen Deal mit Umsatz.
+- **Strecke aus Sicht des Außendienstes:** Maschinenbau-Hallen, Bürogebäude, Baustoffhändler, Logistiklager und Besucherparkplätze fiktiver Ludleiner Firmen. Über jedem Kunden schwebt eine CRM-Karte mit Branche, Status, Umsatz und nächstem Termin.
+- **Hindernisse:** Excel-Kisten (springen), Medienbruch-Schranken (rutschen), Datensilos, Gabelstapler und Lieferverkehr (ausweichen). Ein Treffer kostet die gesammelten Leads und eine Opportunity.
+- **Power-ups mit itmX-Funktionen:** SAP-Sync (Lead-Magnet), KI-Turbo (unverwundbar), Forecast (doppelter Umsatz), officeXperience (Schutzschild). Beim ersten Einsammeln erscheint eine Wissenskarte.
+- **Endgegner Excel-Laster:** Er wirft Aktenkisten ab und wird mit drei itmX-X für die Integration gestoppt.
+- **Team:** Stefan Eller, Michael Stump und Holger Kunzmann als Comic-Figuren, jeweils mit eigenem Vorteil. Dazu Upgrades, Missionen, Provision als Spielwährung, 16 Wissenskarten und ein CRM-Quiz nach jedem Lauf.
+- **Bestenliste (Top 10, pro Gerät):** Startbesetzung Danny the Boss (1.000.000 €), Rüdi KI (500.000 €) und Hilti-Linke-Spur (333.333 €). Der Name aus der Zertifikats-Eingabe der Spielewelt wird vorgeschlagen.
+- **Demo-Modus:** Ein Autopilot spielt einen kompletten Lauf von etwa 75 Sekunden vor, mit allen Mechaniken einmal. Die Demo zählt nicht für Bestenliste, Rekord und Provision.
+- **Easter Egg:** rote Kombis mit „Hilti“-Schriftzug.
+- Am Ende steht ein Vertriebsbericht mit Umsatz, Win-Rate und verlorenen Leads sowie ein Link zur itmX-Demo.
+
+Technik: 2D-Canvas statt three.js. Das Spiel liegt als Vollbild-Ebene in einem Shadow DOM über der Spielewelt (`overlay = true`), solange rendert `main.js` die 3D-Szene nicht. Statische Grafiken werden einmal vorgezeichnet und nur noch kopiert; bei schwachen Geräten senkt das Spiel selbst die Auflösung. Ton an/aus ist mit der Spielewelt gekoppelt.
+
+Steuerung: Wischen links/rechts wechselt die Spur, hoch springt, runter rutscht. Alternativ tippen (linkes/rechtes Drittel = Spur, Mitte = Sprung) oder Pfeiltasten/WASD, Esc pausiert.
+
 ## Jukebox
 
 Im Büro steht rechts neben der Kaffeemaschine eine leuchtende 3D-Jukebox mit Neonbogen, drehender Schallplatte, Laufschrift und Musiknoten.
@@ -129,15 +148,18 @@ src/
   games/whack/         „Hau den Legacy!“ (Köpfe, Effekte, Spiellogik)
   games/conversion/    „Mission RC 0“ (Förderband, Business Partner, CRX, Orakel, S4 Patent)
   games/crm/           „Das CRM-Königreich“ (Voxel-Insel, Händler, Burg, Monster, Thronsaal, Urkunde)
+  games/leadrush/      „Lead Rush“ (2D-Runner: engine.js, Bildschirme in markup.js, Styles in leadrush.css)
   cert/                Dumêz G. Schwetz, Übergabe-Szene, Zertifikat-Rendering
   hub/avatar.js        Avatar und Kleiderschrank (Business-Look-Pflicht)
 public/brand/          offizielles itmX-Logo (PNG)
+public/leadrush/       itmX-Wortmarke für den Lead-Rush-Startbildschirm
 ```
 
 ### Neues Spiel hinzufügen
 
 1. Klasse mit `scene`, `camera`, `enter()`, `exit()`, `update(dt, time)` und `resize(w, h)` anlegen.
 2. In `src/games/registry.js` eintragen (`available: true`). Der Automat erscheint dann automatisch im Büro.
+3. Optional für Spiele mit eigenem 2D-Canvas: `overlay = true` setzen. Dann rendert `main.js` die 3D-Szene nicht, solange das Spiel läuft (siehe `games/leadrush/`).
 
 ## Deployment (GitHub Pages)
 

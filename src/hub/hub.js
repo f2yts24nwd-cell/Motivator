@@ -340,6 +340,46 @@ export class Hub {
       c.fillStyle = Math.sin(time * 6) > 0 ? '#ffcc4d' : '#ffffff';
       c.font = '900 22px "Segoe UI", Arial';
       c.fillText('PRESS START', w / 2, hh - 18);
+    } else if (cab.game.id === 'leadrush') {
+      // attract mode: runner on the road through Ludlein, leads and an XLS crate coming towards him
+      const hz = 92, cx = w / 2;
+      const sky = c.createLinearGradient(0, 0, 0, hz);
+      sky.addColorStop(0, '#3d7bd6'); sky.addColorStop(1, '#ffe3b0');
+      c.fillStyle = sky; c.fillRect(0, 0, w, hz);
+      c.fillStyle = '#7aa25e'; c.fillRect(0, hz, w, hh - hz);
+      for (const [x, bw, bh] of [[20, 50, 26], [86, 40, 18], [282, 46, 22], [330, 40, 30]]) { c.fillStyle = '#c4ccd6'; c.fillRect(x, hz - bh, bw, bh); }
+      c.fillStyle = '#a6512f'; c.fillRect(112, hz - 40, 6, 40); c.fillRect(300, hz - 34, 6, 34);
+      c.fillStyle = '#cdd1d4';
+      c.beginPath(); c.moveTo(cx - 18, hz); c.lineTo(cx + 18, hz); c.lineTo(w + 40, hh); c.lineTo(-40, hh); c.fill();
+      c.fillStyle = '#474c57';
+      c.beginPath(); c.moveTo(cx - 12, hz); c.lineTo(cx + 12, hz); c.lineTo(w - 10, hh); c.lineTo(10, hh); c.fill();
+      c.fillStyle = 'rgba(255,255,255,0.8)';
+      for (let i = 0; i < 8; i++) {
+        const k = ((time * 0.6 + i / 8) % 1), y = hz + k * k * (hh - hz), len = 4 + k * 22;
+        for (const lx of [-1, 1]) { const x = cx + lx * (4 + k * k * 58); c.fillRect(x - 1 - k * 2, y, 2 + k * 4, len); }
+      }
+      const proj = (lane, k) => [cx + lane * (8 + k * k * 115), hz + k * k * (hh - hz - 50)];
+      for (let i = 0; i < 6; i++) {
+        const k = ((time * 0.5 + i / 6) % 1), lane = [0, 1, -1, 0, -1, 1][i];
+        const [x, y] = proj(lane, k), r = 3 + k * k * 15;
+        if (i === 3) { c.fillStyle = '#1d7a3c'; roundRect(c, x - r * 1.6, y - r * 2, r * 3.2, r * 2.2, 3); c.fill(); c.fillStyle = '#fff'; c.font = `900 ${Math.max(6, r * 0.9)}px "Segoe UI", Arial`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('XLS', x, y - r * 0.9); continue; }
+        c.fillStyle = '#2f8cff'; c.beginPath(); c.ellipse(x, y - r, r * Math.abs(Math.cos(time * 3 + i)), r, 0, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = '#fff'; c.lineWidth = Math.max(1, r * 0.15); c.stroke();
+      }
+      const bob = Math.abs(Math.sin(time * 9)) * 4, px = cx + Math.sin(time * 0.8) * 60, py = hh - 52 - bob;
+      c.fillStyle = 'rgba(0,0,0,0.3)'; c.beginPath(); c.ellipse(px, hh - 44, 18, 5, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#1c2b47'; c.fillRect(px - 9, py, 7, 16 + bob); c.fillRect(px + 2, py, 7, 16 - bob * 0.5);
+      c.fillStyle = '#8dc63f'; roundRect(c, px - 14, py - 28, 28, 30, 6); c.fill();
+      drawBrand(c, px - 7, py - 22, 14, 15);
+      c.fillStyle = '#f0c39c'; c.beginPath(); c.arc(px, py - 36, 9, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#3b2b20'; c.beginPath(); c.arc(px, py - 38, 9.5, Math.PI, 0); c.fill();
+      c.fillStyle = '#ffffff';
+      c.font = '900 30px "Segoe UI", Arial';
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText('LEAD RUSH', w / 2, 26);
+      c.fillStyle = Math.sin(time * 6) > 0 ? '#ffcc4d' : '#ffffff';
+      c.font = '900 22px "Segoe UI", Arial';
+      c.fillText('PRESS START', w / 2, hh - 18);
     } else if (cab.game.id === 'conversion') {
       // attract mode: numbered transport crates on a conveyor, RC 0 beams, downtime clock
       c.fillStyle = '#1a2032';

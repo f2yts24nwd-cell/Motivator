@@ -369,6 +369,49 @@ export class Hub {
       c.fillStyle = Math.sin(time * 6) > 0 ? '#ffcc4d' : '#ffffff';
       c.font = '900 22px "Segoe UI", Arial';
       c.fillText('PRESS START', w / 2, hh - 18);
+    } else if (cab.game.id === 'koenigreich') {
+      // attract mode: floating block island, four towers grow block by block, day turns to night
+      const cyc = (time * 0.12) % 1;
+      const night = cyc > 0.6 ? Math.min(1, (cyc - 0.6) / 0.1) * (cyc > 0.9 ? Math.max(0, (1 - cyc) / 0.1) : 1) : 0;
+      const sky = c.createLinearGradient(0, 0, 0, hh);
+      sky.addColorStop(0, night > 0.5 ? '#070b22' : '#2f6fd6');
+      sky.addColorStop(1, night > 0.5 ? '#1c1440' : '#9fd0ff');
+      c.fillStyle = sky; c.fillRect(0, 0, w, hh);
+      if (night > 0.5) { c.fillStyle = '#ffffff'; for (let i = 0; i < 30; i++) c.fillRect((i * 97) % w, (i * 53) % 120, 2, 2); }
+      const B = 18, ox = w / 2, oy = 200;
+      // island: grass top, dirt, tapering underside
+      for (let row = 0; row < 5; row++) {
+        const n = 13 - row * 3;
+        for (let i = 0; i < n; i++) {
+          c.fillStyle = row === 0 ? (i % 2 ? '#5fae3c' : '#6cc04a') : row < 2 ? '#8a5a36' : '#6b7280';
+          c.fillRect(ox - (n * B) / 2 + i * B, oy + row * B, B - 1, B - 1);
+        }
+      }
+      // keep
+      c.fillStyle = '#a7aeb8'; c.fillRect(ox - B, oy - B * 3, B * 2, B * 3);
+      c.fillStyle = '#50af30'; c.fillRect(ox - 5, oy - B * 3 - 16, 14, 10);
+      // towers grow over time
+      const cols = ['#ff5fa8', '#19c3ff', '#ffb000', '#a46bff'];
+      const grow = Math.floor((time * 1.6) % 24);
+      [-4, -2.5, 2.5, 4].forEach((tx, i) => {
+        const hgt = Math.max(0, Math.min(5, grow - i * 1.5));
+        c.fillStyle = '#2f6fd6'; c.fillRect(ox + tx * B - B / 2, oy - B, B - 1, B - 1);
+        for (let k = 0; k < Math.floor(hgt); k++) { c.fillStyle = cols[i]; c.fillRect(ox + tx * B - B / 2, oy - B * (k + 2), B - 1, B - 1); }
+      });
+      // crown
+      c.fillStyle = '#ffcc33';
+      const cy = 46 + Math.sin(time * 3) * 4;
+      c.beginPath(); c.moveTo(ox - 26, cy + 16); c.lineTo(ox - 26, cy - 6); c.lineTo(ox - 13, cy + 6); c.lineTo(ox, cy - 12); c.lineTo(ox + 13, cy + 6); c.lineTo(ox + 26, cy - 6); c.lineTo(ox + 26, cy + 16); c.fill();
+      if (night > 0.5) {
+        // a little excel zombie marches in
+        const zx = w - ((time * 40) % (w / 2));
+        c.fillStyle = '#2f9e5a'; c.fillRect(zx, oy - 30, 14, 30);
+        c.fillStyle = '#ff3b2a'; c.fillRect(zx + 3, oy - 25, 3, 3); c.fillRect(zx + 9, oy - 25, 3, 3);
+      }
+      c.fillStyle = Math.sin(time * 6) > 0 ? '#ffcc4d' : '#ffffff';
+      c.font = '900 22px "Segoe UI", Arial';
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText('PRESS START', w / 2, hh - 18);
     } else {
       // static noise + question mark
       const img = c.getImageData(0, 0, w, hh);

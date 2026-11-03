@@ -50,6 +50,25 @@ Das CRM-Add-on der **Ludlein Crew** (Team Rocket (Frontend), ABAP Pros, PM Exper
 
 Steuerung: Transporte, Fehler und Köpfe antippen. Tastatur: 1–3 importiert den vordersten Transport der Spur, Q fragt Product Management, Leertaste zündet den Turbo.
 
+## Spiel 4: „Das CRM-Königreich“
+
+Eine schwebende Klötzchen-Insel im Voxel-Stil. Lord CRM, ein König mit Krone, Hermelin und X-Zepter, will das ideale CRM.
+Drei Tage und drei Nächte, insgesamt rund 4 Minuten.
+
+- **Tags abbauen:** SAP-Erz im Felsen im Westen, Kundendaten-Kristalle in der Datenmine im Osten, Leads als goldene Früchte an den Lead-Bäumen. Antippen, und der Avatar läuft hin und schlägt mit der Spitzhacke zu. Abgebautes wächst nach.
+- **Handeln:** Im Händlerdorf gibt es fünf Stände. Kampagnen-Karla (Marketing), Deal-Dieter (Sales), Schrauber-Sven (Service) und Shop-Shirin (Commerce) verkaufen echte itmX-Funktionen als Bauklötze und tauschen Rohstoffe. In der **itmX-Schmiede** gibt es das SAP-Fundament, die Microsoft-365-Brücken, den KI-Kristall und das Power-BI-Banner.
+- **Legacy eintauschen:** Auf der Insel liegt Altlast herum: Excel-Listen, Sammelpostfächer, Papier-Besuchsberichte, Access-Datenbanken, Insel-CRMs, Bestellfaxe. Abbauen, zur Schmiede bringen, umtauschen. Aus der Excel-Liste wird das Power-BI-Banner, aus dem Sammelpostfach der Workflow, aus dem Bestellfax das Self-Service-Portal und so weiter.
+- **Bauen:** Jede Funktion fliegt als Block auf ihren Turm (Marketing, Sales, Service, Commerce) rund um den Bergfried. Ohne **SAP-Fundament** wackelt ein Turm, mit Fundament prallen Monster oft ab („schnittstellenfrei“).
+- **Kunden-Bauplan:** Jeden Tag kommt ein Kunde mit 5 Wünschen: Fräsfix Maschinenbau, Mörtelmeister Baustoffe (Bau) und Regalriese Großhandel (Handel). Die Wünsche orientieren sich an den Branchenseiten auf itmx.de. In der Dämmerung bewertet der Kunde die Burg.
+- **Rivale Cloudius von Silo:** Er schwebt auf seiner Wolke neben der Insel und verkauft Fremd-Blöcke zum Spottpreis. Die zählen nur halb, wackeln und locken nachts Monster an.
+- **Nachts verteidigen:** Excel-Zombies, Sammelpostfach-Krabbler, Schatten-IT-Gespenster und Datensilo-Golems klettern über den Inselrand und klauen Blöcke. Antippen schickt einen Blitz. Die Türme schießen selbst, umso schneller, je höher sie sind. Mit Microsoft-365-Brücken feuern sie schneller, der KI-Kristall wirft Blitze. In der dritten Nacht kommt der Endgegner **„Der Medienbruch“**.
+- **Humor-Modus:** „Kunde & Partner“ oder „Intern“, wie in Spiel 3.
+- Am Ende stehen die Wertung (Bauplan in %, Türme, Fundament, Monster) und Lernkarten zur itmX crm suite mit Links zu den itmX-Videos. Danach kniet dein Avatar im Thronsaal nieder, **Lord CRM schlägt ihn zum Ritter** und überreicht die **Königliche Urkunde** (mit Namen, als PNG speicher- und teilbar).
+- Grafik: Das Inselterrain ist ein echtes Voxel-Mesh (nur sichtbare Flächen). Dazu ein Himmel mit Tag-Nacht-Shader samt Sonne, Mond und Sternen, Wolkenmeer unter der Insel, Wasserfall, schwebende Felsen, Laternen und Schmiedefeuer bei Nacht, instanzierte Klötzchen-Splitter, Bloom und weiche Schatten. Statische Modelle werden zur Laufzeit zusammengefasst (wenige Draw-Calls fürs iPhone).
+- Soundtrack: Mittelalter-Folk mit 112 BPM (Laute, Rahmentrommel, Flöte) am Tag, Kriegstrommeln und Chor in der Nacht, alles per WebAudio.
+
+Steuerung: Antippen zum Laufen, Abbauen, Handeln und Monster treffen. Ziehen dreht die Kamera, das Mausrad zoomt. Tastatur: H öffnet den Handel, 1–6 springt direkt zu einem Händler, Esc schließt.
+
 ## Avatar & Kleiderschrank
 
 Über den 👔-Knopf im Büro gestaltest du deinen Avatar: Oberteil, Hose oder Rock, Schuhe, Accessoire, Farben,
@@ -97,6 +116,7 @@ src/
   games/registry.js    Liste aller Spiele (hier neue Spiele eintragen)
   games/whack/         „Hau den Legacy!“ (Köpfe, Effekte, Spiellogik)
   games/conversion/    „Mission RC 0“ (Förderband, Business Partner, CRX, Orakel, S4 Patent)
+  games/crm/           „Das CRM-Königreich“ (Voxel-Insel, Händler, Burg, Monster, Thronsaal, Urkunde)
   cert/                Dumêz G. Schwetz, Übergabe-Szene, Zertifikat-Rendering
   hub/avatar.js        Avatar und Kleiderschrank (Business-Look-Pflicht)
 public/brand/          offizielles itmX-Logo (PNG)

@@ -1,6 +1,7 @@
 import { WhackGame } from './whack/whack.js';
 import { FeierabendGame } from './feierabend/feierabend.js';
 import { ConversionGame } from './conversion/conversion.js';
+import { KoenigreichGame } from './crm/crm.js';
 
 // Every game in the world gets its own arcade cabinet in the office hub.
 // To add a new game: create a class with enter()/exit()/update(dt,time)/resize(w,h)
@@ -30,5 +31,13 @@ export const GAMES = [
     available: true,
     create: (app) => new ConversionGame(app)
   },
-  { id: 'soon-3', title: 'Bald verfügbar', tagline: 'Hier entsteht das nächste Spiel.', color: '#3ddc84', available: false }
+  {
+    id: 'koenigreich',
+    title: 'Das CRM-Königreich',
+    tagline: 'Erz abbauen, mit den Modul-Händlern handeln und auf dem SAP-Fundament die vier Türme Marketing, Sales, Service und Commerce bauen. Nachts kommen die Legacy-Monster.',
+    color: '#3ddc84',
+    available: true,
+    create: (app) => new KoenigreichGame(app)
+  },
+  { id: 'soon-5', title: 'Bald verfügbar', tagline: 'Hier entsteht das nächste Spiel.', color: '#a46bff', available: false }
 ];

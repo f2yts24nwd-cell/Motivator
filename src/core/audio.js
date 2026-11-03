@@ -69,7 +69,10 @@ function ac() {
     delaySend.connect(dl).connect(dTone).connect(fb).connect(dl);
     dTone.connect(dRet).connect(master);
   }
-  if (ctx.state === 'suspended' && unlocked) ctx.resume();
+  if (ctx.state === 'suspended' && unlocked) {
+    ctx.resume();
+    if (song.playing && song.el?.paused) song.el.play().catch(() => {});
+  }
   return ctx;
 }
 
@@ -87,7 +90,48 @@ export function unlockAudio() {
     music.kick();
   }
 }
-export function suspendAudio() { if (ctx && ctx.state === 'running') ctx.suspend(); }
+export function suspendAudio() {
+  if (ctx && ctx.state === 'running') ctx.suspend();
+  if (song.el && song.playing) song.el.pause();
+}
+
+// ------------------------------------------------------------------ recorded songs (audio files)
+// A song plays through the music bus (so mute and the compressor apply). iOS only lets a media
+// element play later without a tap if it was started once inside a user gesture: primeSong().
+const song = { el: null, url: null, node: null, gain: null, playing: false, volume: 0.75 };
+window.__song = song; // for debugging / automated checks
+function songElement(url) {
+  if (song.el && song.url === url) return song.el;
+  if (song.el) { song.el.pause(); song.node?.disconnect(); }
+  const el = new Audio();
+  el.src = url;
+  el.preload = 'auto';
+  el.loop = true;
+  el.playsInline = true;
+  el.addEventListener('ended', () => { song.playing = false; music.onSongEnd?.(url); });
+  song.el = el;
+  song.url = url;
+  song.node = null;
+  return el;
+}
+function routeSong() {
+  if (!ac() || song.node) return;
+  try {
+    song.node = ctx.createMediaElementSource(song.el);
+    song.gain = ctx.createGain();
+    song.gain.gain.value = 0;
+    song.node.connect(song.gain).connect(musicBus);
+  } catch { /* already routed */ }
+}
+/** Call inside a tap: loads the song and unlocks the element for later playback on iOS. */
+export function primeSong(url) {
+  const el = songElement(url);
+  routeSong();
+  if (song.playing) return;
+  const p = el.play();
+  if (p?.then) p.then(() => { if (!song.playing) el.pause(); }).catch(() => {});
+  else el.pause();
+}
 export function isMuted() { return muted; }
 export function setMuted(m) {
   muted = m;
@@ -616,6 +660,7 @@ export const music = {
   gain: null,
   timer: null,
   play(name) {
+    this.stopSong(1.2);
     this.wanted = name;
     if (!ready()) return; // starts on unlock (iOS)
     if (this.current === name) return;
@@ -655,7 +700,49 @@ export const music = {
   },
   setIntensity(i) { this.intensity = i; },
   /** called after the iOS unlock: start what was requested before */
-  kick() { const w = this.wanted; this.current = null; if (w) this.play(w); }
+  kick() {
+    if (this.wantedSong) { const u = this.wantedSong; this.wantedSong = null; this.playSong(u); return; }
+    const w = this.wanted; this.current = null; if (w) this.play(w);
+  },
+  /** Plays a recorded song (looping) instead of the synthesized themes. restart: from the beginning. */
+  playSong(url, { restart = false, loop = true } = {}) {
+    this.stop(1.5);
+    this.wanted = null;
+    const el = songElement(url);
+    el.loop = loop;
+    if (!ready()) { this.wantedSong = url; return; }
+    routeSong();
+    if (song.playing && !restart) return;
+    if (restart || el.ended) el.currentTime = 0;
+    song.playing = true;
+    const g = song.gain.gain;
+    g.cancelScheduledValues(ctx.currentTime);
+    g.setValueAtTime(Math.max(0.0001, g.value), ctx.currentTime);
+    g.linearRampToValueAtTime(song.volume, ctx.currentTime + 2.5);
+    el.play().catch(() => { song.playing = false; this.wantedSong = url; });
+  },
+  stopSong(fade = 1) {
+    this.wantedSong = null;
+    if (!song.playing || !song.el) return;
+    song.playing = false;
+    const el = song.el;
+    if (song.gain && ctx) {
+      const g = song.gain.gain;
+      g.cancelScheduledValues(ctx.currentTime);
+      g.setValueAtTime(g.value, ctx.currentTime);
+      g.linearRampToValueAtTime(0, ctx.currentTime + fade);
+    }
+    setTimeout(() => { if (!song.playing) el.pause(); }, fade * 1000 + 100);
+  },
+  get songPlaying() { return song.playing; },
+  /** { url, playing, t, dur } of the current song element (for the jukebox) */
+  songState() {
+    const el = song.el;
+    return { url: song.url, playing: song.playing, t: el?.currentTime || 0, dur: el && isFinite(el.duration) ? el.duration : 0 };
+  },
+  seekSong(t) { if (song.el) song.el.currentTime = Math.max(0, t); },
+  /** called when a non-looping song ends */
+  onSongEnd: null
 };
 
 // ------------------------------------------------------------------ sound effects
@@ -960,3 +1047,134 @@ export const sfx = {
     });
   }
 };
+
+// ------------------------------------------------------------------ "Das CRM-Königreich"
+// Medieval folk by day (lute, frame drum, flute), war drums and choir by night.
+// intensity: -1 intro, 0 morning, 1 busy day, 2 dusk, 3 night, 4 boss night
+THEMES.kingdom = {
+  bpm: 112,
+  dayProg: ['Dm', 'C', 'Bb', 'C', 'Dm', 'F', 'C', 'Dm'],
+  nightProg: ['Dm', 'Bb', 'Gm', 'A', 'Dm', 'Bb', 'C', 'A'],
+  flute: [[74, 4], [76, 2], [77, 2], [79, 4], [77, 2], [76, 2], [74, 6], [72, 2], [74, 8], [69, 4], [72, 4], [74, 2], [76, 2], [77, 4], [76, 4], [74, 8], [0, 4]],
+  step(bus, s, t, sd, bar, I) {
+    const night = I >= 3;
+    const prog = night ? this.nightProg : this.dayProg;
+    const ch = prog[bar % prog.length];
+    const T = tones(ch, 24);
+    const root = CH[ch][0];
+    if (!night) {
+      // lute: rolling eighths
+      if (s % 2 === 0) {
+        const pat = [0, 1, 2, 1, 0, 2, 1, 2];
+        const n = T[pat[(s / 2) % 8]] + 12 + (s >= 8 && I >= 1 ? 12 : 0);
+        inst.pluck(bus, t, n, I < 0 ? 0.035 : 0.045, ((s / 2) % 4 - 1.5) * 0.25);
+      }
+      // drone + pad
+      if (s === 0) {
+        inst.ens(bus, t, root + 12, sd * 15.5, { vol: 0.05, cutoff: 520, a: 0.2, r: 0.6, voices: 2, wet: 0.3 });
+        if (I >= 2 || I < 0) for (const m of T) inst.ens(bus, t, m, sd * 15.5, { vol: 0.016, cutoff: 1300, a: 0.5, r: 1, voices: 2, wet: 0.55 });
+      }
+      if (I >= 0) {
+        // frame drum and shaker
+        if (s === 0 || s === 8) inst.taiko(bus, t, 0.6, 0, 1.25);
+        if (s === 6 || s === 14) inst.taiko(bus, t, 0.32, 0.25, 1.6);
+        if (s % 2 === 1) inst.hat(bus, t, 0.022, false, s % 4 === 1 ? -0.3 : 0.3);
+        if (I >= 2 && (s === 4 || s === 12)) inst.snare(bus, t, 0.35);
+      }
+      // flute melody from intensity 1
+      if (I >= 1) {
+        const pos = (bar % 4) * 16 + s;
+        let acc = 0;
+        for (const [m, len] of this.flute) {
+          if (acc === pos && m) inst.ens(bus, t, m, sd * len * 0.92, { vol: 0.042, cutoff: 2600, a: 0.04, r: 0.3, voices: 1, wet: 0.45, type: 'triangle', pan: -0.15 });
+          acc += len;
+          if (acc > 64) break;
+        }
+      }
+      if (s === 0 && bar % 8 === 0 && I >= 1) inst.crash(bus, t, 0.05);
+    } else {
+      // night: low string ostinato, war drums, choir
+      const pat = [0, 0, 2, 0, 1, 0, 2, 1, 0, 0, 2, 0, 1, 2, 1, 2];
+      inst.ens(bus, t, T[pat[s]] - (s % 4 === 0 ? 12 : 0), sd * 0.8, { vol: 0.04, cutoff: 1100 + (I - 3) * 600, a: 0.006, r: 0.08, voices: 2, wet: 0.2, pan: s % 2 ? 0.2 : -0.2 });
+      if (s % 2 === 0) inst.ens(bus, t, root, sd * 1.6, { vol: 0.07, cutoff: 600, a: 0.01, r: 0.1, voices: 2, wet: 0.1 });
+      const drums = [1, 0, 0, 0.5, 0, 0, 0.8, 0, 1, 0, 0.5, 0, 0, 0.6, 0.7, 0.9];
+      if (drums[s]) inst.taiko(bus, t, drums[s] * 0.9, (s % 3 - 1) * 0.25, 0.75);
+      if (s === 4 || s === 12) inst.snare(bus, t, 0.6);
+      if (s === 0) for (const m of T) inst.choir(bus, t, m + 12, sd * 15, 0.032);
+      if (s === 0 && bar % 2 === 0) inst.braam(bus, t, [root, root + 7], 1.6, I >= 4 ? 0.07 : 0.04);
+      if (I >= 4 && s % 2 === 1) inst.taiko(bus, t, 0.4, (s % 4 - 2) * 0.2, 1.1);
+      if (bar % 4 === 3 && s === 0) inst.swell(bus, t, sd * 16, 0.06);
+    }
+  }
+};
+
+Object.assign(sfx, {
+  /** pickaxe on stone */
+  mine(pan = 0) {
+    if (!ready()) return;
+    const t = T0();
+    inst.taiko(sfxBus, t, 0.35, pan, 2.2);
+    const dest = out(sfxBus, { pan, wet: 0.25 });
+    const o = osc('square', rnd(1700, 2100), t, t + 0.12);
+    const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2400; f.Q.value = 8;
+    const g = ctx.createGain();
+    adsr(g.gain, t, { a: 0.001, d: 0.06, s: 0.0001, r: 0.04, peak: 0.12, dur: 0.01 });
+    o.connect(f).connect(g).connect(dest);
+  },
+  /** resource collected */
+  coin(n = 0) {
+    if (!ready()) return;
+    const t = T0();
+    inst.arp(sfxBus, t, 84 + (n % 3) * 2, { vol: 0.06, cutoff: 4000, delay: 0.2 });
+    inst.arp(sfxBus, t + 0.06, 91 + (n % 3) * 2, { vol: 0.05, cutoff: 4000, delay: 0.2 });
+  },
+  /** block lands on a tower */
+  place() {
+    if (!ready()) return;
+    const t = T0();
+    inst.taiko(sfxBus, t, 0.9, 0, 0.9);
+    inst.taiko(sfxBus, t + 0.01, 0.4, 0, 2.0);
+    [74, 78, 81].forEach((m, i) => inst.pluck(sfxBus, t + 0.05 + i * 0.05, m, 0.045, (i - 1) * 0.3));
+  },
+  /** royal fanfare */
+  fanfare() {
+    if (!ready()) return;
+    const t = T0();
+    [[62, 0, 0.18], [62, 0.2, 0.12], [62, 0.34, 0.12], [69, 0.5, 0.5], [66, 1.02, 0.18], [69, 1.22, 0.9]].forEach(([m, d, len]) => {
+      for (const k of [0, 7, 12]) inst.ens(sfxBus, t + d, m + k - 12, len, { vol: 0.045, cutoff: 2200, a: 0.02, r: 0.25, voices: 2, filterEnv: 2, wet: 0.45 });
+    });
+    inst.taiko(sfxBus, t, 1, 0, 0.8);
+    inst.crash(sfxBus, t + 0.5, 0.12);
+  },
+  /** monster growl / boss roar */
+  roar(big = false) {
+    if (!ready()) return;
+    const t = T0();
+    const dest = out(sfxBus, { wet: 0.4 });
+    const o = osc('sawtooth', big ? 70 : 140, t, t + (big ? 1.4 : 0.5));
+    o.frequency.exponentialRampToValueAtTime(big ? 38 : 80, t + (big ? 1.2 : 0.4));
+    const lfo = osc('sine', big ? 22 : 30, t, t + 1.5);
+    const lg = ctx.createGain(); lg.gain.value = big ? 25 : 18;
+    lfo.connect(lg).connect(o.frequency);
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = big ? 700 : 1100; f.Q.value = 4;
+    const g = ctx.createGain();
+    adsr(g.gain, t, { a: 0.03, d: 0.2, s: 0.6, r: 0.3, peak: big ? 0.3 : 0.12, dur: big ? 1.0 : 0.3 });
+    o.connect(f).connect(g).connect(dest);
+    if (big) inst.braam(sfxBus, t, [26, 27, 33], 1.6, 0.12);
+  },
+  /** night falls */
+  gong() {
+    if (!ready()) return;
+    const t = T0();
+    inst.braam(sfxBus, t, [26, 33, 38], 3, 0.12);
+    inst.taiko(sfxBus, t, 1, 0, 0.5);
+    for (const m of [50, 57, 62]) inst.choir(sfxBus, t + 0.2, m, 2.6, 0.05);
+  },
+  /** morning: rooster-ish bright arpeggio */
+  morning() {
+    if (!ready()) return;
+    const t = T0();
+    [62, 66, 69, 74, 78, 81].forEach((m, i) => inst.pluck(sfxBus, t + i * 0.07, m + 12, 0.05, (i - 2.5) * 0.25));
+    inst.swell(sfxBus, t, 1.2, 0.06, 800, 9000);
+  }
+});

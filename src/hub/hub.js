@@ -5,6 +5,7 @@ import { sfx, music, unlockAudio, isMuted, setMuted } from '../core/audio.js';
 import { h, mount, clearUI, storeGet, storeSet } from '../core/ui.js';
 import { WARDROBE, loadAvatar, saveAvatar, buildAvatar, disposeAvatar } from './avatar.js';
 import { GAMES } from '../games/registry.js';
+import { buildJukebox, JukeboxPlayer } from './jukebox.js';
 
 const ROOM_W = 26, ROOM_D = 18;
 
@@ -20,7 +21,11 @@ export class Hub {
     this.cabinets = [];
     this.build();
     this.onDown = this.onDown.bind(this);
-    this.onKeyDown = (e) => { this.keys.add(e.key.toLowerCase()); if (e.key === 'Enter' && this.near?.game.available) this.launch(this.near.game); };
+    this.onKeyDown = (e) => {
+      this.keys.add(e.key.toLowerCase());
+      if (e.key === 'Enter' && this.nearJuke) this.openJuke();
+      else if (e.key === 'Enter' && this.near?.game.available) this.launch(this.near.game);
+    };
     this.onKeyUp = (e) => this.keys.delete(e.key.toLowerCase());
   }
 
@@ -169,6 +174,7 @@ export class Hub {
     for (const [x, z] of [[-12, -8], [12, -8], [-12, 8], [12, 8], [-11.8, 0.3]]) this.addPlant(x, z);
     this.addWhiteboard();
     this.addCoffee(11.6, -1.6);
+    this.addJukebox(12.0, 2.6);
 
     this.player = this.buildPlayer();
     this.avatar = loadAvatar();
@@ -369,6 +375,49 @@ export class Hub {
       c.fillStyle = Math.sin(time * 6) > 0 ? '#ffcc4d' : '#ffffff';
       c.font = '900 22px "Segoe UI", Arial';
       c.fillText('PRESS START', w / 2, hh - 18);
+    } else if (cab.game.id === 'koenigreich') {
+      // attract mode: floating block island, four towers grow block by block, day turns to night
+      const cyc = (time * 0.12) % 1;
+      const night = cyc > 0.6 ? Math.min(1, (cyc - 0.6) / 0.1) * (cyc > 0.9 ? Math.max(0, (1 - cyc) / 0.1) : 1) : 0;
+      const sky = c.createLinearGradient(0, 0, 0, hh);
+      sky.addColorStop(0, night > 0.5 ? '#070b22' : '#2f6fd6');
+      sky.addColorStop(1, night > 0.5 ? '#1c1440' : '#9fd0ff');
+      c.fillStyle = sky; c.fillRect(0, 0, w, hh);
+      if (night > 0.5) { c.fillStyle = '#ffffff'; for (let i = 0; i < 30; i++) c.fillRect((i * 97) % w, (i * 53) % 120, 2, 2); }
+      const B = 18, ox = w / 2, oy = 200;
+      // island: grass top, dirt, tapering underside
+      for (let row = 0; row < 5; row++) {
+        const n = 13 - row * 3;
+        for (let i = 0; i < n; i++) {
+          c.fillStyle = row === 0 ? (i % 2 ? '#5fae3c' : '#6cc04a') : row < 2 ? '#8a5a36' : '#6b7280';
+          c.fillRect(ox - (n * B) / 2 + i * B, oy + row * B, B - 1, B - 1);
+        }
+      }
+      // keep
+      c.fillStyle = '#a7aeb8'; c.fillRect(ox - B, oy - B * 3, B * 2, B * 3);
+      c.fillStyle = '#50af30'; c.fillRect(ox - 5, oy - B * 3 - 16, 14, 10);
+      // towers grow over time
+      const cols = ['#ff5fa8', '#19c3ff', '#ffb000', '#a46bff'];
+      const grow = Math.floor((time * 1.6) % 24);
+      [-4, -2.5, 2.5, 4].forEach((tx, i) => {
+        const hgt = Math.max(0, Math.min(5, grow - i * 1.5));
+        c.fillStyle = '#2f6fd6'; c.fillRect(ox + tx * B - B / 2, oy - B, B - 1, B - 1);
+        for (let k = 0; k < Math.floor(hgt); k++) { c.fillStyle = cols[i]; c.fillRect(ox + tx * B - B / 2, oy - B * (k + 2), B - 1, B - 1); }
+      });
+      // crown
+      c.fillStyle = '#ffcc33';
+      const cy = 46 + Math.sin(time * 3) * 4;
+      c.beginPath(); c.moveTo(ox - 26, cy + 16); c.lineTo(ox - 26, cy - 6); c.lineTo(ox - 13, cy + 6); c.lineTo(ox, cy - 12); c.lineTo(ox + 13, cy + 6); c.lineTo(ox + 26, cy - 6); c.lineTo(ox + 26, cy + 16); c.fill();
+      if (night > 0.5) {
+        // a little excel zombie marches in
+        const zx = w - ((time * 40) % (w / 2));
+        c.fillStyle = '#2f9e5a'; c.fillRect(zx, oy - 30, 14, 30);
+        c.fillStyle = '#ff3b2a'; c.fillRect(zx + 3, oy - 25, 3, 3); c.fillRect(zx + 9, oy - 25, 3, 3);
+      }
+      c.fillStyle = Math.sin(time * 6) > 0 ? '#ffcc4d' : '#ffffff';
+      c.font = '900 22px "Segoe UI", Arial';
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText('PRESS START', w / 2, hh - 18);
     } else {
       // static noise + question mark
       const img = c.getImageData(0, 0, w, hh);
@@ -499,6 +548,35 @@ export class Hub {
     g.rotation.y = -Math.PI / 2;
     this.scene.add(g);
     this.obstacles.push({ x, z, r: 1.0 });
+  }
+
+  addJukebox(x, z) {
+    const jb = buildJukebox();
+    jb.group.position.set(x, 0, z);
+    const rot = -Math.PI / 2 + 0.65; // angled into the room, towards the camera
+    jb.group.rotation.y = rot;
+    this.scene.add(jb.group);
+    this.obstacles.push({ x, z, r: 1.0 });
+    const n = new THREE.Vector3(Math.sin(rot), 0, Math.cos(rot));
+    this.jukebox = { ...jb, front: new THREE.Vector3(x, 0, z).addScaledVector(n, 1.75), faceYaw: rot + Math.PI };
+    this.jbPlayer = new JukeboxPlayer();
+  }
+
+  openJuke() {
+    this.hidePrompt();
+    this.jbPlayer.open();
+  }
+
+  showJukePrompt() {
+    this.hidePrompt();
+    const cur = this.jbPlayer.current;
+    this.prompt = mount(h('div.game-prompt.panel', { 'data-id': 'jukebox' }, [
+      h('h3', {}, '🎵 Jukebox'),
+      h('p', {}, this.jbPlayer.playing ? `Läuft gerade: ${cur.title}` : `Lieder aus der itmX Spielewelt, zum Beispiel „${cur.title}“.`),
+      h('button.btn', { onclick: () => { unlockAudio(); this.openJuke(); } }, '🎵 Jukebox öffnen')
+    ]));
+    if (this.hint) this.hint.style.display = 'none';
+    sfx.pop();
   }
 
   buildPlayer() {
@@ -696,6 +774,7 @@ export class Hub {
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
     this.near = null;
+    this.nearJuke = false;
     this.mode = 'walk';
     this.buildUI();
     music.play('hub');
@@ -714,6 +793,7 @@ export class Hub {
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
     this.keys.clear();
+    this.jbPlayer.close();
     clearUI();
   }
 
@@ -730,6 +810,8 @@ export class Hub {
       onclick: () => { if (confirm(`Version ${__BUILD_ID__}\n\nCache leeren und neueste Version laden?`)) window.__hardReload?.(); }
     }, `v ${__BUILD_ID__} ↻`));
     this.wardrobeBtn = mount(h('button.icon-btn.left.wd-btn', { title: 'Avatar gestalten', onclick: () => this.openWardrobe() }, '👔'));
+    this.jbChipTitle = h('b');
+    this.jbChip = mount(h('button.jb-chip.panel', { title: 'Jukebox öffnen', onclick: () => { sfx.click(); this.openJuke(); } }, [h('i.kr-eq', {}, [h('em'), h('em'), h('em')]), h('span', {}, [h('small', {}, 'Jukebox'), this.jbChipTitle])]));
   }
 
   showPrompt(cab) {
@@ -773,8 +855,18 @@ export class Hub {
     const r = this.app.gfx.renderer.domElement.getBoundingClientRect();
     const p = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     this.raycaster.setFromCamera(p, this.camera);
+    const jh = this.raycaster.intersectObjects(this.jukebox.pickables, false)[0];
     const picks = this.cabinets.flatMap((c) => c.pickables);
     const hit = this.raycaster.intersectObjects(picks, false)[0];
+    if (jh && (!hit || jh.distance < hit.distance)) {
+      this.walkTarget = this.jukebox.front.clone();
+      this.walkCab = null;
+      this.walkJuke = true;
+      this.marker.position.set(this.walkTarget.x, 0.02, this.walkTarget.z);
+      this.marker.visible = true;
+      return;
+    }
+    this.walkJuke = false;
     if (hit) {
       const cab = this.cabinets.find((c) => c.pickables.includes(hit.object));
       this.walkTarget = cab.front.clone();
@@ -811,6 +903,7 @@ export class Hub {
         this.walkTarget = null;
         this.marker.visible = false;
         if (this.walkCab) pl.root.rotation.y = Math.PI;
+        if (this.walkJuke) { pl.root.rotation.y = this.jukebox.faceYaw; this.walkJuke = false; this.openJuke(); }
         dir.set(0, 0, 0);
       }
     }
@@ -863,7 +956,25 @@ export class Hub {
       if (redraw) this.drawScreen(cab, time);
     }
     if (wardrobe) near = null;
-    if (near !== this.near && !wardrobe) {
+    // jukebox
+    const jbPlaying = this.jbPlayer.playing;
+    this.jukebox.setTitle(this.jbPlayer.current.title);
+    this.jukebox.update(dt, time, jbPlaying);
+    this.jbTick = (this.jbTick || 0) + dt;
+    if (this.jbTick > 0.25) {
+      this.jbTick = 0;
+      this.jbPlayer.tick();
+      if (this.jbChip) {
+        this.jbChip.classList.toggle('on', jbPlaying && !this.jbPlayer.panel);
+        if (jbPlaying) this.jbChipTitle.textContent = this.jbPlayer.current.title;
+      }
+    }
+    const nearJuke = !wardrobe && !near && Math.hypot(pos.x - this.jukebox.front.x, pos.z - this.jukebox.front.z) < 1.7;
+    if (nearJuke !== this.nearJuke) {
+      this.nearJuke = nearJuke;
+      if (nearJuke) { this.near = null; this.showJukePrompt(); } else if (!near) this.hidePrompt();
+    }
+    if (near !== this.near && !wardrobe && !nearJuke) {
       this.near = near;
       if (near) this.showPrompt(near); else this.hidePrompt();
     }
@@ -872,6 +983,11 @@ export class Hub {
     const camTarget = new THREE.Vector3(pos.x * 0.85, 9.5, pos.z + 11);
     const look = new THREE.Vector3(pos.x * 0.85, 1.6, pos.z - 2.5);
     if (this.camera.aspect < 1) { camTarget.set(pos.x * 0.7, 15, pos.z + 10.5); look.set(pos.x * 0.8, 0.6, pos.z - 1.8); }
+    if (this.jbPlayer.panel && !wardrobe) {
+      // keep the jukebox visible next to the panel
+      if (this.camera.aspect >= 1) { camTarget.x += 2.4; look.x += 3.4; }
+      else { camTarget.z += 2; look.z += 2.5; }
+    }
     if (wardrobe) {
       // face the camera, turn slowly; frame the avatar next to / above the wardrobe panel
       let diff = Math.sin(time * 0.6) * 0.35 - pl.root.rotation.y;

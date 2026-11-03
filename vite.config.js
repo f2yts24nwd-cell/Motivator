@@ -33,8 +33,14 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,png,svg,webp,woff2,mp3}'],
-        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        globPatterns: ['**/*.{js,css,html,png,svg,webp,woff2}'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        // songs: cached at runtime with range-request support (Safari streams audio in ranges)
+        runtimeCaching: [{
+          urlPattern: /\/music\/.*\.mp3$/,
+          handler: 'CacheFirst',
+          options: { cacheName: 'music', rangeRequests: true, cacheableResponse: { statuses: [200] }, expiration: { maxEntries: 30 } }
+        }],
         // a new deploy replaces the old one right away
         cleanupOutdatedCaches: true,
         clientsClaim: true,

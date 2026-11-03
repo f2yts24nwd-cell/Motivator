@@ -7,14 +7,23 @@ const file = (name) => `${BASE}music/${name}`;
 
 export const SONGS = [
   {
+    id: 'mehr-verkaufen',
+    title: 'Mehr verkaufen, weniger verwalten',
+    artist: 'itmX Spielewelt · mit Suno erstellt',
+    src: file('mehr-verkaufen.mp3'),
+    cover: file('mehr-verkaufen-cover.webp'),
+    duration: 280,
+    note: 'Melodic Schranz · Ein Tag im Leben von Tim X.',
+    neu: true
+  },
+  {
     id: 'system-overload',
     title: 'CRM – System Overload',
     artist: 'itmX Spielewelt · mit Suno erstellt',
     src: file('system-overload.mp3'),
     cover: file('system-overload-cover.webp'),
     duration: 368,
-    note: 'Der Song zu Spiel 4 „Das CRM-Königreich“',
-    neu: true
+    note: 'Der Song zu Spiel 4 „Das CRM-Königreich“'
   }
 ];
 

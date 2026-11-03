@@ -91,22 +91,40 @@ export function unlockAudio() {
 // Songs play as a plain <audio> element, NOT through WebAudio: on the iPhone, WebAudio is silent
 // while the ring/silent switch is on, media elements are not. Volume fades work where the browser
 // allows it (iOS ignores element.volume, there the song simply starts/stops).
-// iOS only lets an element play later without a tap if it was started once inside a gesture: primeSong().
-const song = { el: null, url: null, playing: false, volume: 0.8, fadeTimer: null };
+// iOS/iPadOS only lets an element play later without a tap if THAT element was started inside a
+// gesture before. So there is exactly one <audio> element for all songs: switching songs only
+// changes its src (a new element per song would be blocked, e.g. when the next song starts by itself).
+const song = { el: null, url: null, playing: false, volume: 0.8, fadeTimer: null, startedAt: 0, priming: false };
 window.__song = song; // for debugging / automated checks
 function songElement(url) {
-  if (song.el && song.url === url) return song.el;
-  if (song.el) { song.el.pause(); song.el.removeAttribute('src'); song.el.load(); }
-  const el = new Audio();
-  el.preload = 'auto';
-  el.loop = true;
-  el.playsInline = true;
-  el.setAttribute('playsinline', '');
+  let el = song.el;
+  if (!el) {
+    el = new Audio();
+    el.preload = 'auto';
+    el.playsInline = true;
+    el.setAttribute('playsinline', '');
+    el.addEventListener('ended', () => {
+      if (song.priming) return;
+      const played = el.currentTime;
+      song.playing = false;
+      // a real end only after the song actually ran; otherwise it failed to load
+      if (played > 3) music.onSongEnd?.(song.url);
+      else music.onSongError?.(song.url);
+    });
+    el.addEventListener('error', () => {
+      if (!song.url) return;
+      song.playing = false;
+      music.onSongError?.(song.url);
+    });
+    song.el = el;
+  }
+  if (song.url !== url) {
+    el.pause();
+    song.url = url;
+    el.src = url;
+    el.load();
+  }
   el.muted = muted;
-  el.src = url;
-  el.addEventListener('ended', () => { song.playing = false; music.onSongEnd?.(url); });
-  song.el = el;
-  song.url = url;
   return el;
 }
 function fadeSong(to, secs, done) {
@@ -121,14 +139,15 @@ function fadeSong(to, secs, done) {
     if (k >= 1) { clearInterval(song.fadeTimer); done?.(); }
   }, 50);
 }
-/** Call inside a tap: loads the song and unlocks the element for later playback on iOS. */
+/** Call inside a tap: loads a song and unlocks the (single) element for later playback on iOS. */
 export function primeSong(url) {
-  const el = songElement(url);
   if (song.playing) return;
-  try { el.volume = 0; } catch { /* ignore */ }
+  const el = songElement(url);
+  song.priming = true;
+  el.muted = true; // iOS ignores volume, so prime silently
+  const done = () => { song.priming = false; if (!song.playing) { el.pause(); el.currentTime = 0; } el.muted = muted; };
   const p = el.play();
-  const stop = () => { if (!song.playing) { el.pause(); el.currentTime = 0; } };
-  if (p?.then) p.then(stop).catch(() => {}); else stop();
+  if (p?.then) p.then(done).catch(done); else done();
 }
 export function suspendAudio() {
   if (ctx && ctx.state === 'running') ctx.suspend();
@@ -142,7 +161,7 @@ export function setMuted(m) {
   muted = m;
   try { localStorage.setItem('sw-muted', m ? '1' : '0'); } catch { /* ignore */ }
   if (master) master.gain.setTargetAtTime(m ? 0 : 0.9, ctx.currentTime, 0.05);
-  if (song.el) song.el.muted = m;
+  if (song.el && !song.priming) song.el.muted = m;
 }
 const ready = () => ac() && ctx.state === 'running';
 
@@ -716,15 +735,17 @@ export const music = {
     this.wanted = null;
     this.wantedSong = null;
     const el = songElement(url);
+    song.priming = false;
     el.loop = loop;
     el.muted = muted;
     if (song.playing && !restart && !el.paused) return;
-    if (restart || el.ended) el.currentTime = 0;
+    if (restart || el.ended) { try { el.currentTime = 0; } catch { /* not loaded yet */ } }
     song.playing = true;
+    song.startedAt = performance.now();
     try { el.volume = 0; } catch { /* ignore */ }
     const p = el.play();
     const ok = () => fadeSong(song.volume, 2);
-    if (p?.then) p.then(ok).catch(() => { song.playing = false; this.wantedSong = url; });
+    if (p?.then) p.then(ok).catch((e) => { if (song.url !== url) return; song.playing = false; this.onSongError?.(url, e); });
     else ok();
   },
   stopSong(fade = 1) {
@@ -744,7 +765,9 @@ export const music = {
   },
   seekSong(t) { if (song.el) song.el.currentTime = Math.max(0, t); },
   /** called when a non-looping song ends */
-  onSongEnd: null
+  onSongEnd: null,
+  /** called when a song cannot be loaded or played */
+  onSongError: null
 };
 
 // ------------------------------------------------------------------ sound effects

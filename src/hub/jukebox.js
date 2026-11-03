@@ -128,9 +128,17 @@ export class JukeboxPlayer {
   constructor() {
     this.index = Math.min(storeGet('jukebox-index', 0), SONGS.length - 1);
     this.panel = null;
+    this.error = null;
     music.onSongEnd = (url) => {
       if (SONGS[this.index]?.src !== url) return;
       this.next(true);
+    };
+    // never skip on errors (that made the playlist jump back and forth): stop and say so
+    music.onSongError = (url) => {
+      const s = SONGS.find((x) => x.src === url);
+      if (!s) return;
+      this.error = `„${s.title}“ konnte nicht abgespielt werden. Bitte nochmal auf ▶ tippen.`;
+      this.render();
     };
   }
 
@@ -143,6 +151,7 @@ export class JukeboxPlayer {
 
   play(i = this.index, restart = false) {
     unlockAudio();
+    this.error = null;
     this.index = (i + SONGS.length) % SONGS.length;
     storeSet('jukebox-index', this.index);
     // one song in the list: loop it, otherwise continue with the next one at the end
@@ -204,6 +213,7 @@ export class JukeboxPlayer {
       ]),
       seek,
       this.timeEl,
+      ...(this.error ? [h('p.jb-error', {}, this.error)] : []),
       h('div.jb-ctrl', {}, [
         h('button', { title: 'Zurück', onclick: () => this.prev() }, '⏮'),
         h('button.jb-play', { title: playing ? 'Pause' : 'Abspielen', onclick: () => { sfx.click(); this.toggle(); } }, playing ? '⏸' : '▶'),

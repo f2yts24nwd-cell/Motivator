@@ -69,7 +69,10 @@ function ac() {
     delaySend.connect(dl).connect(dTone).connect(fb).connect(dl);
     dTone.connect(dRet).connect(master);
   }
-  if (ctx.state === 'suspended' && unlocked) ctx.resume();
+  if (ctx.state === 'suspended' && unlocked) {
+    ctx.resume();
+    if (song.playing && song.el?.paused) song.el.play().catch(() => {});
+  }
   return ctx;
 }
 
@@ -87,7 +90,47 @@ export function unlockAudio() {
     music.kick();
   }
 }
-export function suspendAudio() { if (ctx && ctx.state === 'running') ctx.suspend(); }
+export function suspendAudio() {
+  if (ctx && ctx.state === 'running') ctx.suspend();
+  if (song.el && song.playing) song.el.pause();
+}
+
+// ------------------------------------------------------------------ recorded songs (audio files)
+// A song plays through the music bus (so mute and the compressor apply). iOS only lets a media
+// element play later without a tap if it was started once inside a user gesture: primeSong().
+const song = { el: null, url: null, node: null, gain: null, playing: false, volume: 0.75 };
+window.__song = song; // for debugging / automated checks
+function songElement(url) {
+  if (song.el && song.url === url) return song.el;
+  if (song.el) { song.el.pause(); song.node?.disconnect(); }
+  const el = new Audio();
+  el.src = url;
+  el.preload = 'auto';
+  el.loop = true;
+  el.playsInline = true;
+  song.el = el;
+  song.url = url;
+  song.node = null;
+  return el;
+}
+function routeSong() {
+  if (!ac() || song.node) return;
+  try {
+    song.node = ctx.createMediaElementSource(song.el);
+    song.gain = ctx.createGain();
+    song.gain.gain.value = 0;
+    song.node.connect(song.gain).connect(musicBus);
+  } catch { /* already routed */ }
+}
+/** Call inside a tap: loads the song and unlocks the element for later playback on iOS. */
+export function primeSong(url) {
+  const el = songElement(url);
+  routeSong();
+  if (song.playing) return;
+  const p = el.play();
+  if (p?.then) p.then(() => { if (!song.playing) el.pause(); }).catch(() => {});
+  else el.pause();
+}
 export function isMuted() { return muted; }
 export function setMuted(m) {
   muted = m;
@@ -616,6 +659,7 @@ export const music = {
   gain: null,
   timer: null,
   play(name) {
+    this.stopSong(1.2);
     this.wanted = name;
     if (!ready()) return; // starts on unlock (iOS)
     if (this.current === name) return;
@@ -655,7 +699,40 @@ export const music = {
   },
   setIntensity(i) { this.intensity = i; },
   /** called after the iOS unlock: start what was requested before */
-  kick() { const w = this.wanted; this.current = null; if (w) this.play(w); }
+  kick() {
+    if (this.wantedSong) { const u = this.wantedSong; this.wantedSong = null; this.playSong(u); return; }
+    const w = this.wanted; this.current = null; if (w) this.play(w);
+  },
+  /** Plays a recorded song (looping) instead of the synthesized themes. restart: from the beginning. */
+  playSong(url, { restart = false } = {}) {
+    this.stop(1.5);
+    this.wanted = null;
+    const el = songElement(url);
+    if (!ready()) { this.wantedSong = url; return; }
+    routeSong();
+    if (song.playing && !restart) return;
+    if (restart || el.ended) el.currentTime = 0;
+    song.playing = true;
+    const g = song.gain.gain;
+    g.cancelScheduledValues(ctx.currentTime);
+    g.setValueAtTime(Math.max(0.0001, g.value), ctx.currentTime);
+    g.linearRampToValueAtTime(song.volume, ctx.currentTime + 2.5);
+    el.play().catch(() => { song.playing = false; this.wantedSong = url; });
+  },
+  stopSong(fade = 1) {
+    this.wantedSong = null;
+    if (!song.playing || !song.el) return;
+    song.playing = false;
+    const el = song.el;
+    if (song.gain && ctx) {
+      const g = song.gain.gain;
+      g.cancelScheduledValues(ctx.currentTime);
+      g.setValueAtTime(g.value, ctx.currentTime);
+      g.linearRampToValueAtTime(0, ctx.currentTime + fade);
+    }
+    setTimeout(() => { if (!song.playing) el.pause(); }, fade * 1000 + 100);
+  },
+  get songPlaying() { return song.playing; }
 };
 
 // ------------------------------------------------------------------ sound effects

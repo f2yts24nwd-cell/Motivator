@@ -66,6 +66,7 @@ Drei Tage und drei Nächte, insgesamt rund 4 Minuten.
 - Am Ende stehen die Wertung (Bauplan in %, Türme, Fundament, Monster) und Lernkarten zur itmX crm suite mit Links zu den itmX-Videos. Danach kniet dein Avatar im Thronsaal nieder, **Lord CRM schlägt ihn zum Ritter** und überreicht die **Königliche Urkunde** (mit Namen, als PNG speicher- und teilbar).
 - Grafik: Das Inselterrain ist ein echtes Voxel-Mesh (nur sichtbare Flächen). Dazu ein Himmel mit Tag-Nacht-Shader samt Sonne, Mond und Sternen, Wolkenmeer unter der Insel, Wasserfall, schwebende Felsen, Laternen und Schmiedefeuer bei Nacht, instanzierte Klötzchen-Splitter, Bloom und weiche Schatten. Statische Modelle werden zur Laufzeit zusammengefasst (wenige Draw-Calls fürs iPhone).
 - Soundtrack: Mittelalter-Folk mit 112 BPM (Laute, Rahmentrommel, Flöte) am Tag, Kriegstrommeln und Chor in der Nacht, alles per WebAudio.
+- **Song zum Abschluss: „CRM – System Overload“** (mit Suno erstellt, `public/game4/`). Er startet, sobald „Das Königreich steht!“ erscheint, und läuft durch Wertung, Ritterschlag und Urkunde, mit „Läuft gerade“-Anzeige samt Cover (antippen: an/aus). Er ist offline im App-Cache und wird schon mit dem Startknopf freigeschaltet, damit er auf dem iPhone ohne weiteren Tipp loslegt.
 
 Steuerung: Antippen zum Laufen, Abbauen, Handeln und Monster treffen. Ziehen dreht die Kamera, das Mausrad zoomt. Tastatur: H öffnet den Handel, 1–6 springt direkt zu einem Händler, Esc schließt.
 

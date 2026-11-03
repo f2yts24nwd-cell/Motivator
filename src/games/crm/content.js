@@ -19,6 +19,10 @@ export function say(pool, mode = getMode()) {
   return pick(pool.k);
 }
 
+// ------------------------------------------------------------------ the song after the game (made with Suno)
+const BASE = import.meta.env.BASE_URL;
+export const SONG = { url: `${BASE}game4/system-overload.mp3`, cover: `${BASE}game4/system-overload-cover.webp`, title: 'CRM – System Overload' };
+
 // ------------------------------------------------------------------ timing: 3 days, 3 nights
 export const DAYS = [
   { day: 56, night: 22 },

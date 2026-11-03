@@ -6,7 +6,8 @@ import { h, mount, clearUI, storeGet, storeSet } from '../../core/ui.js';
 import { drawUrkunde } from './urkunde.js';
 import { buildLord, TERRAIN, smoothTex, bake } from './models.js';
 import { drawBrand } from '../../core/gfx.js';
-import { FINALE, MODULES, TOWER_MODS, say } from './content.js';
+import { FINALE, MODULES, TOWER_MODS, say, SONG } from './content.js';
+import { songChip } from './songchip.js';
 
 // The throne room: Lord CRM rises from his throne, knights the player's avatar
 // (sword taps on both shoulders) and hands over the royal certificate.
@@ -165,11 +166,11 @@ export class KoenigreichFinale {
     this.t = 0;
     this.phase = 'seated';
     this.kneel = 0;
-    music.play('kingdom');
-    music.setIntensity(0);
+    music.playSong(SONG.url);
     this.resize(window.innerWidth, window.innerHeight);
     clearUI();
     mount(h('button.icon-btn.left', { title: 'Zurück zur Spielewelt', onclick: () => { sfx.click(); this.app.goHub(); } }, '⟵'));
+    mount(h('div.kr-songdock', {}, songChip()));
     for (const c of this.confetti) c.m.visible = false;
     setTimeout(() => sfx.fanfare(), 300);
   }
@@ -228,7 +229,6 @@ export class KoenigreichFinale {
       this.phase = 'present';
       this.t = 0;
       sfx.fanfare();
-      music.setIntensity(2);
       this.burstConfetti();
     }
   }

@@ -1,16 +1,17 @@
 import * as THREE from 'three';
 import { rand, clamp, lerp, easeOutBack } from '../../core/gfx.js';
-import { sfx, music, unlockAudio, isMuted, setMuted } from '../../core/audio.js';
+import { sfx, music, unlockAudio, isMuted, setMuted, primeSong } from '../../core/audio.js';
 import { h, mount, clearUI, storeGet, storeSet } from '../../core/ui.js';
 import { loadAvatar, buildAvatar, disposeAvatar } from '../../hub/avatar.js';
 import { Effects } from '../whack/effects.js';
 import {
   getMode, setMode, say, DAYS, TOTAL_TIME, RES, RES_IDS, MODULES, TOWER_MODS, FEATURES, featureById, TRADERS, traderById,
-  LEGACY, legacyById, RIVAL, CUSTOMERS, MONSTERS, NIGHTS, LORD, PTS, rankFor, LEARN
+  LEGACY, legacyById, RIVAL, CUSTOMERS, MONSTERS, NIGHTS, LORD, PTS, rankFor, LEARN, SONG
 } from './content.js';
 import { World, R, CASTLE, TOWERS, LORD_POS, SPAWN, STALLS, RIVAL_POS, LEGACY_SPOTS } from './world.js';
 import { buildLord, buildTrader, buildFeatureBlock, buildLegacy, buildMonster, buildPickaxe, buildCloud, textSprite, lordSVG, BLOCK } from './models.js';
 import { KoenigreichFinale } from './finale.js';
+import { songChip } from './songchip.js';
 
 // "Das CRM-Königreich" – a floating block island. By day: mine SAP ore, customer-data crystals
 // and lead fruit, trade with the module traders and build the CRM castle (SAP foundation +
@@ -297,7 +298,7 @@ export class KoenigreichGame {
         h('div.cv-modes', {}, [modeBtn('kunde', '🤝 Kunde & Partner', 'höflich und korrekt'), modeBtn('intern', '🌶️ Intern', 'frech, nur unter uns')])
       ]),
       this.best ? h('p', {}, `Dein Rekord: ${fmt(this.best)} Punkte`) : null,
-      h('div.row', {}, [h('button.btn.gold', { onclick: () => { unlockAudio(); sfx.click(); this.startRun(); } }, '▶ Königreich betreten')])
+      h('div.row', {}, [h('button.btn.gold', { onclick: () => { unlockAudio(); primeSong(SONG.url); sfx.click(); this.startRun(); } }, '▶ Königreich betreten')])
     ])));
   }
 
@@ -561,8 +562,8 @@ export class KoenigreichGame {
     this.final = { wishes: wishes.length, wishDone, fundaments, pillars, foreign, bonus };
     if (this.score > this.best) { this.best = this.score; storeSet('crm-best', this.best); }
     this.updateHUD();
-    music.setIntensity(2);
     sfx.fanfare();
+    music.playSong(SONG.url, { restart: true });
     this.banner('Das Königreich steht!', `${fmt(this.score)} Punkte`, '.extra');
     for (const el of ['.kr-bar', '.kr-cust', '.kr-trade']) document.querySelector(el)?.remove();
     setTimeout(() => this.showResults(), 2600);
@@ -591,6 +592,7 @@ export class KoenigreichGame {
     ]));
     const towerRow = TOWER_MODS.map((m, i) => h('div', { style: `--c:${MODULES[m].color}` }, [h('b', {}, String(F.pillars[i])), MODULES[m].name]));
     mount(h('div.overlay', {}, h('div.card.panel.cv-result.kr-result', {}, [
+      songChip(),
       h('div.kicker', {}, 'Drei Tage, drei Nächte · Das Königreich steht'),
       h('h1', {}, `${fmt(this.score)} Punkte`),
       h('div', {}, h(`span.rank.${rank.id}`, {}, `${rank.name} · ${rank.title}`)),
@@ -612,7 +614,7 @@ export class KoenigreichGame {
       h('div.kicker', {}, 'Das steckt dahinter'),
       h('div.cv-learns', {}, cards),
       h('div.row', {}, [
-        h('button.btn.gold', { onclick: () => { sfx.click(); this.app.showScene('crm-finale', (a) => new KoenigreichFinale(a), { ...stats, mode: this.mode }); } }, '👑 Ritterschlag bei Lord CRM'),
+        h('button.btn.gold', { onclick: () => { sfx.click(); music.playSong(SONG.url); this.app.showScene('crm-finale', (a) => new KoenigreichFinale(a), { ...stats, mode: this.mode }); } }, '👑 Ritterschlag bei Lord CRM'),
         h('button.btn.secondary', { onclick: () => { sfx.click(); this.startRun(); } }, '↻ Neues Königreich')
       ])
     ])));

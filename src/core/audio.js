@@ -69,10 +69,7 @@ function ac() {
     delaySend.connect(dl).connect(dTone).connect(fb).connect(dl);
     dTone.connect(dRet).connect(master);
   }
-  if (ctx.state === 'suspended' && unlocked) {
-    ctx.resume();
-    if (song.playing && song.el?.paused) song.el.play().catch(() => {});
-  }
+  if (ctx.state === 'suspended' && unlocked) ctx.resume();
   return ctx;
 }
 
@@ -90,53 +87,62 @@ export function unlockAudio() {
     music.kick();
   }
 }
-export function suspendAudio() {
-  if (ctx && ctx.state === 'running') ctx.suspend();
-  if (song.el && song.playing) song.el.pause();
-}
-
 // ------------------------------------------------------------------ recorded songs (audio files)
-// A song plays through the music bus (so mute and the compressor apply). iOS only lets a media
-// element play later without a tap if it was started once inside a user gesture: primeSong().
-const song = { el: null, url: null, node: null, gain: null, playing: false, volume: 0.75 };
+// Songs play as a plain <audio> element, NOT through WebAudio: on the iPhone, WebAudio is silent
+// while the ring/silent switch is on, media elements are not. Volume fades work where the browser
+// allows it (iOS ignores element.volume, there the song simply starts/stops).
+// iOS only lets an element play later without a tap if it was started once inside a gesture: primeSong().
+const song = { el: null, url: null, playing: false, volume: 0.8, fadeTimer: null };
 window.__song = song; // for debugging / automated checks
 function songElement(url) {
   if (song.el && song.url === url) return song.el;
-  if (song.el) { song.el.pause(); song.node?.disconnect(); }
+  if (song.el) { song.el.pause(); song.el.removeAttribute('src'); song.el.load(); }
   const el = new Audio();
-  el.src = url;
   el.preload = 'auto';
   el.loop = true;
   el.playsInline = true;
+  el.setAttribute('playsinline', '');
+  el.muted = muted;
+  el.src = url;
   el.addEventListener('ended', () => { song.playing = false; music.onSongEnd?.(url); });
   song.el = el;
   song.url = url;
-  song.node = null;
   return el;
 }
-function routeSong() {
-  if (!ac() || song.node) return;
-  try {
-    song.node = ctx.createMediaElementSource(song.el);
-    song.gain = ctx.createGain();
-    song.gain.gain.value = 0;
-    song.node.connect(song.gain).connect(musicBus);
-  } catch { /* already routed */ }
+function fadeSong(to, secs, done) {
+  const el = song.el;
+  clearInterval(song.fadeTimer);
+  if (!el) return;
+  const from = el.volume;
+  const t0 = performance.now();
+  song.fadeTimer = setInterval(() => {
+    const k = Math.min(1, (performance.now() - t0) / (secs * 1000));
+    try { el.volume = Math.max(0, Math.min(1, from + (to - from) * k)); } catch { /* iOS: read-only */ }
+    if (k >= 1) { clearInterval(song.fadeTimer); done?.(); }
+  }, 50);
 }
 /** Call inside a tap: loads the song and unlocks the element for later playback on iOS. */
 export function primeSong(url) {
   const el = songElement(url);
-  routeSong();
   if (song.playing) return;
+  try { el.volume = 0; } catch { /* ignore */ }
   const p = el.play();
-  if (p?.then) p.then(() => { if (!song.playing) el.pause(); }).catch(() => {});
-  else el.pause();
+  const stop = () => { if (!song.playing) { el.pause(); el.currentTime = 0; } };
+  if (p?.then) p.then(stop).catch(() => {}); else stop();
 }
+export function suspendAudio() {
+  if (ctx && ctx.state === 'running') ctx.suspend();
+  if (song.el && song.playing) song.el.pause();
+}
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && song.playing && song.el?.paused) song.el.play().catch(() => {});
+});
 export function isMuted() { return muted; }
 export function setMuted(m) {
   muted = m;
   try { localStorage.setItem('sw-muted', m ? '1' : '0'); } catch { /* ignore */ }
   if (master) master.gain.setTargetAtTime(m ? 0 : 0.9, ctx.currentTime, 0.05);
+  if (song.el) song.el.muted = m;
 }
 const ready = () => ac() && ctx.state === 'running';
 
@@ -704,35 +710,31 @@ export const music = {
     if (this.wantedSong) { const u = this.wantedSong; this.wantedSong = null; this.playSong(u); return; }
     const w = this.wanted; this.current = null; if (w) this.play(w);
   },
-  /** Plays a recorded song (looping) instead of the synthesized themes. restart: from the beginning. */
+  /** Plays a recorded song instead of the synthesized themes. restart: from the beginning. */
   playSong(url, { restart = false, loop = true } = {}) {
     this.stop(1.5);
     this.wanted = null;
+    this.wantedSong = null;
     const el = songElement(url);
     el.loop = loop;
-    if (!ready()) { this.wantedSong = url; return; }
-    routeSong();
-    if (song.playing && !restart) return;
+    el.muted = muted;
+    if (song.playing && !restart && !el.paused) return;
     if (restart || el.ended) el.currentTime = 0;
     song.playing = true;
-    const g = song.gain.gain;
-    g.cancelScheduledValues(ctx.currentTime);
-    g.setValueAtTime(Math.max(0.0001, g.value), ctx.currentTime);
-    g.linearRampToValueAtTime(song.volume, ctx.currentTime + 2.5);
-    el.play().catch(() => { song.playing = false; this.wantedSong = url; });
+    try { el.volume = 0; } catch { /* ignore */ }
+    const p = el.play();
+    const ok = () => fadeSong(song.volume, 2);
+    if (p?.then) p.then(ok).catch(() => { song.playing = false; this.wantedSong = url; });
+    else ok();
   },
   stopSong(fade = 1) {
     this.wantedSong = null;
     if (!song.playing || !song.el) return;
     song.playing = false;
     const el = song.el;
-    if (song.gain && ctx) {
-      const g = song.gain.gain;
-      g.cancelScheduledValues(ctx.currentTime);
-      g.setValueAtTime(g.value, ctx.currentTime);
-      g.linearRampToValueAtTime(0, ctx.currentTime + fade);
-    }
-    setTimeout(() => { if (!song.playing) el.pause(); }, fade * 1000 + 100);
+    fadeSong(0, fade, () => { if (!song.playing) el.pause(); });
+    // iOS ignores the volume fade: pause right after it
+    setTimeout(() => { if (!song.playing) el.pause(); }, fade * 1000 + 150);
   },
   get songPlaying() { return song.playing; },
   /** { url, playing, t, dur } of the current song element (for the jukebox) */

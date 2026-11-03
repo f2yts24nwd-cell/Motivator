@@ -134,10 +134,11 @@ export class JukeboxPlayer {
       this.next(true);
     };
     // never skip on errors (that made the playlist jump back and forth): stop and say so
-    music.onSongError = (url) => {
+    music.onSongError = (url, detail) => {
       const s = SONGS.find((x) => x.src === url);
       if (!s) return;
       this.error = `„${s.title}“ konnte nicht abgespielt werden. Bitte nochmal auf ▶ tippen.`;
+      this.errorDetail = detail || '';
       this.render();
     };
   }
@@ -213,7 +214,7 @@ export class JukeboxPlayer {
       ]),
       seek,
       this.timeEl,
-      ...(this.error ? [h('p.jb-error', {}, this.error)] : []),
+      ...(this.error ? [h('p.jb-error', {}, [this.error, this.errorDetail ? h('small', {}, `Technisch: ${this.errorDetail}`) : null])] : []),
       h('div.jb-ctrl', {}, [
         h('button', { title: 'Zurück', onclick: () => this.prev() }, '⏮'),
         h('button.jb-play', { title: playing ? 'Pause' : 'Abspielen', onclick: () => { sfx.click(); this.toggle(); } }, playing ? '⏸' : '▶'),

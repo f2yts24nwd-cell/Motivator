@@ -99,10 +99,13 @@ window.__song = song; // for debugging / automated checks
 function songElement(url) {
   let el = song.el;
   if (!el) {
-    el = new Audio();
+    el = document.createElement('audio');
     el.preload = 'auto';
     el.playsInline = true;
     el.setAttribute('playsinline', '');
+    el.setAttribute('webkit-playsinline', '');
+    el.style.display = 'none';
+    document.body.appendChild(el); // Safari is more reliable with media elements that live in the page
     el.addEventListener('ended', () => {
       if (song.priming) return;
       const played = el.currentTime;
@@ -114,18 +117,29 @@ function songElement(url) {
     el.addEventListener('error', () => {
       if (!song.url) return;
       song.playing = false;
-      music.onSongError?.(song.url);
+      music.onSongError?.(song.url, songErrorText());
     });
     song.el = el;
   }
-  if (song.url !== url) {
+  // new song, or the last attempt failed (Safari keeps a failed element failed until it is reloaded)
+  if (song.url !== url || el.error || el.networkState === 3) {
     el.pause();
     song.url = url;
-    el.src = url;
+    el.src = new URL(url, document.baseURI).href;
     el.load();
   }
   el.muted = muted;
   return el;
+}
+/** Short technical reason for the jukebox error message (helps to diagnose iPad/iPhone problems). */
+function songErrorText(e) {
+  const el = song.el;
+  const codes = { 1: 'abgebrochen', 2: 'Netzwerk', 3: 'Dekodierung', 4: 'Format/Quelle' };
+  const parts = [];
+  if (e?.name) parts.push(e.name);
+  if (el?.error) parts.push(`Medienfehler ${el.error.code} (${codes[el.error.code] || '?'})${el.error.message ? ': ' + el.error.message : ''}`);
+  if (el) parts.push(`net ${el.networkState}, ready ${el.readyState}`);
+  return parts.join(' · ');
 }
 function fadeSong(to, secs, done) {
   const el = song.el;
@@ -742,10 +756,12 @@ export const music = {
     if (restart || el.ended) { try { el.currentTime = 0; } catch { /* not loaded yet */ } }
     song.playing = true;
     song.startedAt = performance.now();
+    // iOS 17+: treat it as music playback (plays even with the silent switch on)
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { /* ignore */ }
     try { el.volume = 0; } catch { /* ignore */ }
     const p = el.play();
     const ok = () => fadeSong(song.volume, 2);
-    if (p?.then) p.then(ok).catch((e) => { if (song.url !== url) return; song.playing = false; this.onSongError?.(url, e); });
+    if (p?.then) p.then(ok).catch((e) => { if (song.url !== url) return; song.playing = false; this.onSongError?.(url, songErrorText(e)); });
     else ok();
   },
   stopSong(fade = 1) {

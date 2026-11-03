@@ -35,12 +35,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg,webp,woff2}'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
-        // songs: cached at runtime with range-request support (Safari streams audio in ranges)
-        runtimeCaching: [{
-          urlPattern: /\/music\/.*\.mp3$/,
-          handler: 'CacheFirst',
-          options: { cacheName: 'music', rangeRequests: true, cacheableResponse: { statuses: [200] }, expiration: { maxEntries: 30 } }
-        }],
+        // songs are NOT handled by the service worker: Safari/iPadOS plays media unreliably through it
         // a new deploy replaces the old one right away
         cleanupOutdatedCaches: true,
         clientsClaim: true,

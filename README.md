@@ -66,9 +66,19 @@ Drei Tage und drei Nächte, insgesamt rund 4 Minuten.
 - Am Ende stehen die Wertung (Bauplan in %, Türme, Fundament, Monster) und Lernkarten zur itmX crm suite mit Links zu den itmX-Videos. Danach kniet dein Avatar im Thronsaal nieder, **Lord CRM schlägt ihn zum Ritter** und überreicht die **Königliche Urkunde** (mit Namen, als PNG speicher- und teilbar).
 - Grafik: Das Inselterrain ist ein echtes Voxel-Mesh (nur sichtbare Flächen). Dazu ein Himmel mit Tag-Nacht-Shader samt Sonne, Mond und Sternen, Wolkenmeer unter der Insel, Wasserfall, schwebende Felsen, Laternen und Schmiedefeuer bei Nacht, instanzierte Klötzchen-Splitter, Bloom und weiche Schatten. Statische Modelle werden zur Laufzeit zusammengefasst (wenige Draw-Calls fürs iPhone).
 - Soundtrack: Mittelalter-Folk mit 112 BPM (Laute, Rahmentrommel, Flöte) am Tag, Kriegstrommeln und Chor in der Nacht, alles per WebAudio.
-- **Song zum Abschluss: „CRM – System Overload“** (mit Suno erstellt, `public/game4/`). Er startet, sobald „Das Königreich steht!“ erscheint, und läuft durch Wertung, Ritterschlag und Urkunde, mit „Läuft gerade“-Anzeige samt Cover (antippen: an/aus). Er ist offline im App-Cache und wird schon mit dem Startknopf freigeschaltet, damit er auf dem iPhone ohne weiteren Tipp loslegt.
+- **Song zum Abschluss: „CRM – System Overload“** (mit Suno erstellt, `public/music/`). Er startet, sobald „Das Königreich steht!“ erscheint, und läuft durch Wertung, Ritterschlag und Urkunde, mit „Läuft gerade“-Anzeige samt Cover (antippen: an/aus). Er ist offline im App-Cache und wird schon mit dem Startknopf freigeschaltet, damit er auf dem iPhone ohne weiteren Tipp loslegt.
 
 Steuerung: Antippen zum Laufen, Abbauen, Handeln und Monster treffen. Ziehen dreht die Kamera, das Mausrad zoomt. Tastatur: H öffnet den Handel, 1–6 springt direkt zu einem Händler, Esc schließt.
+
+## Jukebox
+
+Im Büro steht rechts neben der Kaffeemaschine eine leuchtende 3D-Jukebox mit Neonbogen, drehender Schallplatte, Laufschrift und Musiknoten.
+Antippen öffnet die Playlist: Abspielen/Pause, vor/zurück, Fortschrittsbalken zum Spulen. Die Lieder laufen nacheinander und die Liste
+wiederholt sich. Solange Musik läuft, zeigt eine Kachel im Büro das aktuelle Lied.
+
+**Neues Lied hinzufügen:** Datei (mp3, ideal 96–128 kbps) und ein kleines Cover (~160×160, webp/png) nach `public/music/` legen und in
+`src/core/songs.js` einen Eintrag ergänzen (`title`, `artist`, `src`, `cover`, `duration` in Sekunden, `note`, optional `neu: true`).
+Die Jukebox zeigt es automatisch an. Die Lieder landen im Offline-Cache der App (Grenze 6 MB pro Datei).
 
 ## Avatar & Kleiderschrank
 
@@ -113,6 +123,7 @@ Alle Sounds werden per WebAudio synthetisiert, dadurch läuft das Spiel komplett
 src/
   main.js              App-Start, Szenenwechsel, Render-Loop
   core/                Renderer/Postprocessing, Audio, UI-Helfer
+  core/songs.js        Playlist der Jukebox (hier neue Lieder eintragen)
   hub/hub.js           Begehbares 3D-Büro mit Arcade-Automaten
   games/registry.js    Liste aller Spiele (hier neue Spiele eintragen)
   games/whack/         „Hau den Legacy!“ (Köpfe, Effekte, Spiellogik)

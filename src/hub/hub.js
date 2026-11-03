@@ -5,6 +5,7 @@ import { sfx, music, unlockAudio, isMuted, setMuted } from '../core/audio.js';
 import { h, mount, clearUI, storeGet, storeSet } from '../core/ui.js';
 import { WARDROBE, loadAvatar, saveAvatar, buildAvatar, disposeAvatar } from './avatar.js';
 import { GAMES } from '../games/registry.js';
+import { buildJukebox, JukeboxPlayer } from './jukebox.js';
 
 const ROOM_W = 26, ROOM_D = 18;
 
@@ -20,7 +21,11 @@ export class Hub {
     this.cabinets = [];
     this.build();
     this.onDown = this.onDown.bind(this);
-    this.onKeyDown = (e) => { this.keys.add(e.key.toLowerCase()); if (e.key === 'Enter' && this.near?.game.available) this.launch(this.near.game); };
+    this.onKeyDown = (e) => {
+      this.keys.add(e.key.toLowerCase());
+      if (e.key === 'Enter' && this.nearJuke) this.openJuke();
+      else if (e.key === 'Enter' && this.near?.game.available) this.launch(this.near.game);
+    };
     this.onKeyUp = (e) => this.keys.delete(e.key.toLowerCase());
   }
 
@@ -169,6 +174,7 @@ export class Hub {
     for (const [x, z] of [[-12, -8], [12, -8], [-12, 8], [12, 8], [-11.8, 0.3]]) this.addPlant(x, z);
     this.addWhiteboard();
     this.addCoffee(11.6, -1.6);
+    this.addJukebox(12.0, 2.6);
 
     this.player = this.buildPlayer();
     this.avatar = loadAvatar();
@@ -544,6 +550,35 @@ export class Hub {
     this.obstacles.push({ x, z, r: 1.0 });
   }
 
+  addJukebox(x, z) {
+    const jb = buildJukebox();
+    jb.group.position.set(x, 0, z);
+    const rot = -Math.PI / 2 + 0.65; // angled into the room, towards the camera
+    jb.group.rotation.y = rot;
+    this.scene.add(jb.group);
+    this.obstacles.push({ x, z, r: 1.0 });
+    const n = new THREE.Vector3(Math.sin(rot), 0, Math.cos(rot));
+    this.jukebox = { ...jb, front: new THREE.Vector3(x, 0, z).addScaledVector(n, 1.75), faceYaw: rot + Math.PI };
+    this.jbPlayer = new JukeboxPlayer();
+  }
+
+  openJuke() {
+    this.hidePrompt();
+    this.jbPlayer.open();
+  }
+
+  showJukePrompt() {
+    this.hidePrompt();
+    const cur = this.jbPlayer.current;
+    this.prompt = mount(h('div.game-prompt.panel', { 'data-id': 'jukebox' }, [
+      h('h3', {}, '🎵 Jukebox'),
+      h('p', {}, this.jbPlayer.playing ? `Läuft gerade: ${cur.title}` : `Lieder aus der itmX Spielewelt, zum Beispiel „${cur.title}“.`),
+      h('button.btn', { onclick: () => { unlockAudio(); this.openJuke(); } }, '🎵 Jukebox öffnen')
+    ]));
+    if (this.hint) this.hint.style.display = 'none';
+    sfx.pop();
+  }
+
   buildPlayer() {
     return { root: new THREE.Group(), phase: 0, speed: 0 };
   }
@@ -739,6 +774,7 @@ export class Hub {
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
     this.near = null;
+    this.nearJuke = false;
     this.mode = 'walk';
     this.buildUI();
     music.play('hub');
@@ -757,6 +793,7 @@ export class Hub {
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
     this.keys.clear();
+    this.jbPlayer.close();
     clearUI();
   }
 
@@ -773,6 +810,8 @@ export class Hub {
       onclick: () => { if (confirm(`Version ${__BUILD_ID__}\n\nCache leeren und neueste Version laden?`)) window.__hardReload?.(); }
     }, `v ${__BUILD_ID__} ↻`));
     this.wardrobeBtn = mount(h('button.icon-btn.left.wd-btn', { title: 'Avatar gestalten', onclick: () => this.openWardrobe() }, '👔'));
+    this.jbChipTitle = h('b');
+    this.jbChip = mount(h('button.jb-chip.panel', { title: 'Jukebox öffnen', onclick: () => { sfx.click(); this.openJuke(); } }, [h('i.kr-eq', {}, [h('em'), h('em'), h('em')]), h('span', {}, [h('small', {}, 'Jukebox'), this.jbChipTitle])]));
   }
 
   showPrompt(cab) {
@@ -816,8 +855,18 @@ export class Hub {
     const r = this.app.gfx.renderer.domElement.getBoundingClientRect();
     const p = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     this.raycaster.setFromCamera(p, this.camera);
+    const jh = this.raycaster.intersectObjects(this.jukebox.pickables, false)[0];
     const picks = this.cabinets.flatMap((c) => c.pickables);
     const hit = this.raycaster.intersectObjects(picks, false)[0];
+    if (jh && (!hit || jh.distance < hit.distance)) {
+      this.walkTarget = this.jukebox.front.clone();
+      this.walkCab = null;
+      this.walkJuke = true;
+      this.marker.position.set(this.walkTarget.x, 0.02, this.walkTarget.z);
+      this.marker.visible = true;
+      return;
+    }
+    this.walkJuke = false;
     if (hit) {
       const cab = this.cabinets.find((c) => c.pickables.includes(hit.object));
       this.walkTarget = cab.front.clone();
@@ -854,6 +903,7 @@ export class Hub {
         this.walkTarget = null;
         this.marker.visible = false;
         if (this.walkCab) pl.root.rotation.y = Math.PI;
+        if (this.walkJuke) { pl.root.rotation.y = this.jukebox.faceYaw; this.walkJuke = false; this.openJuke(); }
         dir.set(0, 0, 0);
       }
     }
@@ -906,7 +956,25 @@ export class Hub {
       if (redraw) this.drawScreen(cab, time);
     }
     if (wardrobe) near = null;
-    if (near !== this.near && !wardrobe) {
+    // jukebox
+    const jbPlaying = this.jbPlayer.playing;
+    this.jukebox.setTitle(this.jbPlayer.current.title);
+    this.jukebox.update(dt, time, jbPlaying);
+    this.jbTick = (this.jbTick || 0) + dt;
+    if (this.jbTick > 0.25) {
+      this.jbTick = 0;
+      this.jbPlayer.tick();
+      if (this.jbChip) {
+        this.jbChip.classList.toggle('on', jbPlaying && !this.jbPlayer.panel);
+        if (jbPlaying) this.jbChipTitle.textContent = this.jbPlayer.current.title;
+      }
+    }
+    const nearJuke = !wardrobe && !near && Math.hypot(pos.x - this.jukebox.front.x, pos.z - this.jukebox.front.z) < 1.7;
+    if (nearJuke !== this.nearJuke) {
+      this.nearJuke = nearJuke;
+      if (nearJuke) { this.near = null; this.showJukePrompt(); } else if (!near) this.hidePrompt();
+    }
+    if (near !== this.near && !wardrobe && !nearJuke) {
       this.near = near;
       if (near) this.showPrompt(near); else this.hidePrompt();
     }
@@ -915,6 +983,11 @@ export class Hub {
     const camTarget = new THREE.Vector3(pos.x * 0.85, 9.5, pos.z + 11);
     const look = new THREE.Vector3(pos.x * 0.85, 1.6, pos.z - 2.5);
     if (this.camera.aspect < 1) { camTarget.set(pos.x * 0.7, 15, pos.z + 10.5); look.set(pos.x * 0.8, 0.6, pos.z - 1.8); }
+    if (this.jbPlayer.panel && !wardrobe) {
+      // keep the jukebox visible next to the panel
+      if (this.camera.aspect >= 1) { camTarget.x += 2.4; look.x += 3.4; }
+      else { camTarget.z += 2; look.z += 2.5; }
+    }
     if (wardrobe) {
       // face the camera, turn slowly; frame the avatar next to / above the wardrobe panel
       let diff = Math.sin(time * 0.6) * 0.35 - pl.root.rotation.y;

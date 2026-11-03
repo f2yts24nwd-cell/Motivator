@@ -108,6 +108,7 @@ function songElement(url) {
   el.preload = 'auto';
   el.loop = true;
   el.playsInline = true;
+  el.addEventListener('ended', () => { song.playing = false; music.onSongEnd?.(url); });
   song.el = el;
   song.url = url;
   song.node = null;
@@ -704,10 +705,11 @@ export const music = {
     const w = this.wanted; this.current = null; if (w) this.play(w);
   },
   /** Plays a recorded song (looping) instead of the synthesized themes. restart: from the beginning. */
-  playSong(url, { restart = false } = {}) {
+  playSong(url, { restart = false, loop = true } = {}) {
     this.stop(1.5);
     this.wanted = null;
     const el = songElement(url);
+    el.loop = loop;
     if (!ready()) { this.wantedSong = url; return; }
     routeSong();
     if (song.playing && !restart) return;
@@ -732,7 +734,15 @@ export const music = {
     }
     setTimeout(() => { if (!song.playing) el.pause(); }, fade * 1000 + 100);
   },
-  get songPlaying() { return song.playing; }
+  get songPlaying() { return song.playing; },
+  /** { url, playing, t, dur } of the current song element (for the jukebox) */
+  songState() {
+    const el = song.el;
+    return { url: song.url, playing: song.playing, t: el?.currentTime || 0, dur: el && isFinite(el.duration) ? el.duration : 0 };
+  },
+  seekSong(t) { if (song.el) song.el.currentTime = Math.max(0, t); },
+  /** called when a non-looping song ends */
+  onSongEnd: null
 };
 
 // ------------------------------------------------------------------ sound effects

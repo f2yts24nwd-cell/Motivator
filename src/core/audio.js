@@ -115,7 +115,7 @@ function songElement(url) {
       else music.onSongError?.(song.url);
     });
     el.addEventListener('error', () => {
-      if (!song.url) return;
+      if (!song.url || el.error?.code === 1) return; // 1 = aborted by a new load, not a failure
       song.playing = false;
       music.onSongError?.(song.url, songErrorText());
     });
@@ -125,7 +125,10 @@ function songElement(url) {
   if (song.url !== url || el.error || el.networkState === 3) {
     el.pause();
     song.url = url;
-    el.src = new URL(url, document.baseURI).href;
+    // version in the URL: never reuse an old/broken copy from an earlier build's caches
+    const u = new URL(url, document.baseURI);
+    u.searchParams.set('v', typeof __BUILD_ID__ !== 'undefined' ? String(__BUILD_ID__).replace(/\D/g, '') : '1');
+    el.src = u.href;
     el.load();
   }
   el.muted = muted;
@@ -761,8 +764,26 @@ export const music = {
     try { el.volume = 0; } catch { /* ignore */ }
     const p = el.play();
     const ok = () => fadeSong(song.volume, 2);
-    if (p?.then) p.then(ok).catch((e) => { if (song.url !== url) return; song.playing = false; this.onSongError?.(url, songErrorText(e)); });
+    const fail = (e) => {
+      if (song.url !== url || !song.playing) return;
+      song.playing = false;
+      this.onSongError?.(url, songErrorText(e));
+    };
+    // Safari rejects play() with AbortError when a load interrupts it; that is not a real failure.
+    // Real failures arrive as 'error' events; a watchdog catches songs that silently never start.
+    if (p?.then) p.then(ok).catch((e) => { if (e?.name === 'AbortError') return; fail(e); });
     else ok();
+    clearTimeout(song.watchdog);
+    const started = song.startedAt;
+    song.watchdog = setTimeout(() => {
+      if (song.startedAt !== started || !song.playing || song.url !== url) return;
+      if (el.paused || el.currentTime < 0.2) {
+        // one silent retry, then give up with details
+        if (!song.retried) { song.retried = true; el.load(); el.play().then(ok).catch(() => {}); song.watchdog = setTimeout(() => { if (el.currentTime < 0.2) fail({ name: 'Zeitüberschreitung' }); }, 6000); }
+        else fail({ name: 'Zeitüberschreitung' });
+      }
+    }, 10000);
+    song.retried = false;
   },
   stopSong(fade = 1) {
     this.wantedSong = null;

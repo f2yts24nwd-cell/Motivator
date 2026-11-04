@@ -1,6 +1,7 @@
 import { h, mount } from '../../core/ui.js';
 import { sfx, isMuted, setMuted } from '../../core/audio.js';
 import { CALLERS, fmtEuro } from './content.js';
+import { songById } from '../../core/songs.js';
 
 // Driving HUD: speed + speed limit sign, quota bar, mission bar, hands-free call box with answer
 // buttons, heading-up minimap, touch pedals and tool buttons.
@@ -83,6 +84,7 @@ export class Hud {
       btn('dr-tool', 'Aufträge (Bordcomputer)', '📱', () => game.openBoard()),
       btn('dr-tool', 'Kamera wechseln (C)', '🎥', () => game.nextCamera()),
       btn('dr-tool', 'Hupe (H)', '📯', () => game.honk()),
+      btn('dr-tool', 'Autoradio an/aus (P)', '📻', () => game.toggleRadio()),
       btn('dr-tool', 'Abschleppen (R)', '↺', () => game.resetCar())
     ]);
     root.append(this.tools);
@@ -101,6 +103,14 @@ export class Hud {
     this.right = h('div.dr-ctl.r', {}, [pad('brake', '▼', 'brake'), pad('gas', '▲', 'gas')]);
     root.append(this.left, this.right);
     this.setSteerMode(game.P.steer);
+    // car radio: "now playing" chip, tap toggles
+    const song = songById('crm-cruise');
+    this.radioEl = h('button.dr-radio', { title: 'Autoradio an/aus', onclick: (e) => { e.stopPropagation(); sfx.click(); game.toggleRadio(); } }, [
+      h('img', { src: song.cover, alt: '' }),
+      h('span', {}, [h('small', {}, '📻 Autoradio'), h('b', {}, song.title)]),
+      h('i.dr-eq', {}, [h('em'), h('em'), h('em')])
+    ]);
+    root.append(this.radioEl);
     this.flashEl = h('div.dr-flash');
     root.append(this.flashEl);
     this.rotateEl = h('div.dr-rotate', {}, h('div', {}, [h('div', {}, '📱'), h('p', {}, 'Bitte quer halten. Ludlein fährt sich im Querformat am besten.')]));
@@ -110,6 +120,8 @@ export class Hud {
     this.staticMap = renderStaticMap(game.world);
     this.lastLimit = null;
   }
+
+  radio(on) { this.radioEl.classList.toggle('off', !on); }
 
   setSteerMode(mode) { this.left.classList.toggle('tilt', mode === 'tilt'); }
 

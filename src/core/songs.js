@@ -7,14 +7,23 @@ const file = (name) => `${BASE}music/${name}`;
 
 export const SONGS = [
   {
+    id: 'crm-cruise',
+    title: 'CRM Cruise',
+    artist: 'itmX Spielewelt · mit Suno erstellt',
+    src: file('crm-cruise.mp3'),
+    cover: file('crm-cruise-cover.webp'),
+    duration: 198,
+    note: 'Chill Rap · Das Autoradio aus „Ludlein Drive“',
+    neu: true
+  },
+  {
     id: 'mehr-verkaufen',
     title: 'Mehr verkaufen, weniger verwalten',
     artist: 'itmX Spielewelt · mit Suno erstellt',
     src: file('mehr-verkaufen.mp3'),
     cover: file('mehr-verkaufen-cover.webp'),
     duration: 280,
-    note: 'Melodic Schranz · Ein Tag im Leben von Tim X.',
-    neu: true
+    note: 'Melodic Schranz · Ein Tag im Leben von Tim X.'
   },
   {
     id: 'system-overload',

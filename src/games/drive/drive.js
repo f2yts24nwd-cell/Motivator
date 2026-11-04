@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import './drive.css';
-import { sfx, music, isMuted, setMuted, unlockAudio, createEngineSound } from '../../core/audio.js';
+import { sfx, music, isMuted, setMuted, unlockAudio, primeSong, createEngineSound } from '../../core/audio.js';
+import { songById } from '../../core/songs.js';
 import { h, mount, clearUI } from '../../core/ui.js';
 import { canvasTexture } from '../../core/gfx.js';
 import { Showroom, showroomUI } from './showroom.js';
@@ -19,6 +20,7 @@ import {
 
 const CAMS = ['chase', 'far', 'hood'];
 const BRIEFER = { fraesfix: 'danny', messe: 'karla', regalriese: 'palette', rennen: 'danny' };
+const RADIO = songById('crm-cruise');
 const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 function beamTexture() {
@@ -113,7 +115,7 @@ export class DriveGame {
         this.room.showCar(carById(id), cfg);
       },
       onChange: (id, cfg) => { this.room.model?.apply(cfg); saveProgress(this.P); },
-      onDrive: () => { unlockAudio(); this.startDrive(); }
+      onDrive: () => { unlockAudio(); if (this.P.radio !== false) primeSong(RADIO.src); this.startDrive(); }
     });
     // humor mode switch in the head panel
     const modeBtn = mount(h('button.dr-tool.big', { style: 'position:absolute;left:calc(64px + env(safe-area-inset-left));top:calc(12px + env(safe-area-inset-top));', title: 'Humor-Modus', onclick: () => { sfx.click(); setMode(getMode() === 'intern' ? 'kunde' : 'intern'); modeBtn.textContent = getMode() === 'intern' ? '🌶️ Intern' : '🤝 Kunde & Partner'; } }, getMode() === 'intern' ? '🌶️ Intern' : '🤝 Kunde & Partner'));
@@ -179,8 +181,7 @@ export class DriveGame {
     this.hud.quota(this.revenue(), QUOTA, this.P.provision);
     this.engine = createEngineSound(car.ev ? 'ev' : 'ice');
     if (isMuted()) this.engine?.mute(true);
-    music.play('drive');
-    music.setIntensity(0);
+    this.applyRadio();
     this.updateBeacons();
     if (this.P.steer === 'tilt') this.enableTilt(false);
     setTimeout(() => this.hud?.call('danny', say(LINES.start)), 700);
@@ -188,6 +189,20 @@ export class DriveGame {
     this.shake = 0;
   }
   engineMute(m) { this.engine?.mute(m); }
+
+  // ---------------------------------------------------------------- car radio ("CRM Cruise"), on by default
+  applyRadio() {
+    const on = this.P.radio !== false;
+    if (on) music.playSong(RADIO.src, { loop: true });
+    else { music.stopSong(0.6); music.play('drive'); music.setIntensity(this.M ? (this.M.phase === 'race' ? 2 : 1) : 0); }
+    this.hud?.radio(on);
+  }
+  toggleRadio() {
+    this.P.radio = this.P.radio === false;
+    saveProgress(this.P);
+    this.applyRadio();
+    if (this.P.radio) this.hud?.toast('📻 CRM Cruise');
+  }
 
   // ---------------------------------------------------------------- beacons (mission markers in the world)
   buildBeacons() {
@@ -263,6 +278,7 @@ export class DriveGame {
     if (e.repeat) return;
     if (k === 'c') this.nextCamera();
     if (k === 'h') this.honk();
+    if (k === 'p') this.toggleRadio();
     if (k === 'r' && this.mode === 'drive') this.resetCar();
     if (k === 'm' || k === 'tab') { if (this.mode === 'board') this.closeOverlay(); else if (this.mode === 'drive') this.openBoard(); }
     if (k === 'escape') { if (this.mode === 'board') this.closeOverlay(); else if (this.mode === 'drive') this.openBoard(); }
@@ -857,7 +873,7 @@ export class DriveGame {
       h('div.dr-bhead', {}, [h('div.dr-face', { style: '--c:#50af30' }, 'X'), h('div', {}, [h('div.kicker', {}, 'Bordcomputer · itmX CRM mobil'), h('h2', {}, 'Aufträge in Ludlein'), h('p', {}, `Quartal: ${fmtEuro(this.revenue())} von ${fmtEuro(QUOTA)} · Provision ${fmtEuro(this.P.provision)} · ${this.P.deals.length}/${MISSIONS.length} Deals`)]), h('button.icon-btn', { style: 'position:static', onclick: () => { sfx.click(); this.closeOverlay(); } }, '✕')]),
       canvas,
       h('div.dr-board-grid', {}, cards),
-      h('p', { style: 'font-size:12px;color:var(--muted);margin:10px 0' }, touch ? 'Pedale rechts, Lenkung links. Oder Lenken per Neigen. Tipp auf die Minikarte öffnet den Bordcomputer.' : 'W/S oder Pfeile: Gas/Bremse · A/D: lenken · Leertaste: Handbremse · C: Kamera · H: Hupe · R: Abschleppen · M: Bordcomputer · 1–3: Antworten'),
+      h('p', { style: 'font-size:12px;color:var(--muted);margin:10px 0' }, touch ? 'Pedale rechts, Lenkung links. Oder Lenken per Neigen. Tipp auf die Minikarte öffnet den Bordcomputer.' : 'W/S oder Pfeile: Gas/Bremse · A/D: lenken · Leertaste: Handbremse · C: Kamera · H: Hupe · P: Autoradio · R: Abschleppen · M: Bordcomputer · 1–3: Antworten'),
       h('div.row', {}, [h('button.btn.gold', { onclick: () => { sfx.click(); this.closeOverlay(); } }, '🚗 Weiterfahren'), touch ? steerBtn : null, touch && this.P.steer === 'tilt' ? invBtn : null, this.M ? h('button.btn.secondary', { onclick: () => { sfx.click(); this.closeOverlay(); this.abortMission(); } }, 'Auftrag abbrechen') : null, h('button.btn.secondary', { onclick: () => { sfx.click(); this.closeOverlay(); if (this.M) this.endMission(); this.showShowroom(); } }, '🏁 Zum Fuhrpark')])
     ]);
     this.boardEl = mount(h('div.overlay.dr-ov', { onclick: (e) => { if (e.target === this.boardEl) this.closeOverlay(); } }, card));

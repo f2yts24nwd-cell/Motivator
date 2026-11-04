@@ -3,6 +3,7 @@ import { FeierabendGame } from './feierabend/feierabend.js';
 import { ConversionGame } from './conversion/conversion.js';
 import { KoenigreichGame } from './crm/crm.js';
 import { LeadRushGame } from './leadrush/leadrush.js';
+import { DriveGame } from './drive/drive.js';
 
 // Every game in the world gets its own arcade cabinet in the office hub.
 // To add a new game: create a class with enter()/exit()/update(dt,time)/resize(w,h)
@@ -47,5 +48,13 @@ export const GAMES = [
     color: '#8dc63f',
     available: true,
     create: (app) => new LeadRushGame(app)
+  },
+  {
+    id: 'drive',
+    title: 'Ludlein Drive',
+    tagline: 'Quartalsende! Dienstwagen im itmX-Fuhrpark tunen, durch Ludlein und über die Autobahn zu den Kunden fahren, Leads sammeln und Cloudius im Ampelrennen schlagen. Tempolimits gelten!',
+    color: '#ff6a2a',
+    available: true,
+    create: (app) => new DriveGame(app)
   }
 ];

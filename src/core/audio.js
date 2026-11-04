@@ -1240,3 +1240,184 @@ Object.assign(sfx, {
     inst.swell(sfxBus, t, 1.2, 0.06, 800, 9000);
   }
 });
+
+// ------------------------------------------------------------------ "Ludlein Drive"
+// Synthwave cruiser (A minor, 108 BPM). intensity: -1 showroom lounge, 0 cruising,
+// 1 on a mission (+ arp & claps), 2 race / hurry (+ lead & open hats)
+const DRV = {
+  Am: { root: 33, tones: [57, 60, 64, 69] },
+  F: { root: 29, tones: [53, 57, 60, 65] },
+  C: { root: 36, tones: [55, 60, 64, 67] },
+  G: { root: 31, tones: [55, 59, 62, 67] },
+  Dm: { root: 38, tones: [57, 62, 65, 69] },
+  E: { root: 28, tones: [56, 59, 64, 68] }
+};
+THEMES.drive = {
+  bpm: 108,
+  prog: ['Am', 'F', 'C', 'G', 'Am', 'F', 'Dm', 'E'],
+  arpPat: [0, 1, 2, 3, 2, 1, 0, 2, 3, 2, 1, 2, 3, 1, 2, 0],
+  lead: [[76, 4], [79, 2], [81, 6], [79, 2], [76, 2], [74, 4], [72, 4], [76, 8], [0, 4], [74, 4], [72, 2], [71, 2], [69, 8], [0, 12]],
+  step(bus, s, t, sd, bar, I) {
+    const ch = DRV[this.prog[bar % this.prog.length]];
+    const lounge = I < 0;
+    // gated pads every bar
+    if (s === 0) for (const m of ch.tones) inst.ens(bus, t, m - 12, sd * 15.5, { vol: lounge ? 0.02 : 0.016, cutoff: lounge ? 1100 : 1500, a: 0.4, r: 1.0, voices: 2, spread: 14, wet: 0.6 });
+    if (!lounge && s % 4 === 0) inst.kick(bus, t, s === 0 ? 0.95 : 0.85);
+    if (lounge && (s === 0 || s === 10)) inst.kick(bus, t, 0.45);
+    // octave bass on 8ths
+    if (!lounge && s % 2 === 0) inst.bass(bus, t, ch.root + 12 + (s % 4 === 2 ? 12 : 0), sd * 1.6, { vol: 0.09, cutoff: 420 + Math.max(0, I) * 180 });
+    if (lounge && s % 8 === 0) inst.bass(bus, t, ch.root + 12, sd * 6, { vol: 0.07, cutoff: 360 });
+    // hats + snare
+    if (s % 4 === 2) inst.hat(bus, t, I >= 2 ? 0.07 : 0.05, I >= 2, 0.15);
+    if (I >= 0 && s % 2 === 1) inst.hat(bus, t, 0.02, false, -0.2);
+    if (!lounge && (s === 4 || s === 12)) inst.clap(bus, t, I >= 1 ? 0.24 : 0.14);
+    // arp
+    if (I >= 1 || (lounge && s % 2 === 0)) {
+      const n = ch.tones[this.arpPat[s]] + (I >= 2 && s >= 8 ? 12 : 0);
+      inst.arp(bus, t, n, { vol: lounge ? 0.022 : 0.026, pan: (s % 4 - 1.5) * 0.25, cutoff: 1600 + Math.max(0, I) * 900 });
+    }
+    // lead on the race
+    if (I >= 2) {
+      const pos = (bar % 4) * 16 + s;
+      let acc = 0;
+      for (const [m, len] of this.lead) {
+        if (acc === pos && m) inst.ens(bus, t, m, sd * len * 0.92, { vol: 0.028, cutoff: 3200, a: 0.01, r: 0.25, voices: 3, spread: 12, filterEnv: 1.6, wet: 0.4 });
+        acc += len;
+        if (acc > 64) break;
+      }
+    }
+    if (!lounge && s === 0 && bar % 8 === 0) inst.crash(bus, t, 0.06);
+    if (bar % 8 === 7 && s === 0 && I >= 1) inst.swell(bus, t, sd * 16, 0.04, 600, 8000);
+  }
+};
+
+/**
+ * Continuous engine sound. kind: 'ice' (combustion, six-cylinder-ish) or 'ev' (electric whine).
+ * update(rpm 0..1, load 0..1, speed m/s). Returns null when audio is not available.
+ */
+export function createEngineSound(kind = 'ice') {
+  if (!ac()) return null;
+  const t = ctx.currentTime;
+  const master = ctx.createGain();
+  master.gain.value = 0;
+  master.connect(sfxBus);
+  const nodes = [];
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass'; lp.frequency.value = 600; lp.Q.value = 2;
+  const eng = ctx.createGain();
+  eng.gain.value = 0.0;
+  lp.connect(eng).connect(master);
+  let o1, o2, o3;
+  if (kind === 'ev') {
+    o1 = ctx.createOscillator(); o1.type = 'sine'; o1.frequency.value = 200;
+    o2 = ctx.createOscillator(); o2.type = 'triangle'; o2.frequency.value = 300;
+    o3 = ctx.createOscillator(); o3.type = 'sine'; o3.frequency.value = 900;
+    const g3 = ctx.createGain(); g3.gain.value = 0.25;
+    o1.connect(lp); o2.connect(lp); o3.connect(g3).connect(lp);
+    lp.frequency.value = 3000;
+  } else {
+    o1 = ctx.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = 40;
+    o2 = ctx.createOscillator(); o2.type = 'sawtooth'; o2.frequency.value = 40.6;
+    o3 = ctx.createOscillator(); o3.type = 'square'; o3.frequency.value = 20;
+    const g3 = ctx.createGain(); g3.gain.value = 0.55;
+    o1.connect(lp); o2.connect(lp); o3.connect(g3).connect(lp);
+    // combustion "pulse": amplitude modulation at firing frequency
+    const am = ctx.createGain(); am.gain.value = 0.035;
+    const lfo = ctx.createOscillator(); lfo.type = 'square'; lfo.frequency.value = 60;
+    lfo.connect(am).connect(eng.gain);
+    lfo.start(t);
+    nodes.push(lfo);
+  }
+  for (const o of [o1, o2, o3]) { o.start(t); nodes.push(o); }
+  // tyre + wind noise
+  const n = noise();
+  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 700; bp.Q.value = 0.6;
+  const ng = ctx.createGain(); ng.gain.value = 0;
+  n.connect(bp).connect(ng).connect(master);
+  n.start(t);
+  nodes.push(n);
+  master.gain.setTargetAtTime(0.5, t, 0.3);
+  let stopped = false;
+  return {
+    update(rpm, load, speed) {
+      if (stopped || ctx.state !== 'running') return;
+      const now = ctx.currentTime;
+      if (kind === 'ev') {
+        const f = 120 + speed * 22;
+        o1.frequency.setTargetAtTime(f, now, 0.05);
+        o2.frequency.setTargetAtTime(f * 1.5, now, 0.05);
+        o3.frequency.setTargetAtTime(f * 4.2, now, 0.05);
+        eng.gain.setTargetAtTime(0.012 + load * 0.03 + Math.min(1, speed / 30) * 0.02, now, 0.08);
+      } else {
+        const f = 32 + rpm * 150;
+        o1.frequency.setTargetAtTime(f, now, 0.04);
+        o2.frequency.setTargetAtTime(f * 1.006, now, 0.04);
+        o3.frequency.setTargetAtTime(f / 2, now, 0.04);
+        nodes[0].frequency.setTargetAtTime(f * 1.5, now, 0.04);
+        lp.frequency.setTargetAtTime(380 + load * 1500 + rpm * 900, now, 0.06);
+        eng.gain.setTargetAtTime(0.05 + load * 0.07 + rpm * 0.03, now, 0.06);
+      }
+      bp.frequency.setTargetAtTime(400 + speed * 18, now, 0.1);
+      ng.gain.setTargetAtTime(Math.min(0.11, speed * speed * 0.00006 + speed * 0.0012), now, 0.15);
+    },
+    mute(m) { if (!stopped) master.gain.setTargetAtTime(m ? 0 : 0.5, ctx.currentTime, 0.1); },
+    stop() {
+      if (stopped) return;
+      stopped = true;
+      const now = ctx.currentTime;
+      master.gain.setTargetAtTime(0, now, 0.15);
+      for (const o of nodes) { try { o.stop(now + 0.8); } catch { /* ignore */ } }
+      setTimeout(() => master.disconnect(), 1200);
+    }
+  };
+}
+
+Object.assign(sfx, {
+  /** car horn (two detuned squares) */
+  horn(far = false) {
+    if (!ready()) return;
+    const t = T0();
+    const dest = out(sfxBus, { wet: far ? 0.4 : 0.15 });
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1800;
+    const g = ctx.createGain();
+    adsr(g.gain, t, { a: 0.01, d: 0.05, s: 0.9, r: 0.08, peak: far ? 0.035 : 0.07, dur: 0.38 });
+    for (const fr of [415, 520]) osc('square', fr, t, t + 0.5).connect(f);
+    f.connect(g).connect(dest);
+  },
+  /** speed camera: shutter click + flash whine */
+  blitz() {
+    if (!ready()) return;
+    const t = T0();
+    const dest = out(sfxBus, { wet: 0.2 });
+    const n = noise(); const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 3000;
+    const g = ctx.createGain(); adsr(g.gain, t, { a: 0.001, d: 0.03, s: 0.0001, r: 0.02, peak: 0.25, dur: 0.01 });
+    n.connect(f).connect(g).connect(dest); n.start(t); n.stop(t + 0.2);
+    const o = osc('sine', 2400, t + 0.02, t + 0.6);
+    o.frequency.exponentialRampToValueAtTime(5200, t + 0.5);
+    const g2 = ctx.createGain(); adsr(g2.gain, t + 0.02, { a: 0.01, d: 0.3, s: 0.2, r: 0.2, peak: 0.05, dur: 0.3 });
+    o.connect(g2).connect(dest);
+  },
+  /** collision */
+  crunch(k = 1) {
+    if (!ready()) return;
+    const t = T0();
+    inst.taiko(sfxBus, t, Math.min(1, 0.4 + k * 0.4), 0, 1.3);
+    const dest = out(sfxBus, { wet: 0.15 });
+    const n = noise(); const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1400; f.Q.value = 0.8;
+    const g = ctx.createGain(); adsr(g.gain, t, { a: 0.002, d: 0.12, s: 0.0001, r: 0.1, peak: 0.12 * Math.min(1.5, k), dur: 0.05 });
+    n.connect(f).connect(g).connect(dest); n.start(t); n.stop(t + 0.4);
+  },
+  /** phone ring (hands-free) */
+  ring() {
+    if (!ready()) return;
+    const t = T0();
+    for (let i = 0; i < 2; i++) {
+      for (const m of [83, 88]) inst.pluck(sfxBus, t + i * 0.16, m, 0.035, 0);
+    }
+  },
+  /** charging tick */
+  charge(k = 0) {
+    if (!ready()) return;
+    inst.pluck(sfxBus, T0(), 76 + Math.round(k * 12), 0.025, 0);
+  }
+});

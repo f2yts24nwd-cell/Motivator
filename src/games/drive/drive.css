@@ -283,3 +283,69 @@
 /* touch: sits above the steering buttons */
 @media (pointer: coarse) { .dr-radio { bottom: calc(108px + env(safe-area-inset-bottom)); } }
 @media (pointer: coarse) and (max-height: 500px) { .dr-radio { bottom: calc(94px + env(safe-area-inset-bottom)); padding: 4px 10px 4px 4px; grid-template-columns: 32px auto 18px; } .dr-radio img { width: 32px; height: 32px; } .dr-radio small { display: none; } }
+
+/* radio station list */
+.dr-radiopanel {
+  position: absolute; left: calc(12px + env(safe-area-inset-left)); bottom: calc(70px + env(safe-area-inset-bottom));
+  width: min(320px, calc(100% - 24px)); max-height: calc(100dvh - 160px); overflow: auto; padding: 10px; display: none; z-index: 4;
+}
+.dr-radiopanel.on { display: block; }
+.dr-rhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.dr-rclose { appearance: none; border: 0; background: rgba(255,255,255,.08); color: var(--text); border-radius: 50%; width: 28px; height: 28px; cursor: pointer; }
+.dr-rctl { display: flex; gap: 8px; justify-content: center; margin-bottom: 8px; }
+.dr-rbtn { appearance: none; border: 0; width: 48px; height: 40px; border-radius: 12px; font-size: 18px; cursor: pointer; color: var(--text); background: rgba(255,255,255,.08); box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); }
+.dr-rlist { display: grid; gap: 6px; }
+.dr-rsong { appearance: none; border: 0; font: inherit; color: var(--text); cursor: pointer; display: grid; grid-template-columns: 40px 1fr; gap: 10px; align-items: center; text-align: left; padding: 5px; border-radius: 12px; background: rgba(255,255,255,.05); }
+.dr-rsong img { width: 40px; height: 40px; border-radius: 8px; display: block; }
+.dr-rsong b { display: block; font-size: 13px; }
+.dr-rsong small { font-size: 11px; color: var(--muted); }
+.dr-rsong.on { background: rgba(255,95,168,.22); box-shadow: inset 0 0 0 1px #ff5fa8; }
+@media (pointer: coarse) { .dr-radiopanel { bottom: calc(160px + env(safe-area-inset-bottom)); } }
+@media (pointer: coarse) and (max-height: 500px) { .dr-radiopanel { bottom: auto; top: calc(60px + env(safe-area-inset-top)); left: calc(70px + env(safe-area-inset-left)); max-height: calc(100dvh - 80px); } }
+
+/* ---------- showroom on phones: bottom dock, car switcher on top, car stays visible ---------- */
+.dr-carsw, .dr-eye { display: none; }
+.dr-show.compact .dr-showhead, .dr-show.compact .dr-cars { display: none; }
+.dr-show.compact .dr-carsw {
+  display: flex; align-items: center; gap: 6px; position: absolute; left: 50%; transform: translateX(-50%);
+  top: calc(8px + env(safe-area-inset-top)); padding: 4px; border-radius: 16px; max-width: calc(100% - 260px);
+}
+.dr-show.compact .dr-carsw button { appearance: none; border: 0; width: 38px; height: 38px; border-radius: 12px; background: rgba(255,255,255,.08); color: var(--text); font-size: 16px; cursor: pointer; flex: 0 0 auto; }
+.dr-show.compact .dr-carsw div { text-align: center; min-width: 0; padding: 0 4px; }
+.dr-show.compact .dr-carsw b { display: block; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dr-show.compact .dr-carsw small { display: block; font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dr-show.compact .dr-eye {
+  display: grid; place-items: center; position: absolute; right: calc(64px + env(safe-area-inset-right)); top: calc(10px + env(safe-area-inset-top));
+  width: 40px; height: 40px; border-radius: 50%; border: 0; font-size: 18px; background: var(--panel); color: var(--text); box-shadow: inset 0 0 0 1px var(--panel-border); cursor: pointer;
+}
+.dr-show.compact .dr-config {
+  top: auto; right: calc(176px + env(safe-area-inset-right)); left: calc(8px + env(safe-area-inset-left)); bottom: calc(8px + env(safe-area-inset-bottom));
+  width: auto; max-height: none; overflow: hidden; padding: 6px 8px 8px; border-radius: 16px;
+}
+.dr-show.compact .dr-tabs { margin-bottom: 6px; gap: 3px; }
+.dr-show.compact .dr-tab { padding: 3px 2px; flex-direction: row; display: flex; justify-content: center; align-items: center; gap: 4px; }
+.dr-show.compact .dr-tab span { font-size: 15px; }
+.dr-show.compact .dr-tab em { font-size: 10px; }
+.dr-show.compact .dr-pane { display: flex; align-items: center; gap: 8px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; padding-bottom: 2px; }
+.dr-show.compact .dr-pane::-webkit-scrollbar { display: none; }
+.dr-show.compact .dr-pane label { margin: 0; white-space: nowrap; flex: 0 0 auto; font-size: 11px; }
+.dr-show.compact .dr-pane .dr-note { display: none; }
+.dr-show.compact .dr-swatches, .dr-show.compact .dr-chips, .dr-show.compact .dr-parts { flex-wrap: nowrap; display: flex; flex: 0 0 auto; gap: 6px; }
+.dr-show.compact .dr-sw { width: 30px; height: 30px; flex: 0 0 auto; }
+.dr-show.compact .dr-chip, .dr-show.compact .dr-part { white-space: nowrap; flex: 0 0 auto; padding: 6px 10px; font-size: 12px; }
+.dr-show.compact .dr-range { width: 220px; flex: 0 0 auto; }
+.dr-show.compact .dr-drive { right: calc(8px + env(safe-area-inset-right)); bottom: calc(8px + env(safe-area-inset-bottom)); min-width: 160px; }
+.dr-show.compact .dr-showmsg { top: calc(56px + env(safe-area-inset-top)); left: 50%; width: min(400px, calc(100% - 32px)); padding: 8px 10px; }
+.dr-show.compact .dr-showmsg span { font-size: 12.5px; line-height: 1.35; }
+.dr-show.compact .dr-showmsg .dr-face { width: 34px; height: 34px; font-size: 12px; }
+/* hide everything except the eye button to look at the car */
+.dr-show.clean > *:not(.dr-eye) { display: none !important; }
+/* portrait phones: dock over the full width, drive button above it */
+@media (orientation: portrait) {
+  .dr-show.compact .dr-config { right: calc(8px + env(safe-area-inset-right)); bottom: calc(68px + env(safe-area-inset-bottom)); }
+  .dr-show.compact .dr-drive { left: calc(8px + env(safe-area-inset-left)); }
+  .dr-show.compact .dr-carsw { top: calc(60px + env(safe-area-inset-top)); max-width: calc(100% - 24px); }
+  .dr-show.compact .dr-showmsg { top: calc(112px + env(safe-area-inset-top)); }
+  .dr-show.compact .dr-eye { top: calc(62px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right)); }
+  .dr-show.compact .dr-tab em { display: none; }
+}

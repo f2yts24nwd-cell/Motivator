@@ -49,7 +49,7 @@ export class Vehicle {
     const v = this.speed;
     const vmax = Math.min(this.vmax, maxSpeed, this.limp ? 30 / 3.6 : Infinity);
     // ---- steering: less lock at speed, smooth return
-    const lock = 0.62 / (1 + Math.abs(v) / 11);
+    const lock = 0.6 / (1 + Math.abs(v) / 14);
     const want = I.steer * lock;
     this.steer += (want - this.steer) * Math.min(1, dt * (Math.abs(want) > Math.abs(this.steer) ? 7 : 10));
     // ---- longitudinal
@@ -79,16 +79,22 @@ export class Vehicle {
     // ---- lateral / yaw
     const wb = this.car.dims.wb;
     let yawT = this.speed * Math.tan(this.steer) / wb;
-    const latMax = this.grip * 9.81 * (this.offroad ? 0.6 : 1);
+    // arcade grip: far more than a real car, so the car follows the steering
+    const latMax = this.grip * 9.81 * 1.8 * (this.offroad ? 0.65 : 1);
     const latA = Math.abs(this.speed * yawT);
-    if (latA > latMax && !I.handbrake) yawT *= latMax / latA; // understeer
+    if (latA > latMax && !I.handbrake) {
+      yawT *= latMax / latA;
+      // corner assist: instead of pushing wide, the car sheds speed until it can make the turn
+      const over = Math.min(1.5, latA / latMax - 1);
+      this.speed *= 1 - Math.min(0.6, over * dt * 3.2);
+    }
     if (I.handbrake && Math.abs(this.speed) > 4) {
       yawT *= 1.55;
       this.lat += -yawT * this.speed * dt * 0.35;
     }
-    this.yaw += (yawT - this.yaw) * Math.min(1, dt * (I.handbrake ? 3 : 9));
+    this.yaw += (yawT - this.yaw) * Math.min(1, dt * (I.handbrake ? 3 : 13));
     this.heading += this.yaw * dt;
-    this.lat *= Math.exp(-dt * (I.handbrake ? 1.2 : 5 * this.grip));
+    this.lat *= Math.exp(-dt * (I.handbrake ? 1.2 : 9));
     this.ay = this.speed * this.yaw;
     // ---- integrate position
     const f = this.forward;

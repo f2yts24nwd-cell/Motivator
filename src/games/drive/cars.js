@@ -63,8 +63,10 @@ export function silhouette(dims, styleId, type) {
       P.push([c + ar * Math.cos(th), wr + ar * Math.sin(th)]);
     }
   };
+  const nBeforeArches = P.length;
   arch(ra);
   arch(fa);
+  const fixed = P.map((_, i) => i >= nBeforeArches);
   // greenhouse
   const G = [];
   const mid = (a, b, t) => a + (b - a) * t;
@@ -75,7 +77,35 @@ export function silhouette(dims, styleId, type) {
   } else {
     G.push([zRB + 0.22, roofY - 0.012], [zRB + 0.02, roofY - 0.05], [mid(zRB, zC, 0.5), mid(roofY, belt, 0.62)], [zC, belt + S.rise + 0.02], [zC - 0.02, belt - 0.04]);
   }
-  return { body: P, green: G, fa, ra, ar, cl, zA, zW, zC, zRB, roofY, roofBack, zf, zr, belt, hood, wagon };
+  // organic look: round off every corner of the silhouette except the wheel arches
+  const body = chaikin(P, fixed, 3);
+  const green = chaikin(G, G.map((_, i) => i === 0 || i === G.length - 1), 2);
+  return { body, green, fa, ra, ar, cl, zA, zW, zC, zRB, roofY, roofBack, zf, zr, belt, hood, wagon };
+}
+
+/** corner cutting on a closed polygon; fixed points stay where they are */
+function chaikin(pts, fixed, iterations) {
+  let P = pts, F = fixed;
+  for (let it = 0; it < iterations; it++) {
+    const out = [], of = [];
+    const n = P.length;
+    for (let i = 0; i < n; i++) {
+      const a = P[i];
+      if (F[i]) { out.push(a); of.push(true); continue; }
+      const p = P[(i - 1 + n) % n], q = P[(i + 1) % n];
+      out.push([a[0] * 0.75 + p[0] * 0.25, a[1] * 0.75 + p[1] * 0.25], [a[0] * 0.75 + q[0] * 0.25, a[1] * 0.75 + q[1] * 0.25]);
+      of.push(false, false);
+    }
+    P = out; F = of;
+  }
+  return P;
+}
+
+/** fender flares: the body swells around the wheels (organic "hips") */
+export function flare(y, z, sil) {
+  const band = smooth(sil.cl, 0.4, y) * (1 - smooth(sil.belt - 0.28, sil.belt - 0.04, y));
+  const k = Math.exp(-Math.pow((z - sil.fa) / 0.8, 2)) * 0.03 + Math.exp(-Math.pow((z - sil.ra) / 0.85, 2)) * 0.038;
+  return k * band;
 }
 
 // cross-section width factor of the body at height y
@@ -85,18 +115,19 @@ function widthFactor(y, belt) {
   const shoulder = Math.exp(-Math.pow((y - (belt - 0.28)) / 0.06, 2)) * 0.012;
   return 1 - tuck - tumble + shoulder;
 }
-const NOSE = 0.22; // plan-view rounding at the ends (m)
+const NOSE = 0.3; // plan-view rounding at the ends (m)
 function planOffset(nx, z, L) {
   const t = smooth(L / 2 - 1.0, L / 2 - 0.05, Math.abs(z));
   return Math.sign(z) * NOSE * Math.pow(Math.abs(nx), 4) * (0.35 + 0.65 * t);
 }
 
-function extrudeProfile(pts, width, { bevel = BEVEL, steps = 12, segs = 3 } = {}) {
+function extrudeProfile(pts, width, { bevel = BEVEL, steps = 12, segs = 3, thick = bevel } = {}) {
   const shape = new THREE.Shape(pts.map(([u, v]) => new THREE.Vector2(u, v)));
-  const g = new THREE.ExtrudeGeometry(shape, { depth: width - 2 * bevel, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: segs, curveSegments: 6, steps });
+  // bevelThickness > bevelSize gives soft, elliptical edges across the width
+  const g = new THREE.ExtrudeGeometry(shape, { depth: width - 2 * thick, bevelEnabled: true, bevelThickness: thick, bevelSize: bevel, bevelSegments: segs, curveSegments: 6, steps });
   // shape (u, v) extruded along z  ->  car (x = across, y, z = u)
   g.rotateY(-Math.PI / 2);
-  g.translate((width - 2 * bevel) / 2, 0, 0);
+  g.translate((width - 2 * thick) / 2, 0, 0);
   return g;
 }
 
@@ -111,14 +142,14 @@ function smoothed(g) {
 }
 
 function buildBodyGeometry(sil, dims, opts = {}) {
-  const g = extrudeProfile(sil.body, dims.W, opts);
+  const g = extrudeProfile(sil.body, dims.W, { thick: 0.16, segs: 6, ...opts });
   const p = g.attributes.position;
   const hw = dims.W / 2;
   for (let i = 0; i < p.count; i++) {
     let x = p.getX(i), y = p.getY(i), z = p.getZ(i);
     const nx = Math.max(-1, Math.min(1, x / hw));
     z -= planOffset(nx, z, dims.L);
-    x *= widthFactor(y, sil.belt);
+    x *= widthFactor(y, sil.belt) * (1 + flare(y, z, sil));
     p.setXYZ(i, x, y, z);
   }
   return smoothed(g);
@@ -126,7 +157,7 @@ function buildBodyGeometry(sil, dims, opts = {}) {
 
 function buildGreenGeometry(sil, dims, opts = {}) {
   const wBelt = dims.W * widthFactor(sil.belt, sil.belt) * 0.955;
-  const g = extrudeProfile(sil.green, wBelt, { bevel: 0.035, ...opts });
+  const g = extrudeProfile(sil.green, wBelt, { bevel: 0.035, thick: 0.09, segs: 4, ...opts });
   const p = g.attributes.position;
   const hw = wBelt / 2;
   const span = sil.roofY - sil.belt;
@@ -163,14 +194,14 @@ let SHARED = null;
 function shared() {
   if (SHARED) return SHARED;
   SHARED = {
-    glass: new THREE.MeshPhysicalMaterial({ color: 0x06090d, metalness: 0.3, roughness: 0.06, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 0.9 }),
+    glass: new THREE.MeshPhysicalMaterial({ color: 0x05070a, metalness: 0.2, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.05, envMapIntensity: 0.45 }),
     chrome: new THREE.MeshStandardMaterial({ color: 0xf4f6f8, metalness: 1, roughness: 0.07 }),
     black: new THREE.MeshStandardMaterial({ color: 0x0c0c0d, roughness: 0.5, metalness: 0.2 }),
     gloss: new THREE.MeshStandardMaterial({ color: 0x050607, roughness: 0.12, metalness: 0.4 }),
     carbon: new THREE.MeshStandardMaterial({ color: 0x15171a, roughness: 0.28, metalness: 0.5 }),
     rubber: new THREE.MeshStandardMaterial({ color: 0x151516, roughness: 0.9, metalness: 0 }),
     disc: new THREE.MeshStandardMaterial({ color: 0x8d9097, roughness: 0.38, metalness: 0.9 }),
-    head: new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xf4f8ff, emissiveIntensity: 1.6, roughness: 0.2 }),
+    head: new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xf4f8ff, emissiveIntensity: 1.15, roughness: 0.2 }),
     lens: new THREE.MeshStandardMaterial({ color: 0x1a1d22, roughness: 0.08, metalness: 0.6 }),
     amber: new THREE.MeshStandardMaterial({ color: 0xffa21f, emissive: 0xff8a00, emissiveIntensity: 0.4 }),
     tailHouse: new THREE.MeshStandardMaterial({ color: 0x3a0306, roughness: 0.12, metalness: 0.3 }),
@@ -268,7 +299,7 @@ function polyMesh(pts, depth, mat) {
 }
 function rod(a, b, r, mat) {
   const d = new THREE.Vector3().subVectors(b, a);
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, d.length(), 8), mat);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, d.length(), 8, 1, true), mat); // open: no shiny end caps
   m.position.copy(a).addScaledVector(d, 0.5);
   m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
   return m;
@@ -466,7 +497,7 @@ export class CarModel {
     // A-pillars
     const hwBelt = wBelt / 2;
     for (const s of [-1, 1]) {
-      g.add(rod(new THREE.Vector3(s * hwBelt * 0.985, sil.belt + 0.01, sil.zA + 0.02), new THREE.Vector3(s * hwTop * 1.0, top - 0.02, sil.zW - 0.1), 0.03, this.paint));
+      g.add(rod(new THREE.Vector3(s * hwBelt * 0.985, sil.belt + 0.01, sil.zA + 0.02), new THREE.Vector3(s * hwTop * 0.97, top - 0.045, sil.zW - 0.2), 0.03, this.paint));
       if (sil.wagon) g.add(rod(new THREE.Vector3(s * hwBelt * 0.985, sil.belt + 0.04, sil.zr + 0.2), new THREE.Vector3(s * hwTop, roofBackY - 0.03, sil.zRB + 0.02), 0.045, this.paint));
       // window trim along the belt
       const trimMat = ['volvo', 'sklasse', 'passat'].includes(car.style) ? S.chrome : S.gloss;
@@ -500,15 +531,15 @@ export class CarModel {
       }
     }
     // door lines + handles + sills
-    const xs = (y) => (d.W / 2) * widthFactor(y, sil.belt) + 0.004;
+    const xs = (y, z = (sil.fa + sil.ra) / 2) => (d.W / 2) * widthFactor(y, sil.belt) * (1 + flare(y, z, sil)) + 0.004;
     const doorZ = [sil.fa - sil.ar - 0.04, this.bz - 0.02, sil.ra + sil.ar + 0.02];
     for (const s of [-1, 1]) {
       for (const z of doorZ) {
-        const ln = box(0.006, sil.belt - 0.42, 0.008, S.black, s * xs(0.62), (sil.belt + 0.4) / 2, z);
+        const ln = box(0.006, sil.belt - 0.42, 0.008, S.black, s * xs(0.62, z), (sil.belt + 0.4) / 2, z);
         g.add(ln);
       }
       for (const z of [this.bz + 0.3, sil.ra + sil.ar + 0.32]) {
-        const hd = box(0.022, 0.028, 0.2, ['sklasse', 'volvo'].includes(car.style) ? S.chrome : this.paint, s * (xs(sil.belt - 0.14) + 0.006), sil.belt - 0.14, z);
+        const hd = box(0.022, 0.028, 0.2, ['sklasse', 'volvo'].includes(car.style) ? S.chrome : this.paint, s * (xs(sil.belt - 0.14, z) + 0.006), sil.belt - 0.14, z);
         g.add(hd);
       }
       // dark sill
@@ -592,19 +623,23 @@ export class CarModel {
       g.add(side);
     }
     if (st === 'fuenfer') {
+      // current generation: slim lights, large kidneys with an illuminated contour
+      const glow = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xe8f0ff, emissiveIntensity: 1.3 });
       for (const s of [-1, 1]) {
-        g.add(lamp(s * hx, 0.42, 0.1, 0.03));
-        g.add(bar(s * (hx + 0.02), yH + 0.025, 0.3, 0.018));
-        g.add(bar(s * (hx - 0.13), yH - 0.005, 0.018, 0.06));
-        g.add(bar(s * (hx + 0.11), yH - 0.005, 0.018, 0.06));
-        // kidney grille
-        const kid = rbox(0.21, 0.19, 0.03, 0.06, S.chrome);
-        this.placeFront(kid, s * 0.125, yH - 0.07, 0.004);
+        g.add(lamp(s * (hx + 0.03), 0.44, 0.075, 0.03));
+        g.add(bar(s * (hx + 0.05), yH + 0.018, 0.34, 0.014));
+        g.add(bar(s * (hx - 0.1), yH - 0.008, 0.014, 0.045));
+        g.add(bar(s * (hx + 0.16), yH - 0.008, 0.014, 0.045));
+        const kid = rbox(0.27, 0.25, 0.03, 0.07, glow);
+        this.placeFront(kid, s * 0.155, yH - 0.08, 0.004);
         g.add(kid);
-        const inner = rbox(0.18, 0.16, 0.03, 0.05, S.gloss);
-        this.placeFront(inner, s * 0.125, yH - 0.07, 0.012);
+        const rim = rbox(0.255, 0.235, 0.03, 0.065, S.chrome);
+        this.placeFront(rim, s * 0.155, yH - 0.08, 0.008);
+        g.add(rim);
+        const inner = rbox(0.225, 0.205, 0.03, 0.055, S.gloss);
+        this.placeFront(inner, s * 0.155, yH - 0.08, 0.014);
         g.add(inner);
-        for (let i = 0; i < 6; i++) g.add(bar(s * (0.06 + i * 0.026), yH - 0.07, 0.008, 0.15, S.chrome));
+        for (let i = 0; i < 6; i++) g.add(bar(s * (0.07 + i * 0.034), yH - 0.08, 0.008, 0.19, S.chrome));
       }
     } else if (st === 'sklasse') {
       for (const s of [-1, 1]) {

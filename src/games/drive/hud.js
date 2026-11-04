@@ -64,7 +64,11 @@ export class Hud {
     root.append(h('div.dr-quota.panel.passthrough', {}, [h('small', {}, [h('span', {}, ['Quartal ', this.quotaTxt]), h('span', {}, ['Provision ', this.provTxt])]), h('i', {}, this.quotaBar)]));
     // mission bar
     this.mIcon = h('span.dr-mi'); this.mTitle = h('b'); this.mSub = h('span'); this.mTime = h('div.dr-mt');
-    this.missionEl = h('div.dr-mission.panel', {}, [this.mIcon, h('div', {}, [this.mTitle, this.mSub]), this.mTime, h('button.dr-abort', { title: 'Auftrag abbrechen', onclick: () => { sfx.click(); game.abortMission(); } }, '✕')]);
+    // suggestion mode (no mission running): start + next buttons instead of the timer and abort
+    this.mStart = h('button.dr-mstart', { title: 'Auftrag starten', onclick: (e) => { e.stopPropagation(); sfx.click(); game.startSuggested(); } }, '▶ Start');
+    this.mNext = h('button.dr-abort', { title: 'Anderer Auftrag', onclick: (e) => { e.stopPropagation(); sfx.click(); game.nextSuggestion(); } }, '⇄');
+    this.mAbort = h('button.dr-abort', { title: 'Auftrag abbrechen', onclick: () => { sfx.click(); game.abortMission(); } }, '✕');
+    this.missionEl = h('div.dr-mission.panel', {}, [this.mIcon, h('div', {}, [this.mTitle, this.mSub]), this.mTime, this.mStart, this.mNext, this.mAbort]);
     root.append(this.missionEl);
     // call box
     this.callEl = h('div.dr-call.panel');
@@ -185,6 +189,7 @@ export class Hud {
     this.mSub.textContent = m.sub || '';
     this.mTime.textContent = m.time ?? '';
     this.mTime.classList.toggle('low', !!m.low);
+    this.missionEl.classList.toggle('suggest', !!m.suggest);
   }
 
   /**
@@ -258,7 +263,7 @@ export class Hud {
   }
 
   /** heading-up minimap */
-  drawMap(px, pz, heading, speed, markers) {
+  drawMap(px, pz, heading, speed, markers, route = null) {
     const g = this.mapC.getContext('2d');
     const S = this.mapC.width;
     const radius = 170 + Math.min(1, speed / 45) * 170;
@@ -270,6 +275,12 @@ export class Hud {
     g.scale(k, k);
     g.translate(-(px - MAP.x0), -(pz - MAP.z0));
     g.drawImage(this.staticMap, 0, 0);
+    if (route && route.length > 1) {
+      g.strokeStyle = '#ffd34d'; g.lineWidth = 9 / k * 0.9; g.lineJoin = 'round'; g.lineCap = 'round';
+      g.beginPath();
+      route.forEach(([x, z], i) => (i ? g.lineTo(x - MAP.x0, z - MAP.z0) : g.moveTo(x - MAP.x0, z - MAP.z0)));
+      g.stroke();
+    }
     g.restore();
     // markers
     const cos = Math.cos(heading - Math.PI), sin = Math.sin(heading - Math.PI);

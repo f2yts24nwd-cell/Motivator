@@ -250,6 +250,81 @@ export class World {
     this.buildBlitzer();
     this.buildChargers();
     this.buildIndex();
+    this.buildGraph();
+  }
+
+  // ---------------------------------------------------------------- navigation graph (for the route line)
+  buildGraph() {
+    const N = this.nav = new Map();
+    const key = (x, z) => `${Math.round(x)},${Math.round(z)}`;
+    const node = (x, z) => { const k = key(x, z); if (!N.has(k)) N.set(k, { k, x, z, edges: [] }); return N.get(k); };
+    const link = (a, b, pts, lane = 3) => {
+      let len = 0;
+      for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+      a.edges.push({ to: b, pts, len, lane });
+      b.edges.push({ to: a, pts: [...pts].reverse(), len, lane });
+    };
+    for (let i = 0; i < 6; i++) for (let j = 0; j < 6; j++) {
+      const a = node(GRID[i], GRID[j]);
+      if (i < 5) { const b = node(GRID[i + 1], GRID[j]); link(a, b, [[a.x, a.z], [b.x, b.z]]); }
+      if (j < 5) { const b = node(GRID[i], GRID[j + 1]); link(a, b, [[a.x, a.z], [b.x, b.z]]); }
+    }
+    const ab0 = node(440, -60), ab1 = node(1380, -60);
+    link(node(300, -60), ab0, [[300, -60], [440, -60]]);
+    link(ab0, ab1, this.abPts.map((p) => [p.x, p.z]), 6.35);
+    const L = { w: node(1420, -60), nw: node(1420, -150), sw: node(1420, 30), ne: node(1600, -150), se: node(1600, 30) };
+    link(ab1, L.w, [[1380, -60], [1420, -60]]);
+    link(L.w, L.nw, [[1420, -60], [1420, -150]]);
+    link(L.w, L.sw, [[1420, -60], [1420, 30]]);
+    link(L.nw, L.ne, [[1420, -150], [1600, -150]]);
+    link(L.ne, L.se, [[1600, -150], [1600, 30]]);
+    link(L.sw, L.se, [[1420, 30], [1600, 30]]);
+  }
+  nearestNode(x, z) {
+    let best = null, bd = Infinity;
+    for (const n of this.nav.values()) { const d = (n.x - x) ** 2 + (n.z - z) ** 2; if (d < bd) { bd = d; best = n; } }
+    return best;
+  }
+  /** route along the roads from (px, pz) to (tx, tz): polyline in the right-hand lane */
+  route(px, pz, tx, tz) {
+    const A = this.nearestNode(px, pz), B = this.nearestNode(tx, tz);
+    // Dijkstra (the graph is tiny)
+    const dist = new Map([[A.k, 0]]), prev = new Map(), done = new Set();
+    const open = [A];
+    while (open.length) {
+      open.sort((a, b) => dist.get(a.k) - dist.get(b.k));
+      const n = open.shift();
+      if (done.has(n.k)) continue;
+      done.add(n.k);
+      if (n === B) break;
+      for (const e of n.edges) {
+        const nd = dist.get(n.k) + e.len;
+        if (nd < (dist.get(e.to.k) ?? Infinity)) { dist.set(e.to.k, nd); prev.set(e.to.k, { n, e }); open.push(e.to); }
+      }
+    }
+    const legs = [];
+    for (let k = B.k; prev.has(k); k = prev.get(k).n.k) legs.unshift(prev.get(k).e);
+    // drop a first leg that points back past the player, and a last one that overshoots the target
+    const d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+    if (legs.length > 1) { const e = legs[0]; const end = e.pts[e.pts.length - 1]; if (d2([px, pz], end) < e.len) legs.shift(); }
+    if (legs.length > 1) { const e = legs[legs.length - 1]; if (d2([tx, tz], e.pts[0]) < e.len) legs.pop(); }
+    // offset every leg into its right-hand lane
+    const out = [[px, pz]];
+    for (const e of legs) {
+      const P = e.pts;
+      for (let i = 0; i < P.length; i++) {
+        const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)];
+        let dx = b[0] - a[0], dz = b[1] - a[1];
+        const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+        // trim the ends a little so turns are cut cleanly
+        out.push([P[i][0] - dz * e.lane, P[i][1] + dx * e.lane]);
+      }
+    }
+    out.push([tx, tz]);
+    // remove points that are too close together
+    const clean = [out[0]];
+    for (const p of out.slice(1)) if (d2(p, clean[clean.length - 1]) > 2) clean.push(p);
+    return clean;
   }
 
   // ---------------------------------------------------------------- sky, light

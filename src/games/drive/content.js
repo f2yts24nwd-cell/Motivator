@@ -87,11 +87,12 @@ export const PARTS = [
 // stats: vmax km/h, t100 s (0-100), grip 0..1, ev: range in km (game km)
 export const CARS = [
   {
-    id: 'fuenfer', name: 'Der Fünfer', sub: 'Business-Limousine', type: 'sedan', style: 'fuenfer',
+    id: 'fuenfer', name: 'Der Fünfer', sub: 'Touring oder Limousine', type: 'sedan', style: 'fuenfer',
+    bodies: [{ id: 'touring', name: 'Touring (Kombi)', type: 'wagon' }, { id: 'limousine', name: 'Limousine', type: 'sedan' }],
     plate: 'LU-IT 5', vmax: 250, t100: 5.6, grip: 0.86,
-    dims: { L: 4.96, W: 1.9, H: 1.47, wb: 2.98, wr: 0.36, belt: 0.95, hood: 0.8 },
-    def: { color: 'blau', finish: 'metallic', rim: 'doppel', rimColor: 'anthrazit', caliper: 'blau', drop: 20, spoiler: 'lip', parts: [] },
-    blurb: 'Hinterradantrieb, Sechszylinder-Sound, perfekt für die linke Spur.'
+    dims: { L: 5.06, W: 1.9, H: 1.5, wb: 3.0, wr: 0.37, belt: 0.95, hood: 0.8 },
+    def: { body: 'touring', color: 'blau', finish: 'metallic', rim: 'doppel', rimColor: 'anthrazit', caliper: 'blau', drop: 20, spoiler: 'lip', parts: [] },
+    blurb: 'Der Touring: Hinterradantrieb, V8-Blubbern und Platz für den kompletten Messestand. Auf Wunsch auch als Limousine.'
   },
   {
     id: 'skoda', name: 'Elektro-Škoda', sub: 'E-SUV, leise und schnell', type: 'suv', style: 'skoda', ev: true,
@@ -101,10 +102,10 @@ export const CARS = [
     blurb: 'Zieht ab wie ein Gummiband. Aber denk ans Laden: Ladesäulen findest du auf der Karte.'
   },
   {
-    id: 'volvo', name: 'Volvo V60', sub: 'Kombi mit Hammer-Scheinwerfern', type: 'wagon', style: 'volvo',
+    id: 'volvo', name: 'Volvo V60', sub: 'Flacher Kombi, Modell 2025', type: 'wagon', style: 'volvo',
     plate: 'LU-SV 60', vmax: 180, t100: 6.4, grip: 0.82,
-    dims: { L: 4.76, W: 1.85, H: 1.43, wb: 2.87, wr: 0.35, belt: 0.97, hood: 0.86 },
-    def: { color: 'silber', finish: 'metallic', rim: 'turbine', rimColor: 'silber', caliper: 'grau', drop: 10, spoiler: 'none', parts: [] },
+    dims: { L: 4.78, W: 1.85, H: 1.38, wb: 2.87, wr: 0.36, belt: 0.92, hood: 0.8 },
+    def: { color: 'grau', finish: 'metallic', rim: 'turbine', rimColor: 'anthrazit', caliper: 'grau', drop: 15, spoiler: 'lip', parts: [] },
     blurb: 'Bei 180 ist Schluss. Aus Sicherheitsgründen. Dafür passt der ganze Messestand in den Kofferraum.'
   },
   {

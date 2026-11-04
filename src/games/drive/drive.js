@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import './drive.css';
 import { sfx, music, isMuted, setMuted, unlockAudio, primeSong, createEngineSound } from '../../core/audio.js';
-import { songById } from '../../core/songs.js';
+import { SONGS } from '../../core/songs.js';
 import { h, mount, clearUI } from '../../core/ui.js';
 import { canvasTexture } from '../../core/gfx.js';
 import { Showroom, showroomUI } from './showroom.js';
@@ -20,7 +20,6 @@ import {
 
 const CAMS = ['chase', 'far', 'hood'];
 const BRIEFER = { fraesfix: 'danny', messe: 'karla', regalriese: 'palette', rennen: 'danny' };
-const RADIO = songById('crm-cruise');
 const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 function beamTexture() {
@@ -70,6 +69,7 @@ export class DriveGame {
     this.showShowroom(true);
   }
   exit() {
+    this.radioHooks(false);
     window.removeEventListener('keydown', this.onKey);
     window.removeEventListener('keyup', this.onKeyUp);
     window.removeEventListener('devicemotion', this.onMotion);
@@ -93,6 +93,7 @@ export class DriveGame {
   // ================================================================== showroom
   showShowroom(first = false) {
     this.mode = 'showroom';
+    this.radioHooks(false);
     this.engine?.stop();
     this.engine = null;
     this.hud?.destroy();
@@ -114,8 +115,13 @@ export class DriveGame {
         if (!lock) { this.P.car = id; saveProgress(this.P); }
         this.room.showCar(carById(id), cfg);
       },
-      onChange: (id, cfg) => { this.room.model?.apply(cfg); saveProgress(this.P); },
-      onDrive: () => { unlockAudio(); if (this.P.radio !== false) primeSong(RADIO.src); this.startDrive(); }
+      onChange: (id, cfg) => {
+        // a different body needs a new model, everything else is applied in place
+        if (this.room.model && (this.room.model.cfg.body || null) !== (cfg.body || null) && carById(id).bodies) this.room.showCar(carById(id), cfg);
+        else this.room.model?.apply(cfg);
+        saveProgress(this.P);
+      },
+      onDrive: () => { unlockAudio(); if (this.P.radio !== false) primeSong(this.radioSong().src); this.startDrive(); }
     });
     // humor mode switch in the head panel
     const modeBtn = mount(h('button.dr-tool.big', { style: 'position:absolute;left:calc(64px + env(safe-area-inset-left));top:calc(12px + env(safe-area-inset-top));', title: 'Humor-Modus', onclick: () => { sfx.click(); setMode(getMode() === 'intern' ? 'kunde' : 'intern'); modeBtn.textContent = getMode() === 'intern' ? '🌶️ Intern' : '🤝 Kunde & Partner'; } }, getMode() === 'intern' ? '🌶️ Intern' : '🤝 Kunde & Partner'));
@@ -181,6 +187,7 @@ export class DriveGame {
     this.hud.quota(this.revenue(), QUOTA, this.P.provision);
     this.engine = createEngineSound(car.ev ? 'ev' : 'ice');
     if (isMuted()) this.engine?.mute(true);
+    this.radioHooks(true);
     this.applyRadio();
     this.updateBeacons();
     if (this.P.steer === 'tilt') this.enableTilt(false);
@@ -190,18 +197,46 @@ export class DriveGame {
   }
   engineMute(m) { this.engine?.mute(m); }
 
-  // ---------------------------------------------------------------- car radio ("CRM Cruise"), on by default
-  applyRadio() {
+  // ---------------------------------------------------------------- car radio: every jukebox song, on by default
+  radioSong() {
+    const i = Math.max(0, SONGS.findIndex((x) => x.id === this.P.radioSong));
+    return SONGS[i];
+  }
+  /** take over the song callbacks while driving (the office jukebox has its own) */
+  radioHooks(on) {
+    if (on) {
+      if (!this.savedHooks) this.savedHooks = { end: music.onSongEnd, err: music.onSongError };
+      music.onSongEnd = (url) => { if (this.mode !== 'showroom' && url === this.radioSong().src) this.radioStep(1); };
+      music.onSongError = (url) => { if (url === this.radioSong().src) this.hud?.toast('📻 Kein Empfang', 'Song konnte nicht geladen werden'); };
+    } else if (this.savedHooks) {
+      music.onSongEnd = this.savedHooks.end;
+      music.onSongError = this.savedHooks.err;
+      this.savedHooks = null;
+    }
+  }
+  applyRadio(restart = false) {
     const on = this.P.radio !== false;
-    if (on) music.playSong(RADIO.src, { loop: true });
+    const song = this.radioSong();
+    if (on) music.playSong(song.src, { restart, loop: SONGS.length === 1 });
     else { music.stopSong(0.6); music.play('drive'); music.setIntensity(this.M ? (this.M.phase === 'race' ? 2 : 1) : 0); }
-    this.hud?.radio(on);
+    this.hud?.radio(on, song);
+  }
+  radioPlay(id) {
+    this.P.radioSong = id;
+    this.P.radio = true;
+    saveProgress(this.P);
+    this.applyRadio(true);
+    this.hud?.toast(`📻 ${this.radioSong().title}`);
+  }
+  radioStep(d) {
+    const i = SONGS.indexOf(this.radioSong());
+    this.radioPlay(SONGS[(i + d + SONGS.length) % SONGS.length].id);
   }
   toggleRadio() {
     this.P.radio = this.P.radio === false;
     saveProgress(this.P);
     this.applyRadio();
-    if (this.P.radio) this.hud?.toast('📻 CRM Cruise');
+    if (this.P.radio) this.hud?.toast(`📻 ${this.radioSong().title}`);
   }
 
   // ---------------------------------------------------------------- beacons (mission markers in the world)
@@ -279,6 +314,7 @@ export class DriveGame {
     if (k === 'c') this.nextCamera();
     if (k === 'h') this.honk();
     if (k === 'p') this.toggleRadio();
+    if (k === 'n') this.radioStep(1);
     if (k === 'r' && this.mode === 'drive') this.resetCar();
     if (k === 'm' || k === 'tab') { if (this.mode === 'board') this.closeOverlay(); else if (this.mode === 'drive') this.openBoard(); }
     if (k === 'escape') { if (this.mode === 'board') this.closeOverlay(); else if (this.mode === 'drive') this.openBoard(); }
@@ -431,8 +467,18 @@ export class DriveGame {
     this.player.animate(dt, V.speed, V.steer, V.ax, V.ay);
     this.player.setBrake(V.input.brake > 0 && V.speed > 0.3);
     this.player.setReverse(V.speed < -0.3);
-    // sound
-    if (this.engine) { const e = V.engine(); this.engine.update(e.rpm, e.load, Math.abs(V.speed)); }
+    // sound + exhaust flames: upshift at full throttle = bang + flames, lift-off at high revs = crackle + small flames
+    const e = V.engine();
+    this.engine?.update(e.rpm, e.load, Math.abs(V.speed));
+    if (!V.car.ev) {
+      const full = V.input.throttle > 0 && V.speed > 8;
+      if (this.lastGear && e.gear > this.lastGear && full && this.lastRpm > 0.55) { this.player.flame(1); this.engine?.bang(1); }
+      if (this.lastThrottle > 0 && V.input.throttle === 0 && this.lastRpm > 0.6 && V.speed > 10) {
+        this.player.flame(0.5);
+        if (Math.random() < 0.6) setTimeout(() => { if (this.mode === 'drive') { this.player.flame(0.4); this.engine?.bang(0.3); } }, 180 + Math.random() * 250);
+      }
+      this.lastGear = e.gear; this.lastRpm = e.rpm; this.lastThrottle = V.input.throttle;
+    }
   }
 
   updateCamera(dt) {
@@ -873,7 +919,7 @@ export class DriveGame {
       h('div.dr-bhead', {}, [h('div.dr-face', { style: '--c:#50af30' }, 'X'), h('div', {}, [h('div.kicker', {}, 'Bordcomputer · itmX CRM mobil'), h('h2', {}, 'Aufträge in Ludlein'), h('p', {}, `Quartal: ${fmtEuro(this.revenue())} von ${fmtEuro(QUOTA)} · Provision ${fmtEuro(this.P.provision)} · ${this.P.deals.length}/${MISSIONS.length} Deals`)]), h('button.icon-btn', { style: 'position:static', onclick: () => { sfx.click(); this.closeOverlay(); } }, '✕')]),
       canvas,
       h('div.dr-board-grid', {}, cards),
-      h('p', { style: 'font-size:12px;color:var(--muted);margin:10px 0' }, touch ? 'Pedale rechts, Lenkung links. Oder Lenken per Neigen. Tipp auf die Minikarte öffnet den Bordcomputer.' : 'W/S oder Pfeile: Gas/Bremse · A/D: lenken · Leertaste: Handbremse · C: Kamera · H: Hupe · P: Autoradio · R: Abschleppen · M: Bordcomputer · 1–3: Antworten'),
+      h('p', { style: 'font-size:12px;color:var(--muted);margin:10px 0' }, touch ? 'Pedale rechts, Lenkung links. Oder Lenken per Neigen. Tipp auf die Minikarte öffnet den Bordcomputer.' : 'W/S oder Pfeile: Gas/Bremse · A/D: lenken · Leertaste: Handbremse · C: Kamera · H: Hupe · P: Radio an/aus · N: nächster Song · R: Abschleppen · M: Bordcomputer · 1–3: Antworten'),
       h('div.row', {}, [h('button.btn.gold', { onclick: () => { sfx.click(); this.closeOverlay(); } }, '🚗 Weiterfahren'), touch ? steerBtn : null, touch && this.P.steer === 'tilt' ? invBtn : null, this.M ? h('button.btn.secondary', { onclick: () => { sfx.click(); this.closeOverlay(); this.abortMission(); } }, 'Auftrag abbrechen') : null, h('button.btn.secondary', { onclick: () => { sfx.click(); this.closeOverlay(); if (this.M) this.endMission(); this.showShowroom(); } }, '🏁 Zum Fuhrpark')])
     ]);
     this.boardEl = mount(h('div.overlay.dr-ov', { onclick: (e) => { if (e.target === this.boardEl) this.closeOverlay(); } }, card));

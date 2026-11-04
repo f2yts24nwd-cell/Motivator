@@ -10,6 +10,7 @@ import { CARS, COLORS, FINISHES, RIMS, RIM_COLORS, CALIPERS, SPOILERS, PARTS, SC
 // light columns and the car configurator (paint, rims, ride height, spoiler, body parts).
 
 const FOCUS = {
+  body: { az: 1.05, el: 0.14, dist: 7.2, y: 0.7 },
   overview: { az: 0.75, el: 0.2, dist: 7.4, y: 0.7 },
   color: { az: 0.95, el: 0.28, dist: 6.6, y: 0.65 },
   rims: { az: 1.35, el: 0.07, dist: 3.7, y: 0.42, z: 1.2 },
@@ -176,8 +177,11 @@ export class Showroom {
 
   resize(w, hh) {
     this.camera.aspect = w / hh;
-    // narrow screens: step back so the whole car fits
-    this.camera.fov = w / hh < 1 ? 52 : hh < 500 ? 34 : 36;
+    // phones get a bottom dock (see showroomUI): no sideways shift, lift the car above the dock instead
+    this.compact = hh < 520 || w < 700;
+    this.camera.fov = w / hh < 1 ? 56 : this.compact ? 40 : 36;
+    if (this.compact) this.camera.setViewOffset(w, hh, 0, Math.round((w / hh < 1 ? 0.16 : 0.14) * hh), w, hh);
+    else this.camera.clearViewOffset();
     this.camera.updateProjectionMatrix();
     this.wide = w / hh;
   }
@@ -196,9 +200,9 @@ export class Showroom {
     const a = 1 - Math.exp(-dt * 4);
     for (const k of ['az', 'el', 'dist', 'y', 'z']) c[k] += (t[k] - c[k]) * a;
     // UI covers the right side in landscape: shift the car to the left of the frame
-    const off = this.wide > 1.2 ? (this.camera.fov < 35 ? 0.75 : 0.95) : 0;
+    const off = this.wide > 1.2 && !this.compact ? 0.95 : 0;
     const target = new THREE.Vector3(off * Math.cos(c.az), c.y, c.z * 0 - off * Math.sin(c.az));
-    const dist = c.dist * (this.wide < 1 ? 1.25 : 1);
+    const dist = c.dist * (this.wide < 1 ? 1.65 : this.compact ? 1.08 : 1);
     this.camera.position.set(target.x + Math.sin(c.az) * Math.cos(c.el) * dist, c.y + Math.sin(c.el) * dist, target.z + Math.cos(c.az) * Math.cos(c.el) * dist);
     this.camera.lookAt(target);
   }
@@ -216,6 +220,10 @@ export function showroomUI(room, opts) {
   const isLocked = (car) => car.locked && P.deals.length < car.locked;
 
   const root = mount(h('div.dr-show'));
+  const compactQ = matchMedia('(max-height: 520px), (max-width: 700px)');
+  const setCompact = () => root.classList.toggle('compact', compactQ.matches);
+  setCompact();
+  compactQ.addEventListener?.('change', setCompact);
   const head = h('div.dr-showhead.panel');
   const cars = h('div.dr-cars');
   const tabs = h('div.dr-tabs');
@@ -223,7 +231,21 @@ export function showroomUI(room, opts) {
   const side = h('div.dr-config.panel', {}, [tabs, pane]);
   const driveBtn = h('button.btn.gold.dr-drive', { onclick: () => { sfx.click(); opts.onDrive(); } }, '🚗 Losfahren');
   const msg = h('div.dr-showmsg.panel');
-  root.append(head, side, cars, driveBtn, msg);
+  // phones: compact car switcher at the top and a button that hides all panels to look at the car
+  const swName = h('b'), swSub = h('small');
+  const step = (d) => {
+    sfx.click();
+    const i = CARS.findIndex((c) => c.id === carId);
+    const next = CARS[(i + d + CARS.length) % CARS.length];
+    const lock = isLocked(next);
+    if (lock) toast(say(SCHULTERKLAPPEN, getMode()));
+    carId = next.id;
+    opts.onSelect(carId, cfgOf(carId), lock);
+    renderAll();
+  };
+  const carSw = h('div.dr-carsw.panel', {}, [h('button', { onclick: () => step(-1) }, '◀'), h('div', {}, [swName, swSub]), h('button', { onclick: () => step(1) }, '▶')]);
+  const eye = h('button.dr-eye', { title: 'Nur das Auto ansehen', onclick: () => { sfx.click(); root.classList.toggle('clean'); eye.textContent = root.classList.contains('clean') ? '🎛️' : '👁'; } }, '👁');
+  root.append(head, side, cars, driveBtn, msg, carSw, eye);
 
   function toast(text, who = DANNY) {
     msg.replaceChildren(h('div.dr-face', { style: `--c:${who.color}` }, who.ini), h('div', {}, [h('b', {}, who.name), h('span', {}, text)]));
@@ -285,8 +307,12 @@ export function showroomUI(room, opts) {
     set('parts', [...parts]);
   }
 
-  const TABS = [['color', '🎨', 'Farbe'], ['rims', '🛞', 'Felgen'], ['drop', '⬇️', 'Fahrwerk'], ['spoiler', '🪽', 'Spoiler'], ['parts', '🧩', 'Anbauteile']];
+  const BASE_TABS = [['color', '🎨', 'Farbe'], ['rims', '🛞', 'Felgen'], ['drop', '⬇️', 'Fahrwerk'], ['spoiler', '🪽', 'Spoiler'], ['parts', '🧩', 'Anbauteile']];
   function renderTabs() {
+    const car = CARS.find((c) => c.id === carId);
+    const TABS = car.bodies ? [['body', '🚘', 'Karosserie'], ...BASE_TABS] : BASE_TABS;
+    if (!TABS.some(([id]) => id === tab)) tab = 'color';
+    tabs.style.gridTemplateColumns = `repeat(${TABS.length}, 1fr)`;
     tabs.replaceChildren(...TABS.map(([id, ic, label]) => h(`button.dr-tab${id === tab ? '.on' : ''}`, { onclick: () => { sfx.click(); tab = id; room.focus(id); renderTabs(); renderPane(); } }, [h('span', {}, ic), h('em', {}, label)])));
   }
   function swatches(list, cur, key, round = true) {
@@ -299,7 +325,11 @@ export function showroomUI(room, opts) {
     const cfg = cfgOf(carId);
     const name = (list, id) => list.find((x) => x.id === id)?.name || '';
     const rows = [];
-    if (tab === 'color') {
+    if (tab === 'body') {
+      const car = CARS.find((c) => c.id === carId);
+      rows.push(h('label', {}, 'Karosserie'), chips(car.bodies, cfg.body || car.bodies[0].id, 'body'));
+      rows.push(h('p.dr-note', {}, 'Touring: der Kombi mit flach auslaufendem Dach. Limousine: klassisch mit Stufenheck.'));
+    } else if (tab === 'color') {
       rows.push(h('label', {}, ['Lack: ', h('b', {}, name(COLORS, cfg.color))]), swatches(COLORS, cfg.color, 'color'));
       rows.push(h('label', {}, 'Oberfläche'), chips(FINISHES, cfg.finish, 'finish'));
     } else if (tab === 'rims') {
@@ -320,7 +350,11 @@ export function showroomUI(room, opts) {
     }
     pane.replaceChildren(...rows);
   }
-  function renderAll() { renderHead(); renderCars(); renderTabs(); renderPane(); driveBtn.disabled = isLocked(CARS.find((c) => c.id === carId)); driveBtn.textContent = driveBtn.disabled ? '🔒 Gesperrt' : '🚗 Losfahren'; }
+  function renderAll() {
+    const c = CARS.find((x) => x.id === carId);
+    swName.textContent = c.name;
+    swSub.textContent = isLocked(c) ? `🔒 ab ${c.locked} Deals` : c.sub;
+    renderHead(); renderCars(); renderTabs(); renderPane(); driveBtn.disabled = isLocked(CARS.find((c) => c.id === carId)); driveBtn.textContent = driveBtn.disabled ? '🔒 Gesperrt' : '🚗 Losfahren'; }
   renderAll();
   return { root, toast, get carId() { return carId; }, refresh: renderAll };
 }

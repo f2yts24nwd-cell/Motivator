@@ -247,11 +247,11 @@ export class DriveGame {
     for (const m of MISSIONS) {
       const p = this.missionPlace(m);
       const g = new THREE.Group();
-      const beam = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 90, 16, 1, true), new THREE.MeshBasicMaterial({ map: beamT, color: cols[m.id], transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false }));
-      beam.position.y = 45;
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 3.4, 140, 20, 1, true), new THREE.MeshBasicMaterial({ map: beamT, color: cols[m.id], transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false }));
+      beam.position.y = 70;
       const icon = new THREE.Sprite(new THREE.SpriteMaterial({ map: iconTexture(m.icon, cols[m.id]), depthWrite: false, fog: false }));
-      icon.scale.set(5, 5, 1);
-      icon.position.y = 9;
+      icon.scale.set(8, 8, 1);
+      icon.position.y = 13;
       g.add(beam, icon);
       g.position.set(p.x, 0, p.z);
       this.world.scene.add(g);
@@ -424,6 +424,7 @@ export class DriveGame {
     V.offroad = !info.onRoad && ground === 0 && !inLot && !info.autobahn;
     V.limp = this.battery != null && this.battery <= 0;
     V.step(dt, { ground });
+    this.laneAssist(dt, info);
     // collisions: three circles along the car + traffic bodies
     const car = V.car.dims;
     const r = car.W / 2;
@@ -481,6 +482,25 @@ export class DriveGame {
     }
   }
 
+  /** without steering input the car gently lines up with the road (and follows autobahn curves) */
+  laneAssist(dt, info) {
+    const V = this.V;
+    if (Math.abs(V.input.steer) > 0.05 || Math.abs(V.speed) < 4 || V.input.handbrake) return;
+    let dir = null;
+    if (this.abInfo && Math.abs(this.abInfo.off) < 14) dir = Math.atan2(this.abInfo.tg.x, this.abInfo.tg.z);
+    else if (info.road && info.onRoad) dir = Math.atan2(info.road.bx - info.road.ax, info.road.bz - info.road.az);
+    if (dir == null) return;
+    const fwd = V.speed < 0 ? V.heading + Math.PI : V.heading;
+    let best = null;
+    for (const d of [dir, dir + Math.PI]) {
+      let dh = d - fwd;
+      while (dh > Math.PI) dh -= Math.PI * 2;
+      while (dh < -Math.PI) dh += Math.PI * 2;
+      if (best == null || Math.abs(dh) < Math.abs(best)) best = dh;
+    }
+    if (Math.abs(best) < 0.3) V.heading += best * Math.min(1, dt * 2.4);
+  }
+
   updateCamera(dt) {
     const V = this.V;
     const mode = CAMS[this.camMode];
@@ -520,12 +540,16 @@ export class DriveGame {
     const V = this.V;
     for (const id in this.beacons) {
       const b = this.beacons[id];
-      b.icon.position.y = 9 + Math.sin(time * 2 + id.length) * 0.6;
+      b.icon.position.y = 13 + Math.sin(time * 2 + id.length) * 0.8;
+      // the suggested mission pulses
+      const sug = !this.M && this.suggestId === id;
+      b.icon.scale.setScalar(sug ? 8 + Math.sin(time * 5) * 1.2 : 7);
     }
-    const tgt = this.target();
+    this.updateRoute(dt);
+    const tgt = this.navTarget();
     if (tgt && this.mode !== 'showroom') {
       const dx = tgt.x - V.pos.x, dz = tgt.z - V.pos.z;
-      this.arrow.visible = CAMS[this.camMode] !== 'hood' && Math.hypot(dx, dz) > 25;
+      this.arrow.visible = false; // the route line on the road replaces the floating arrow
       this.arrow.position.set(V.pos.x, V.y + this.player.roofTop + 1.4 + Math.sin(time * 3) * 0.1, V.pos.z);
       this.arrow.rotation.y = Math.atan2(dx, dz);
     } else this.arrow.visible = false;
@@ -547,7 +571,7 @@ export class DriveGame {
     if (this.battery != null) for (const c of CHARGERS) marks.push({ x: c.x, z: c.z, color: '#50af30', icon: '⚡', edge: this.battery < 0.3, r: 11 });
     if (this.M?.def.kind === 'collect' && this.M.phase === 'collect') for (const r of this.rings) if (r.visible) marks.push({ x: r.position.x, z: r.position.z, color: '#ffb000', r: 7 });
     if (this.traffic.rival.root.visible) marks.push({ x: this.traffic.R.x, z: this.traffic.R.z, color: '#9a7bff', icon: '☁', r: 10 });
-    H.drawMap(V.pos.x, V.pos.z, V.heading, Math.abs(V.speed), marks);
+    H.drawMap(V.pos.x, V.pos.z, V.heading, Math.abs(V.speed), marks, this.routePts);
     // mission bar
     const M = this.M;
     if (M) {
@@ -560,7 +584,116 @@ export class DriveGame {
         else sub = M.phase === 'countdown' ? 'Gleich wird es grün …' : `Zur Ampel am Silo-Tower · ${d} m`;
       }
       H.mission({ icon: M.def.icon, title: M.def.title, sub, time, low });
-    } else H.mission(null);
+    } else {
+      const m = this.suggestion();
+      const p = this.missionPlace(m);
+      const d = Math.round(Math.hypot(p.x - V.pos.x, p.z - V.pos.z));
+      const done = this.P.deals.includes(m.id);
+      H.mission({ icon: m.icon, title: `${done ? 'Nochmal' : 'Nächster Auftrag'}: ${m.title}`, sub: `${d} m · der gelben Linie folgen oder ▶ Start`, suggest: true });
+    }
+  }
+
+  /** with no mission running: the nearest open mission (or the one chosen with ⇄) */
+  suggestion() {
+    const open = MISSIONS.filter((m) => !this.P.deals.includes(m.id));
+    const list = open.length ? open : MISSIONS;
+    if (!this.suggestId || !list.some((m) => m.id === this.suggestId)) {
+      const V = this.V;
+      let best = list[0], bd = Infinity;
+      for (const m of list) { const p = this.missionPlace(m); const d = Math.hypot(p.x - V.pos.x, p.z - V.pos.z); if (d < bd) { bd = d; best = m; } }
+      this.suggestId = best.id;
+    }
+    return missionById(this.suggestId);
+  }
+  nextSuggestion() {
+    const open = MISSIONS.filter((m) => !this.P.deals.includes(m.id));
+    const list = open.length ? open : MISSIONS;
+    const i = list.findIndex((m) => m.id === this.suggestId);
+    this.suggestId = list[(i + 1) % list.length].id;
+    this.routeKey = null;
+  }
+  startSuggested() { if (!this.M && this.mode === 'drive') this.startMission(this.suggestion().id); }
+  navTarget() {
+    if (this.M) return this.target();
+    const p = this.missionPlace(this.suggestion());
+    return { x: p.x, z: p.z };
+  }
+  /** glowing route line on the road to the current navigation target */
+  updateRoute(dt) {
+    const W = this.world, V = this.V;
+    const t = this.navTarget();
+    if (!this.routeMesh) {
+      const tex = canvasTexture(64, 128, (g, w, hh) => {
+        g.clearRect(0, 0, w, hh);
+        g.fillStyle = 'rgba(255,211,77,0.35)'; g.fillRect(8, 0, w - 16, hh);
+        g.strokeStyle = 'rgba(255,255,255,0.95)'; g.lineWidth = 9; g.lineCap = 'round'; g.lineJoin = 'round';
+        g.beginPath(); g.moveTo(14, 84); g.lineTo(w / 2, 40); g.lineTo(w - 14, 84); g.stroke();
+      });
+      tex.wrapT = THREE.RepeatWrapping;
+      this.routeTex = tex;
+      this.routeMesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ map: tex, color: 0xffd34d, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -8, fog: false, side: THREE.DoubleSide }));
+      this.routeMesh.frustumCulled = false;
+      W.scene.add(this.routeMesh);
+    }
+    this.routeTex.offset.y -= dt * 1.2;
+    if (!t || (this.M && this.M.def.kind === 'collect' && this.M.phase === 'collect')) { this.routeMesh.visible = false; this.routePts = null; return; }
+    this.routeMesh.visible = true;
+    const key = `${Math.round(t.x)},${Math.round(t.z)}`;
+    this.routeT = (this.routeT || 0) - dt;
+    // re-plan when the target changes, regularly, and quickly when the player leaves the line
+    let off = 0;
+    if (this.routePts) {
+      let bd = Infinity;
+      for (let i = 0; i < Math.min(this.routePts.length - 1, 40); i++) {
+        const [ax, az] = this.routePts[i], [bx, bz] = this.routePts[i + 1];
+        const ex = bx - ax, ez = bz - az, l2 = ex * ex + ez * ez || 1;
+        const u = Math.max(0, Math.min(1, ((V.pos.x - ax) * ex + (V.pos.z - az) * ez) / l2));
+        bd = Math.min(bd, Math.hypot(V.pos.x - (ax + ex * u), V.pos.z - (az + ez * u)));
+      }
+      off = bd;
+    }
+    if (key !== this.routeKey || this.routeT <= 0 || off > 14) {
+      this.routeKey = key;
+      this.routeT = off > 14 ? 0.8 : 4;
+      this.routePts = W.route(V.pos.x, V.pos.z, t.x, t.z);
+    }
+    // draw it from the car on: drop the part already driven (5x per second)
+    this.routeDraw = (this.routeDraw || 0) - dt;
+    if (this.routeDraw <= 0 && this.routePts) {
+      this.routeDraw = 0.2;
+      const P = this.routePts;
+      let bi = 0, bd = Infinity;
+      for (let i = 0; i < Math.min(P.length - 1, 60); i++) {
+        const [ax, az] = P[i], [bx, bz] = P[i + 1];
+        const ex = bx - ax, ez = bz - az, l2 = ex * ex + ez * ez || 1;
+        const u = Math.max(0, Math.min(1, ((V.pos.x - ax) * ex + (V.pos.z - az) * ez) / l2));
+        const d = Math.hypot(V.pos.x - (ax + ex * u), V.pos.z - (az + ez * u));
+        if (d < bd) { bd = d; bi = i; }
+      }
+      const f = V.forward;
+      this.buildRouteGeometry([[V.pos.x + f.x * 0.5, V.pos.z + f.z * 0.5], ...P.slice(bi + 1)]);
+    }
+  }
+  buildRouteGeometry(pts) {
+    const W = this.world;
+    const pos = [], uv = [], idx = [];
+    let v = 0;
+    const half = 0.8;
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+      let dx = b[0] - a[0], dz = b[1] - a[1];
+      const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+      if (i > 0) v += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]) / 2.4;
+      const y = W.groundAt(pts[i][0], pts[i][1]) + 0.05;
+      pos.push(pts[i][0] - dz * half, y, pts[i][1] + dx * half, pts[i][0] + dz * half, y, pts[i][1] - dx * half);
+      uv.push(1, v, 0, v);
+      if (i > 0) { const k = (i - 1) * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
+    }
+    const g = this.routeMesh.geometry;
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx);
+    g.computeBoundingSphere();
   }
 
   target() {

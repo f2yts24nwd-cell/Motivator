@@ -43,7 +43,7 @@ export class Showroom {
     const s = this.scene;
     // mirror floor (dimmed by a glossy dark layer on top)
     const mirror = new Reflector(new THREE.CircleGeometry(40, 48), {
-      textureWidth: 1024, textureHeight: 1024, color: 0x5a5e66, clipBias: 0.003
+      textureWidth: 1024, textureHeight: 1024, color: 0x40434a, clipBias: 0.003
     });
     mirror.rotation.x = -Math.PI / 2;
     s.add(mirror);
@@ -150,6 +150,10 @@ export class Showroom {
 
   // ---------------------------------------------------------------- input
   attach() {
+    // softer bloom in the showroom (the mirror floor doubles every highlight)
+    const b = this.app.gfx.bloom;
+    if (b && this.bloomBase == null) this.bloomBase = b.strength;
+    if (b) b.strength = this.bloomBase * 0.55;
     const c = this.app.gfx.renderer.domElement;
     c.addEventListener('pointerdown', this.onDown);
     c.addEventListener('wheel', this.onWheel, { passive: true });
@@ -157,6 +161,7 @@ export class Showroom {
     window.addEventListener('pointerup', this.onUp);
   }
   detach() {
+    if (this.app.gfx.bloom && this.bloomBase != null) this.app.gfx.bloom.strength = this.bloomBase;
     const c = this.app.gfx.renderer.domElement;
     c.removeEventListener('pointerdown', this.onDown);
     c.removeEventListener('wheel', this.onWheel);

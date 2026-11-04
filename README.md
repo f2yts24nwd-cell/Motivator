@@ -89,6 +89,28 @@ Technik: 2D-Canvas statt three.js. Das Spiel liegt als Vollbild-Ebene in einem S
 
 Steuerung: Wischen links/rechts wechselt die Spur, hoch springt, runter rutscht. Alternativ tippen (linkes/rechtes Drittel = Spur, Mitte = Sprung) oder Pfeiltasten/WASD, Esc pausiert.
 
+## Spiel 6: „Ludlein Drive“
+
+Quartalsende in Ludlein: Danny the Boss fehlen noch 500.000 €. Du holst dir im **itmX Fuhrpark** einen Dienstwagen, tunst ihn und fährst durch eine offene 3D-Stadt zu den Kunden. Ausgestiegen wird nie, alles läuft aus dem Auto heraus: Freisprechanlage, Bordcomputer und Head-up-Pfeil.
+
+- **Showroom (itmX Fuhrpark):** Drehteller mit LED-Ring, Spiegelboden, Lichtsäulen. Fünf Autos, alle prozedural modelliert, ohne Herstellerlogos: **Der Fünfer** (Business-Limousine), **Elektro-Škoda** (E-SUV, muss geladen werden), **Volvo V60** (Kombi, abgeregelt bei 180), **S-Klasse** und der rote **Hilti-Passat** mit Schriftzug und Werkzeugkoffer.
+- **S-Klasse:** Wer sie gleich nehmen will, bekommt von Danny den Hinweis, erst mal auf die Schulterklappen zu schauen. Sie ist das Geschäftsführer-Auto und wird erst nach 3 Deals freigeschaltet.
+- **Tuning:** 14 Lackfarben in Uni, Metallic, Matt oder Chamäleon. Dazu 6 Felgendesigns in 6 Farben, farbige Bremssättel und eine Tieferlegung bis 60 mm, die man sieht und im Handling spürt. Spoiler gibt es als Abrisskante, Flügel oder GT-Flügel, außerdem Frontsplitter, Seitenschweller, Diffusor mit Sportauspuff, itmX-Streifen, Dachträger mit Hilti-Koffer und Dachbox. Alles wird pro Auto gespeichert.
+- **Offene Stadt:** Altstadt mit Kopfsteinpflaster und Kirche, itmX-Zentrale mit Logo-Turm, Messe, Silo-Tower von Cloudius mit Wolke, Schule, Park, Westend mit Mörtelmeister und das Gewerbegebiet Süd mit Fräsfix. Über die Ausfallstraße geht es auf die **Autobahn A-CRM** mit Windrädern, Schilderbrücken und Werbetafeln zum Industriepark Ost mit Regalriese.
+- **Echte Tempolimits und Blitzer:** 30 in Altstadt und vor der Schule, 50 in der Stadt, 70 auf der Ausfallstraße, 120 am Autobahnanfang, danach unbegrenzt. Sieben Blitzer kosten je 50 € Provision und bringen einen Spruch von Danny. Im Ampelrennen heißt Blitzer: disqualifiziert.
+- **Verkehr und Fußgänger:** Autos fahren nach Ampeln und halten Abstand, auf der Autobahn sind sie dreispurig unterwegs, links fliegt der Hilti-Passat vorbei. Fußgänger springen beiseite und rufen „Hey!“. Zusammenstöße kosten nichts, es gibt nur einen Rempler und ein Hupen.
+- **Vier Aufträge**, wählbar im Bordcomputer oder durch Hineinfahren in die Leuchtsäulen:
+  1. **Erstbesuch bei Fräsfix:** Pünktlich ankommen, in die Besucherbox einparken, im Kundengespräch Frau Spindlers Fragen mit itmX-Funktionen beantworten.
+  2. **Leads auf der Messe Ludlein:** Zehn goldene Lead-Ringe einsammeln, bevor die Zeit abläuft.
+  3. **Reklamation bei Regalriese:** Über die Autobahn zum Industriepark. Unterwegs fragt der Bordcomputer nach dem **Besuchsbericht per Sprache**.
+  4. **Ampelrennen gegen Cloudius:** An der Ampel am Silo-Tower, bis zur Haltelinie bei Mörtelmeister. Es gilt nur das Tempolimit.
+- Nach jedem Deal kommt eine Lernkarte zur passenden itmX-Funktion mit Video-Link. Wer alle vier Kunden gewonnen hat, hat das Quartalsziel geknackt. Es gibt Provision, Bestzeiten und den Humor-Modus wie in Spiel 3 und 4.
+- **E-Auto:** Der Akku des Elektro-Škoda entlädt sich je nach Tempo. Ladesäulen stehen an der Zentrale, an der Tankstelle Süd und im Industriepark. Bei leerem Akku geht es nur noch im Notbetrieb mit 30 km/h weiter.
+- **Grafik:** Physikalischer Himmel mit tiefer Sonne, Umgebungsreflexionen im Lack, Klarlack- und Chamäleon-Effekt, weiche Schatten, die dem Auto folgen, und Bloom auf Lichtern. Gebäude, Straßen, Bäume, Laternen, Verkehr und Fußgänger werden zusammengefasst bzw. instanziert, damit es auf dem iPhone flüssig läuft.
+- **Sound:** Synthwave-Soundtrack mit 108 BPM, der beim Rennen härter wird. Dazu ein Sechszylinder-Motorsound mit Gangwechseln bzw. ein E-Motor-Surren, Reifen- und Windgeräusche, Hupe, Blitzer, Telefonklingeln und Lade-Ticks. Alles läuft per WebAudio.
+
+Steuerung: Am iPhone im Querformat lenkst du links mit ◀ ▶, rechts sind Gas und Bremse/Rückwärts. Lenken per Neigen lässt sich im Bordcomputer umschalten. Auf der Tastatur: W/S oder Pfeiltasten für Gas und Bremse, A/D zum Lenken, Leertaste für die Handbremse, C für die Kamera (Verfolger, weit, Motorhaube), H für die Hupe, R zum Abschleppen auf die Straße und M für den Bordcomputer. Mit 1–3 beantwortest du Fragen. Ein Tipp auf die Minikarte öffnet den Bordcomputer.
+
 ## Jukebox
 
 Im Büro steht rechts neben der Kaffeemaschine eine leuchtende 3D-Jukebox mit Neonbogen, drehender Schallplatte, Laufschrift und Musiknoten.
@@ -149,6 +171,8 @@ src/
   games/conversion/    „Mission RC 0“ (Förderband, Business Partner, CRX, Orakel, S4 Patent)
   games/crm/           „Das CRM-Königreich“ (Voxel-Insel, Händler, Burg, Monster, Thronsaal, Urkunde)
   games/leadrush/      „Lead Rush“ (2D-Runner: engine.js, Bildschirme in markup.js, Styles in leadrush.css)
+  games/drive/         „Ludlein Drive“ (cars.js Autos & Tuning, showroom.js Fuhrpark, world.js Stadt & Autobahn,
+                       traffic.js Verkehr/Fußgänger/Cloudius, vehicle.js Fahrphysik, hud.js, drive.js Missionen)
   cert/                Dumêz G. Schwetz, Übergabe-Szene, Zertifikat-Rendering
   hub/avatar.js        Avatar und Kleiderschrank (Business-Look-Pflicht)
 public/brand/          offizielles itmX-Logo (PNG)

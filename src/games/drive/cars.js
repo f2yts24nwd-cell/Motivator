@@ -16,10 +16,10 @@ const colorHex = (list, id, fb) => (list.find((c) => c.id === id) || list.find((
 
 // ------------------------------------------------------------------ shape parameters per style
 const STYLE = {
-  fuenfer: { hoodLen: 1.55, ws: 0.84, trunk: 0.98, rw: 0.8, cl: 0.14, rise: 0.04 },
+  fuenfer: { hoodLen: 1.56, ws: 0.86, trunk: 0.98, rw: 0.8, roofEnd: 0.36, roofDrop: 0.07, cl: 0.14, rise: 0.04 },
   sklasse: { hoodLen: 1.62, ws: 0.88, trunk: 1.02, rw: 0.84, cl: 0.15, rise: 0.03 },
   skoda: { hoodLen: 1.2, ws: 0.82, roofEnd: 0.34, cl: 0.19, rise: 0.05, roofDrop: 0.07 },
-  volvo: { hoodLen: 1.36, ws: 0.84, roofEnd: 0.3, cl: 0.14, rise: 0.04, roofDrop: 0.04 },
+  volvo: { hoodLen: 1.44, ws: 0.92, roofEnd: 0.4, cl: 0.13, rise: 0.05, roofDrop: 0.08 },
   passat: { hoodLen: 1.32, ws: 0.8, roofEnd: 0.27, cl: 0.15, rise: 0.03, roofDrop: 0.02 },
   // simple shapes for traffic
   kompakt: { hoodLen: 1.0, ws: 0.8, roofEnd: 0.2, cl: 0.14, rise: 0.05, roofDrop: 0.05 },
@@ -146,13 +146,13 @@ function buildGreenGeometry(sil, dims, opts = {}) {
 // ------------------------------------------------------------------ materials
 function paintMaterial(colorId, finish) {
   const c = colorHex(COLORS, colorId, 'silber');
-  const m = new THREE.MeshPhysicalMaterial({ color: c.hex, clearcoat: 1, clearcoatRoughness: 0.05 });
+  const m = new THREE.MeshPhysicalMaterial({ color: c.hex, clearcoat: 1, clearcoatRoughness: 0.08 });
   setFinish(m, finish);
   return m;
 }
 function setFinish(m, finish) {
   m.iridescence = 0;
-  if (finish === 'metallic') { m.metalness = 0.62; m.roughness = 0.34; m.clearcoat = 1; m.clearcoatRoughness = 0.04; }
+  if (finish === 'metallic') { m.metalness = 0.62; m.roughness = 0.34; m.clearcoat = 1; m.clearcoatRoughness = 0.08; }
   else if (finish === 'matt') { m.metalness = 0.15; m.roughness = 0.72; m.clearcoat = 0; }
   else if (finish === 'chamaeleon') { m.metalness = 0.75; m.roughness = 0.28; m.clearcoat = 1; m.clearcoatRoughness = 0.03; m.iridescence = 1; m.iridescenceIOR = 1.9; m.iridescenceThicknessRange = [250, 900]; }
   else { m.metalness = 0.05; m.roughness = 0.3; m.clearcoat = 1; m.clearcoatRoughness = 0.04; }
@@ -170,7 +170,7 @@ function shared() {
     carbon: new THREE.MeshStandardMaterial({ color: 0x15171a, roughness: 0.28, metalness: 0.5 }),
     rubber: new THREE.MeshStandardMaterial({ color: 0x151516, roughness: 0.9, metalness: 0 }),
     disc: new THREE.MeshStandardMaterial({ color: 0x8d9097, roughness: 0.38, metalness: 0.9 }),
-    head: new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xf4f8ff, emissiveIntensity: 2.4, roughness: 0.2 }),
+    head: new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xf4f8ff, emissiveIntensity: 1.6, roughness: 0.2 }),
     lens: new THREE.MeshStandardMaterial({ color: 0x1a1d22, roughness: 0.08, metalness: 0.6 }),
     amber: new THREE.MeshStandardMaterial({ color: 0xffa21f, emissive: 0xff8a00, emissiveIntensity: 0.4 }),
     tailHouse: new THREE.MeshStandardMaterial({ color: 0x3a0306, roughness: 0.12, metalness: 0.3 }),
@@ -203,6 +203,18 @@ function plateMaterial(text) {
   const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.4, metalness: 0.2 });
   plateTex.set(text, m);
   return m;
+}
+
+let flameTex = null;
+function flameTexture() {
+  if (flameTex) return flameTex;
+  flameTex = canvasTexture(128, 128, (g, w, h) => {
+    const gr = g.createRadialGradient(w / 2, h / 2, 2, w / 2, h / 2, w / 2);
+    gr.addColorStop(0, 'rgba(220,235,255,1)'); gr.addColorStop(0.18, 'rgba(120,170,255,0.95)');
+    gr.addColorStop(0.35, 'rgba(255,200,90,0.9)'); gr.addColorStop(0.65, 'rgba(255,90,20,0.55)'); gr.addColorStop(1, 'rgba(255,40,0,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  });
+  return flameTex;
 }
 
 let hiltiMat = null;
@@ -410,7 +422,9 @@ export class CarModel {
     const rc = colorHex(RIM_COLORS, this.cfg.rimColor, 'silber');
     this.rimMat = new THREE.MeshStandardMaterial({ color: rc.hex, metalness: rc.metal, roughness: rc.rough });
     this.caliperMat = new THREE.MeshStandardMaterial({ color: colorHex(CALIPERS, this.cfg.caliper, 'grau').hex, roughness: 0.35, metalness: 0.3 });
-    this.sil = silhouette(car.dims, car.style, car.type);
+    // cars with selectable bodies (Fünfer: Touring / Limousine)
+    this.type = car.bodies ? (car.bodies.find((b) => b.id === this.cfg.body) || car.bodies[0]).type : car.type;
+    this.sil = silhouette(car.dims, car.style, this.type);
     this.wheels = [];
     this.buildBody();
     this.buildWheels();
@@ -474,7 +488,7 @@ export class CarModel {
       g.add(l);
     }
     // SUV: black plastic cladding around the wheel arches
-    if (car.type === 'suv') {
+    if (this.type === 'suv') {
       for (const s of [-1, 1]) for (const c of [sil.fa, sil.ra]) {
         const cl = new THREE.Mesh(new THREE.TorusGeometry(sil.ar - 0.03, 0.045, 6, 24, Math.PI * 1.15), S.black);
         cl.rotation.y = Math.PI / 2;
@@ -680,7 +694,10 @@ export class CarModel {
     const val = rbox(d.W * 0.7, 0.1, 0.04, 0.03, S.black);
     this.placeRear(val, 0, 0.3, 0.0);
     g.add(val);
+    this.exhausts = [];
     if (!this.car.ev) for (const s of [-1, 1]) {
+      this.exhausts.push(new THREE.Vector3(s * (d.W / 2 - 0.42), 0.26, sil.zr - 0.02));
+      this.baseExhausts = this.exhausts;
       const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.12, 14, 1, true), S.chrome);
       tip.rotation.x = Math.PI / 2;
       tip.position.set(s * (d.W / 2 - 0.42), 0.26, sil.zr + 0.06);
@@ -740,6 +757,7 @@ export class CarModel {
     const e = this.extras = new THREE.Group();
     this.body.add(e);
     const has = (p) => cfg.parts.includes(p);
+    this.exhausts = this.baseExhausts || [];
     const xs = (y) => (d.W / 2) * widthFactor(y, sil.belt);
     if (has('splitter')) {
       const sp = box(d.W * 0.86, 0.022, 0.16, S.carbon, 0, sil.cl + 0.02, sil.zf - 0.2);
@@ -758,7 +776,9 @@ export class CarModel {
       const df = box(d.W * 0.66, 0.06, 0.24, S.carbon, 0, sil.cl + 0.04, sil.zr + 0.16);
       e.add(df);
       for (let i = -2; i <= 2; i++) e.add(box(0.012, 0.1, 0.24, S.carbon, i * 0.18, sil.cl + 0.07, sil.zr + 0.16));
+      this.exhausts = [];
       if (!this.car.ev) for (const s of [-1, 1]) for (const o of [0, 0.11]) {
+        this.exhausts.push(new THREE.Vector3(s * (d.W / 2 - 0.36 - o), 0.24, sil.zr - 0.03));
         const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.14, 16, 1, true), S.chrome);
         tip.rotation.x = Math.PI / 2;
         tip.position.set(s * (d.W / 2 - 0.36 - o), 0.24, sil.zr + 0.05);
@@ -873,6 +893,45 @@ export class CarModel {
     if (c.drop !== old.drop) this.applyDrop();
   }
 
+  /** exhaust flames (full throttle shifts, lift-off at high revs). k: 0..1 size */
+  flame(k = 1) {
+    if (!this.exhausts?.length) return;
+    if (!this.flames) {
+      this.flames = [];
+      const mat = new THREE.SpriteMaterial({ map: flameTexture(), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
+      for (let i = 0; i < 16; i++) { const sp = new THREE.Sprite(mat.clone()); sp.visible = false; this.body.add(sp); this.flames.push({ sp, life: 0, max: 0.2, base: null, s: 1, off: 0 }); }
+      this.flameLight = new THREE.PointLight(0xff7a2a, 0, 6, 2);
+      this.body.add(this.flameLight);
+    }
+    // a short jet per tail pipe: hot blue core at the pipe, orange tongues further back
+    for (const ex of this.exhausts) {
+      const life = 0.12 + Math.random() * 0.14 * k;
+      const s0 = (0.32 + Math.random() * 0.3) * (0.6 + k * 0.6);
+      for (const off of [0, 1, 2]) {
+        const f = this.flames.find((q) => q.life <= 0) || this.flames[0];
+        f.life = f.max = life * (1 - off * 0.15);
+        f.base = ex; f.off = off; f.s = s0 * (1 - off * 0.22);
+        f.sp.visible = true;
+      }
+    }
+    this.flameLight.position.copy(this.exhausts[0]).setX(0).add(new THREE.Vector3(0, 0.1, -0.6));
+    this.flameLight.intensity = 2.5 * k;
+  }
+  updateFlames(dt) {
+    if (!this.flames) return;
+    for (const f of this.flames) {
+      if (f.life <= 0) continue;
+      f.life -= dt;
+      const t = 1 - Math.max(0, f.life) / f.max; // 0 -> 1
+      const len = f.s * (0.6 + t * 0.9);
+      f.sp.position.copy(f.base).add(new THREE.Vector3(0, 0.02 * t + f.off * 0.015, -len * (0.3 + f.off * 0.42)));
+      f.sp.scale.set(len * 0.75, len * 0.75, 1);
+      f.sp.material.opacity = Math.max(0, 1 - t * t);
+      if (f.life <= 0) f.sp.visible = false;
+    }
+    this.flameLight.intensity *= Math.exp(-dt * 18);
+  }
+
   setBrake(on) { this.tail.emissiveIntensity = on ? 4.5 : 1.3; }
   setReverse(on) { this.reverse.emissiveIntensity = on ? 2.5 : 0; }
 
@@ -897,6 +956,7 @@ export class CarModel {
     s.roll += s.vr * dt;
     this.body.rotation.x = s.pitch;
     this.body.rotation.z = s.roll;
+    this.updateFlames(dt);
     if (this.cloud) { this.cloud.position.y = this.roofTop + 0.05 + Math.sin(performance.now() / 400) * 0.03; }
   }
 

@@ -1298,16 +1298,16 @@ THEMES.drive = {
 export function createEngineSound(kind = 'ice') {
   if (!ac()) return null;
   const t = ctx.currentTime;
+  const VOL = kind === 'ev' ? 0.45 : 0.3;
   const master = ctx.createGain();
   master.gain.value = 0;
   master.connect(sfxBus);
   const nodes = [];
   const lp = ctx.createBiquadFilter();
-  lp.type = 'lowpass'; lp.frequency.value = 600; lp.Q.value = 2;
+  lp.type = 'lowpass'; lp.frequency.value = 500; lp.Q.value = 1.2;
   const eng = ctx.createGain();
   eng.gain.value = 0.0;
-  lp.connect(eng).connect(master);
-  let o1, o2, o3;
+  let o1, o2, o3, lope, lopeDepth;
   if (kind === 'ev') {
     o1 = ctx.createOscillator(); o1.type = 'sine'; o1.frequency.value = 200;
     o2 = ctx.createOscillator(); o2.type = 'triangle'; o2.frequency.value = 300;
@@ -1315,18 +1315,30 @@ export function createEngineSound(kind = 'ice') {
     const g3 = ctx.createGain(); g3.gain.value = 0.25;
     o1.connect(lp); o2.connect(lp); o3.connect(g3).connect(lp);
     lp.frequency.value = 3000;
+    lp.connect(eng).connect(master);
   } else {
-    o1 = ctx.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = 40;
-    o2 = ctx.createOscillator(); o2.type = 'sawtooth'; o2.frequency.value = 40.6;
-    o3 = ctx.createOscillator(); o3.type = 'square'; o3.frequency.value = 20;
-    const g3 = ctx.createGain(); g3.gain.value = 0.55;
-    o1.connect(lp); o2.connect(lp); o3.connect(g3).connect(lp);
-    // combustion "pulse": amplitude modulation at firing frequency
-    const am = ctx.createGain(); am.gain.value = 0.035;
-    const lfo = ctx.createOscillator(); lfo.type = 'square'; lfo.frequency.value = 60;
-    lfo.connect(am).connect(eng.gain);
-    lfo.start(t);
-    nodes.push(lfo);
+    // cross-plane V8: uneven firing -> strong low harmonics with a lumpy "blub-blub" on top
+    const real = new Float32Array([0, 1, 0.75, 0.45, 0.85, 0.3, 0.5, 0.18, 0.32, 0.12, 0.2]);
+    const imag = new Float32Array([0, 0, 0.35, 0.6, 0.1, 0.4, 0.15, 0.3, 0.05, 0.2, 0.08]);
+    const wave = ctx.createPeriodicWave(real, imag);
+    o1 = ctx.createOscillator(); o1.setPeriodicWave(wave); o1.frequency.value = 25;
+    o2 = ctx.createOscillator(); o2.type = 'sawtooth'; o2.frequency.value = 50;
+    o3 = ctx.createOscillator(); o3.type = 'sine'; o3.frequency.value = 12.5;
+    const g2 = ctx.createGain(); g2.gain.value = 0.22;
+    const g3 = ctx.createGain(); g3.gain.value = 0.9;
+    o1.connect(lp); o2.connect(g2).connect(lp); o3.connect(g3).connect(lp);
+    // soft saturation for a throaty growl
+    const shaper = ctx.createWaveShaper();
+    const curve = new Float32Array(1024);
+    for (let i = 0; i < 1024; i++) { const x = i / 511.5 - 1; curve[i] = Math.tanh(x * 2.2); }
+    shaper.curve = curve;
+    lp.connect(shaper).connect(eng).connect(master);
+    // the lope: slow amplitude wobble at half the crank rate, strongest at idle
+    lope = ctx.createOscillator(); lope.type = 'triangle'; lope.frequency.value = 6;
+    lopeDepth = ctx.createGain(); lopeDepth.gain.value = 0.02;
+    lope.connect(lopeDepth).connect(eng.gain);
+    lope.start(t);
+    nodes.push(lope);
   }
   for (const o of [o1, o2, o3]) { o.start(t); nodes.push(o); }
   // tyre + wind noise
@@ -1336,8 +1348,27 @@ export function createEngineSound(kind = 'ice') {
   n.connect(bp).connect(ng).connect(master);
   n.start(t);
   nodes.push(n);
-  master.gain.setTargetAtTime(0.5, t, 0.3);
+  master.gain.setTargetAtTime(VOL, t, 0.3);
   let stopped = false;
+  let lastLoad = 0, lastRpm = 0;
+  /** one exhaust pop: k 0..1 (small crackle .. big bang) */
+  const pop = (when, k) => {
+    const nn = noise();
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass';
+    f.frequency.setValueAtTime(900 + k * 2600, when);
+    f.frequency.exponentialRampToValueAtTime(200, when + 0.12 + k * 0.1);
+    const g = ctx.createGain();
+    adsr(g.gain, when, { a: 0.001, d: 0.05 + k * 0.08, s: 0.0001, r: 0.04, peak: 0.12 + k * 0.45, dur: 0.005 });
+    nn.connect(f).connect(g).connect(master);
+    nn.start(when, Math.random()); nn.stop(when + 0.35);
+    if (k > 0.5) {
+      const sub = osc('sine', 75, when, when + 0.25);
+      sub.frequency.exponentialRampToValueAtTime(32, when + 0.2);
+      const sg = ctx.createGain();
+      adsr(sg.gain, when, { a: 0.001, d: 0.15, s: 0.0001, r: 0.04, peak: 0.35 * k, dur: 0.005 });
+      sub.connect(sg).connect(master);
+    }
+  };
   return {
     update(rpm, load, speed) {
       if (stopped || ctx.state !== 'running') return;
@@ -1349,18 +1380,35 @@ export function createEngineSound(kind = 'ice') {
         o3.frequency.setTargetAtTime(f * 4.2, now, 0.05);
         eng.gain.setTargetAtTime(0.012 + load * 0.03 + Math.min(1, speed / 30) * 0.02, now, 0.08);
       } else {
-        const f = 32 + rpm * 150;
-        o1.frequency.setTargetAtTime(f, now, 0.04);
-        o2.frequency.setTargetAtTime(f * 1.006, now, 0.04);
-        o3.frequency.setTargetAtTime(f / 2, now, 0.04);
-        nodes[0].frequency.setTargetAtTime(f * 1.5, now, 0.04);
-        lp.frequency.setTargetAtTime(380 + load * 1500 + rpm * 900, now, 0.06);
-        eng.gain.setTargetAtTime(0.05 + load * 0.07 + rpm * 0.03, now, 0.06);
+        // real rpm 750 .. 6800, V8 fires 4x per revolution
+        const rr = 750 + rpm * 6050;
+        const fire = (rr / 60) * 4;
+        o1.frequency.setTargetAtTime(fire / 2, now, 0.05);
+        o2.frequency.setTargetAtTime(fire * 1.003, now, 0.05);
+        o3.frequency.setTargetAtTime(fire / 4, now, 0.05);
+        lope.frequency.setTargetAtTime(Math.min(14, fire / 8), now, 0.1);
+        lopeDepth.gain.setTargetAtTime(0.022 * (1 - rpm * 0.8), now, 0.1);
+        lp.frequency.setTargetAtTime(220 + load * 900 + rpm * 1100, now, 0.08);
+        eng.gain.setTargetAtTime(0.035 + load * 0.045 + rpm * 0.02, now, 0.07);
+        // lift-off at high revs: crackle and burble on the overrun
+        if (lastLoad > 0.8 && load < 0.1 && lastRpm > 0.4) {
+          const k = Math.min(1, lastRpm);
+          const cnt = 3 + Math.floor(Math.random() * 5 * k);
+          for (let i = 0; i < cnt; i++) pop(now + 0.05 + Math.random() * 0.8 * k, Math.random() * 0.35);
+        }
       }
+      lastLoad = load; lastRpm = rpm;
       bp.frequency.setTargetAtTime(400 + speed * 18, now, 0.1);
-      ng.gain.setTargetAtTime(Math.min(0.11, speed * speed * 0.00006 + speed * 0.0012), now, 0.15);
+      ng.gain.setTargetAtTime(Math.min(0.09, speed * speed * 0.00005 + speed * 0.001), now, 0.15);
     },
-    mute(m) { if (!stopped) master.gain.setTargetAtTime(m ? 0 : 0.5, ctx.currentTime, 0.1); },
+    /** loud backfire bang (with the exhaust flames) */
+    bang(k = 1) {
+      if (stopped || kind === 'ev' || ctx.state !== 'running') return;
+      const now = ctx.currentTime;
+      pop(now, 0.6 + 0.4 * k);
+      if (Math.random() < 0.7) pop(now + 0.07 + Math.random() * 0.06, 0.5 * k);
+    },
+    mute(m) { if (!stopped) master.gain.setTargetAtTime(m ? 0 : VOL, ctx.currentTime, 0.1); },
     stop() {
       if (stopped) return;
       stopped = true;

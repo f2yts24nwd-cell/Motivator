@@ -1,7 +1,7 @@
 import { h, mount } from '../../core/ui.js';
 import { sfx, isMuted, setMuted } from '../../core/audio.js';
 import { CALLERS, fmtEuro } from './content.js';
-import { songById } from '../../core/songs.js';
+import { SONGS } from '../../core/songs.js';
 
 // Driving HUD: speed + speed limit sign, quota bar, mission bar, hands-free call box with answer
 // buttons, heading-up minimap, touch pedals and tool buttons.
@@ -84,7 +84,7 @@ export class Hud {
       btn('dr-tool', 'Aufträge (Bordcomputer)', '📱', () => game.openBoard()),
       btn('dr-tool', 'Kamera wechseln (C)', '🎥', () => game.nextCamera()),
       btn('dr-tool', 'Hupe (H)', '📯', () => game.honk()),
-      btn('dr-tool', 'Autoradio an/aus (P)', '📻', () => game.toggleRadio()),
+      btn('dr-tool', 'Autoradio (P an/aus, N weiter)', '📻', () => this.toggleRadioPanel()),
       btn('dr-tool', 'Abschleppen (R)', '↺', () => game.resetCar())
     ]);
     root.append(this.tools);
@@ -103,14 +103,17 @@ export class Hud {
     this.right = h('div.dr-ctl.r', {}, [pad('brake', '▼', 'brake'), pad('gas', '▲', 'gas')]);
     root.append(this.left, this.right);
     this.setSteerMode(game.P.steer);
-    // car radio: "now playing" chip, tap toggles
-    const song = songById('crm-cruise');
-    this.radioEl = h('button.dr-radio', { title: 'Autoradio an/aus', onclick: (e) => { e.stopPropagation(); sfx.click(); game.toggleRadio(); } }, [
-      h('img', { src: song.cover, alt: '' }),
-      h('span', {}, [h('small', {}, '📻 Autoradio'), h('b', {}, song.title)]),
+    // car radio: "now playing" chip, tap opens the station list
+    this.radioImg = h('img', { src: SONGS[0].cover, alt: '' });
+    this.radioTitle = h('b', {}, SONGS[0].title);
+    this.radioEl = h('button.dr-radio', { title: 'Autoradio', onclick: (e) => { e.stopPropagation(); sfx.click(); this.toggleRadioPanel(); } }, [
+      this.radioImg,
+      h('span', {}, [h('small', {}, '📻 Autoradio'), this.radioTitle]),
       h('i.dr-eq', {}, [h('em'), h('em'), h('em')])
     ]);
     root.append(this.radioEl);
+    this.radioPanel = h('div.dr-radiopanel.panel');
+    root.append(this.radioPanel);
     this.flashEl = h('div.dr-flash');
     root.append(this.flashEl);
     this.rotateEl = h('div.dr-rotate', {}, h('div', {}, [h('div', {}, '📱'), h('p', {}, 'Bitte quer halten. Ludlein fährt sich im Querformat am besten.')]));
@@ -121,7 +124,31 @@ export class Hud {
     this.lastLimit = null;
   }
 
-  radio(on) { this.radioEl.classList.toggle('off', !on); }
+  radio(on, song) {
+    this.radioOn = on;
+    this.radioSong = song;
+    this.radioEl.classList.toggle('off', !on);
+    if (song) { this.radioImg.src = song.cover; this.radioTitle.textContent = on ? song.title : 'Radio aus'; }
+    if (this.radioPanel.classList.contains('on')) this.renderRadioPanel();
+  }
+  toggleRadioPanel() {
+    const open = !this.radioPanel.classList.contains('on');
+    this.radioPanel.classList.toggle('on', open);
+    if (open) this.renderRadioPanel();
+  }
+  renderRadioPanel() {
+    const g = this.game;
+    const cur = this.radioSong;
+    const ctl = (t, label, fn) => h('button.dr-rbtn', { title: t, onclick: (e) => { e.stopPropagation(); sfx.click(); fn(); } }, label);
+    this.radioPanel.replaceChildren(
+      h('div.dr-rhead', {}, [h('b', {}, '📻 Radio Ludlein'), h('button.dr-rclose', { onclick: (e) => { e.stopPropagation(); this.toggleRadioPanel(); } }, '✕')]),
+      h('div.dr-rctl', {}, [ctl('Vorheriger Song', '⏮', () => g.radioStep(-1)), ctl(this.radioOn ? 'Radio aus' : 'Radio an', this.radioOn ? '⏸' : '▶', () => g.toggleRadio()), ctl('Nächster Song (N)', '⏭', () => g.radioStep(1))]),
+      h('div.dr-rlist', {}, SONGS.map((s) => h(`button.dr-rsong${this.radioOn && cur && s.id === cur.id ? '.on' : ''}`, { onclick: (e) => { e.stopPropagation(); sfx.click(); g.radioPlay(s.id); } }, [
+        h('img', { src: s.cover, alt: '' }),
+        h('span', {}, [h('b', {}, s.title), h('small', {}, s.note || s.artist)])
+      ])))
+    );
+  }
 
   setSteerMode(mode) { this.left.classList.toggle('tilt', mode === 'tilt'); }
 

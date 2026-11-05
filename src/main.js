@@ -4,6 +4,8 @@ import { createRenderer, loadBrandLogo } from './core/gfx.js';
 import { Hub } from './hub/hub.js';
 import { GAMES } from './games/registry.js';
 import { CertificateScene } from './cert/certificate.js';
+import { PlantafelScene } from './plantafel/scene.js';
+import { storeGet } from './core/ui.js';
 import { registerSW } from 'virtual:pwa-register';
 import { unlockAudio, suspendAudio } from './core/audio.js';
 
@@ -47,6 +49,8 @@ async function boot() {
       setScene(games.get(id));
     },
     showCertificate(stats) { setScene(cert, stats); },
+    /** Plantafel (Tourenplanung) als Vollbild-Ebene über der Spielewelt */
+    openPlantafel() { this.showScene('plantafel', (a) => new PlantafelScene(a)); },
     /** Extra scenes owned by a game (e.g. a finale), created on first use. */
     showScene(key, create, arg) {
       if (!extraScenes.has(key)) extraScenes.set(key, create(app));
@@ -89,6 +93,8 @@ async function boot() {
   const qs = new URLSearchParams(location.search);
   setScene(hub);
   if (qs.get('game')) app.startGame(qs.get('game'));
+  // ?app=plantafel öffnet die Plantafel direkt; war sie beim letzten Mal offen, geht es dort weiter
+  else if (qs.get('app') === 'plantafel' || storeGet('plantafel-open', false)) app.openPlantafel();
 
   const clock = new THREE.Clock();
   let time = 0;

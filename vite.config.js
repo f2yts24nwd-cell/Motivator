@@ -33,7 +33,7 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,png,svg,webp,woff2}'],
+        globPatterns: ['**/*.{js,css,html,png,svg,webp,woff,woff2}'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         // songs are NOT handled by the service worker: Safari/iPadOS plays media unreliably through it
         // a new deploy replaces the old one right away

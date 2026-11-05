@@ -115,6 +115,18 @@ Quartalsende in Ludlein: Danny the Boss fehlen noch 500.000 €. Du holst dir im
 
 Steuerung: Am iPhone im Querformat lenkst du links mit ◀ ▶, rechts sind Gas und Bremse/Rückwärts. Lenken per Neigen lässt sich im Bordcomputer umschalten. Auf der Tastatur: W/S oder Pfeiltasten für Gas und Bremse, A/D zum Lenken, Leertaste für die Handbremse, C für die Kamera (Verfolger, weit, Motorhaube), H für die Hupe, P fürs Autoradio, N für den nächsten Song, R zum Abschleppen auf die Straße und M für den Bordcomputer. Mit 1–3 beantwortest du Fragen. Ein Tipp auf die Minikarte öffnet den Bordcomputer.
 
+## Plantafel (Tourenplanung)
+
+Links im Büro steht eine fahrbare Plantafel. Sie zeigt den echten Plan des nächsten Arbeitstags. Antippen öffnet die **Plantafel-App**, eine minimalistische Tourenplanung für den Außendienst, die als Vollbild-Ebene über der Spielewelt liegt.
+
+- **Plan:** Der Tag ist ein Faden, jeder Besuch eine Perle, dazwischen Fahrzeit und Kilometer. Oben steht eine KI-Zeile, die nur das Wichtigste sagt (Konflikte, Überzeit, bessere Reihenfolge, Lücken).
+- **Karte:** Umschalter „Plan | Karte“ oben rechts. Die Karte legt die Tagesroute auf die Region (lokal gezeichnet, ohne Kartendienst): nummerierte Stopps, Fahrminuten, der Main zur Orientierung. Gestrichelte Ringe sind fällige Kunden in der Nähe, ein Tipp plant sie in diesen Tag ein. „Route starten“ übergibt die offenen Stopps an Google Maps.
+- **Einplanen:** Mikrofon antippen und sprechen („Brenner Freitag um 14 Uhr, 90 Minuten“) oder einen fälligen Kunden unten antippen. Die KI schlägt den Platz mit dem kleinsten Umweg vor. „Woche füllen“ verteilt alle überfälligen Kunden.
+- **Unterwegs:** ±15 min verschiebt die Folgetermine automatisch, Fixtermine bleiben stehen. Vergangene Termine zählen als erledigt. Wischen wechselt den Tag, alles lässt sich rückgängig machen.
+- Die „KI“ ist lokale Planungslogik, es gibt keine API und keinen Server. Alle Daten bleiben im Speicher des Geräts. Die 18 Kunden im Rhein-Main-Gebiet sind Beispieldaten.
+- War die Plantafel beim Schließen der App offen, öffnet sie sich beim nächsten Start direkt wieder. `?app=plantafel` öffnet sie ebenfalls direkt.
+- Schriften: Schibsted Grotesk und Geist Mono (OFL), lokal in `public/plantafel/fonts/`.
+
 ## Jukebox
 
 Im Büro steht rechts neben der Kaffeemaschine eine leuchtende 3D-Jukebox mit Neonbogen, drehender Schallplatte, Laufschrift und Musiknoten.
@@ -179,6 +191,8 @@ src/
                        traffic.js Verkehr/Fußgänger/Cloudius, vehicle.js Fahrphysik, hud.js, drive.js Missionen)
   cert/                Dumêz G. Schwetz, Übergabe-Szene, Zertifikat-Rendering
   hub/avatar.js        Avatar und Kleiderschrank (Business-Look-Pflicht)
+  hub/planboard.js     Plantafel im Büro (3D-Tafel mit dem echten Tagesplan)
+  plantafel/           Plantafel-App: app.js (Planung, KI-Zeile, Sprache, Karte), plantafel.css, scene.js
 public/brand/          offizielles itmX-Logo (PNG)
 public/leadrush/       itmX-Wortmarke für den Lead-Rush-Startbildschirm
 ```

@@ -6,6 +6,7 @@ import { h, mount, clearUI, storeGet, storeSet } from '../core/ui.js';
 import { WARDROBE, loadAvatar, saveAvatar, buildAvatar, disposeAvatar } from './avatar.js';
 import { GAMES } from '../games/registry.js';
 import { buildJukebox, JukeboxPlayer } from './jukebox.js';
+import { buildPlanBoard } from './planboard.js';
 
 const ROOM_W = 26, ROOM_D = 18;
 
@@ -23,7 +24,8 @@ export class Hub {
     this.onDown = this.onDown.bind(this);
     this.onKeyDown = (e) => {
       this.keys.add(e.key.toLowerCase());
-      if (e.key === 'Enter' && this.nearJuke) this.openJuke();
+      if (e.key === 'Enter' && this.nearBoard) this.openBoard();
+      else if (e.key === 'Enter' && this.nearJuke) this.openJuke();
       else if (e.key === 'Enter' && this.near?.game.available) this.launch(this.near.game);
     };
     this.onKeyUp = (e) => this.keys.delete(e.key.toLowerCase());
@@ -175,6 +177,7 @@ export class Hub {
     this.addWhiteboard();
     this.addCoffee(11.6, -1.6);
     this.addJukebox(12.0, 2.6);
+    this.addPlanBoard(-11.2, 5.8);
 
     this.player = this.buildPlayer();
     this.avatar = loadAvatar();
@@ -607,6 +610,37 @@ export class Hub {
     this.jbPlayer.open();
   }
 
+  // ------------------------------------------------------------------ plan board (Plantafel)
+  addPlanBoard(x, z) {
+    const pb = buildPlanBoard();
+    pb.group.position.set(x, 0, z);
+    const rot = 0.62; // angled into the room, towards the camera (mirror of the jukebox)
+    pb.group.rotation.y = rot;
+    this.scene.add(pb.group);
+    this.obstacles.push({ x, z, r: 1.3 });
+    const n = new THREE.Vector3(Math.sin(rot), 0, Math.cos(rot));
+    this.board = { ...pb, front: new THREE.Vector3(x, 0, z).addScaledVector(n, 1.9), faceYaw: rot + Math.PI };
+  }
+
+  openBoard() {
+    unlockAudio();
+    sfx.click();
+    this.hidePrompt();
+    this.lastGame = null;
+    this.app.openPlantafel();
+  }
+
+  showBoardPrompt() {
+    this.hidePrompt();
+    this.prompt = mount(h('div.game-prompt.panel', { 'data-id': 'plantafel' }, [
+      h('h3', {}, 'Plantafel'),
+      h('p', {}, 'Deine Tourenplanung für den Außendienst: Termine per Sprache oder Antippen, die KI legt sie entlang der Route. Mit Kartenansicht.'),
+      h('button.btn', { onclick: () => this.openBoard() }, 'Plantafel öffnen')
+    ]));
+    if (this.hint) this.hint.style.display = 'none';
+    sfx.pop();
+  }
+
   showJukePrompt() {
     this.hidePrompt();
     const cur = this.jbPlayer.current;
@@ -815,6 +849,8 @@ export class Hub {
     window.addEventListener('keyup', this.onKeyUp);
     this.near = null;
     this.nearJuke = false;
+    this.nearBoard = false;
+    this.board.refresh();
     this.mode = 'walk';
     this.buildUI();
     music.play('hub');
@@ -896,8 +932,19 @@ export class Hub {
     const p = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     this.raycaster.setFromCamera(p, this.camera);
     const jh = this.raycaster.intersectObjects(this.jukebox.pickables, false)[0];
+    const bh = this.raycaster.intersectObjects(this.board.pickables, false)[0];
     const picks = this.cabinets.flatMap((c) => c.pickables);
     const hit = this.raycaster.intersectObjects(picks, false)[0];
+    if (bh && (!hit || bh.distance < hit.distance) && (!jh || bh.distance < jh.distance)) {
+      this.walkTarget = this.board.front.clone();
+      this.walkCab = null;
+      this.walkJuke = false;
+      this.walkBoard = true;
+      this.marker.position.set(this.walkTarget.x, 0.02, this.walkTarget.z);
+      this.marker.visible = true;
+      return;
+    }
+    this.walkBoard = false;
     if (jh && (!hit || jh.distance < hit.distance)) {
       this.walkTarget = this.jukebox.front.clone();
       this.walkCab = null;
@@ -944,6 +991,7 @@ export class Hub {
         this.marker.visible = false;
         if (this.walkCab) pl.root.rotation.y = Math.PI;
         if (this.walkJuke) { pl.root.rotation.y = this.jukebox.faceYaw; this.walkJuke = false; this.openJuke(); }
+        if (this.walkBoard) { pl.root.rotation.y = this.board.faceYaw; this.walkBoard = false; this.openBoard(); return; }
         dir.set(0, 0, 0);
       }
     }
@@ -1009,12 +1057,18 @@ export class Hub {
         if (jbPlaying) this.jbChipTitle.textContent = this.jbPlayer.current.title;
       }
     }
-    const nearJuke = !wardrobe && !near && Math.hypot(pos.x - this.jukebox.front.x, pos.z - this.jukebox.front.z) < 1.7;
+    const nearBoard = !wardrobe && !near && Math.hypot(pos.x - this.board.front.x, pos.z - this.board.front.z) < 1.8;
+    this.board.update(dt, time, nearBoard);
+    if (nearBoard !== this.nearBoard) {
+      this.nearBoard = nearBoard;
+      if (nearBoard) { this.near = null; if (!this.walkBoard) this.showBoardPrompt(); } else if (!near) this.hidePrompt();
+    }
+    const nearJuke = !wardrobe && !near && !nearBoard && Math.hypot(pos.x - this.jukebox.front.x, pos.z - this.jukebox.front.z) < 1.7;
     if (nearJuke !== this.nearJuke) {
       this.nearJuke = nearJuke;
-      if (nearJuke) { this.near = null; this.showJukePrompt(); } else if (!near) this.hidePrompt();
+      if (nearJuke) { this.near = null; this.showJukePrompt(); } else if (!near && !nearBoard) this.hidePrompt();
     }
-    if (near !== this.near && !wardrobe && !nearJuke) {
+    if (near !== this.near && !wardrobe && !nearJuke && !nearBoard) {
       this.near = near;
       if (near) this.showPrompt(near); else this.hidePrompt();
     }

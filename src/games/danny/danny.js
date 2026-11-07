@@ -126,7 +126,7 @@ export class DannyGame {
     this.best = storeGet('danny-best', 0);
     this.voice = storeGet('danny-voice', true);
     this.resize(window.innerWidth, window.innerHeight);
-    this.showMenu();
+    this.showSafe();
     if (!this.warmed) { this.warmed = true; try { this.app.gfx.renderer.compile(this.scene, this.camera); } catch { /* ignore */ } }
   }
 
@@ -179,6 +179,92 @@ export class DannyGame {
   }
   shutUp() { try { window.speechSynthesis?.cancel(); } catch { /* ignore */ } }
 
+  // ------------------------------------------------------------------ key safe (code 0815)
+  showSafe() {
+    this.showMenu(); // sets up stage, music and round state behind the safe
+    clearUI();
+    this.baseUI();
+    this.state = 'safe';
+    const CODE = [0, 8, 1, 5];
+    const digits = [0, 0, 0, 0];
+    let active = 0, tries = 0, opened = false;
+    const wheels = digits.map((_, i) => {
+      const prev = h('span.p'), cur = h('span.c'), next = h('span.n');
+      const el = h('div.dn-wheel', { 'data-i': String(i) }, [h('div.dn-wheel-strip', {}, [prev, cur, next])]);
+      return { el, prev, cur, next };
+    });
+    const render = (i, dir = 0) => {
+      const w = wheels[i], d = digits[i];
+      w.prev.textContent = String((d + 9) % 10);
+      w.cur.textContent = String(d);
+      w.next.textContent = String((d + 1) % 10);
+      wheels.forEach((x, k) => x.el.classList.toggle('on', k === active));
+      if (dir) { w.el.classList.remove('up', 'down'); void w.el.offsetWidth; w.el.classList.add(dir > 0 ? 'up' : 'down'); }
+    };
+    const turn = (i, dir) => {
+      if (opened) return;
+      active = i;
+      digits[i] = (digits[i] + dir + 10) % 10;
+      render(i, dir);
+      sfx.click();
+      hint.classList.remove('bad');
+    };
+    wheels.forEach((w, i) => {
+      render(i);
+      let y0 = 0, moved = false;
+      w.el.addEventListener('pointerdown', (e) => { unlockAudio(); y0 = e.clientY; moved = false; w.el.setPointerCapture?.(e.pointerId); e.preventDefault(); });
+      w.el.addEventListener('pointermove', (e) => { if (!y0) return; const dy = e.clientY - y0; if (Math.abs(dy) > 22) { turn(i, dy < 0 ? 1 : -1); y0 = e.clientY; moved = true; } });
+      w.el.addEventListener('pointerup', (e) => {
+        if (!moved && y0) { const r = w.el.getBoundingClientRect(); turn(i, e.clientY < r.top + r.height / 2 ? -1 : 1); }
+        y0 = 0;
+      });
+      w.el.addEventListener('wheel', (e) => { e.preventDefault(); turn(i, e.deltaY > 0 ? 1 : -1); }, { passive: false });
+    });
+    const hint = h('p.dn-safe-hint', {}, 'Stell den Code ein und drück den Schieber.');
+    const door = h('div.dn-safe-door', {}, [h('div.dn-safe-inside', {}, [h('i', {}, '🔑'), h('b', {}, 'WACHE')]), h('div.dn-safe-front', {}, [h('em', {}, 'itmX'), h('small', {}, 'SCHLÜSSELTRESOR · FEUERWACHE')])]);
+    const tryOpen = () => {
+      if (opened) return;
+      unlockAudio();
+      slider.classList.remove('push'); void slider.offsetWidth; slider.classList.add('push');
+      if (digits.every((d, i) => d === CODE[i])) {
+        opened = true;
+        sfx.clang(1.1);
+        safe.classList.add('open');
+        hint.classList.remove('bad');
+        hint.textContent = '✔ Richtig! Ganz normale 0815-Arbeitseinstellung. Einsatz frei.';
+        setTimeout(() => sfx.powerup(), 350);
+        setTimeout(() => { if (this.state === 'safe') this.showMenu(); }, 1700);
+      } else {
+        tries++;
+        sfx.thud();
+        setTimeout(() => sfx.error(), 60);
+        safe.classList.remove('shake'); void safe.offsetWidth; safe.classList.add('shake');
+        hint.classList.add('bad');
+        hint.textContent = `✖ Falsch${tries > 1 ? ` (${tries}. Versuch)` : ''}. Tipp: Der Code entspricht deiner Arbeitseinstellung.`;
+      }
+    };
+    const slider = h('button.dn-slider', { title: 'Öffnen', onclick: tryOpen }, h('i'));
+    const safe = h('div.dn-safe', {}, [
+      h('div.dn-safe-window', {}, [slider, ...wheels.map((w) => w.el)]),
+      door
+    ]);
+    this.safeKeys = (e) => {
+      if (opened) return;
+      if (/^[0-9]$/.test(e.key)) { digits[active] = +e.key; render(active, 1); sfx.click(); active = Math.min(3, active + 1); render(active); }
+      else if (e.key === 'ArrowLeft') { active = Math.max(0, active - 1); render(active); }
+      else if (e.key === 'ArrowRight') { active = Math.min(3, active + 1); render(active); }
+      else if (e.key === 'ArrowUp') turn(active, -1);
+      else if (e.key === 'ArrowDown') turn(active, 1);
+      else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tryOpen(); }
+    };
+    mount(h('div.overlay.dn-safe-wrap', {}, h('div.dn-safe-stage', {}, [
+      h('div.kicker', {}, 'Feuerwache itmX · Zutritt nur für Danny'),
+      h('h2', {}, 'Schlüsseltresor'),
+      safe,
+      hint
+    ])));
+  }
+
   // ------------------------------------------------------------------ menu
   baseUI() {
     clearUI();
@@ -199,7 +285,10 @@ export class DannyGame {
     const voiceBtn = h('button.dn-toggle', { onclick: () => { this.voice = !this.voice; storeSet('danny-voice', this.voice); voiceBtn.textContent = this.voice ? '🗣️ Sprachausgabe: an' : '🤐 Sprachausgabe: aus'; sfx.click(); if (this.voice) this.speak('Frag den Danny!', { force: true }); } }, this.voice ? '🗣️ Sprachausgabe: an' : '🤐 Sprachausgabe: aus');
     const touch = this.coarse;
     mount(h('div.overlay.dn-menu', {}, h('div.card.panel.dn-card', {}, [
-      h('div.dn-emblem-wrap', { html: EMBLEM_SVG }),
+      h('div.dn-head', {}, [
+        h('div.dn-emblem-wrap', { html: EMBLEM_SVG }),
+        h('figure.dn-portrait', {}, [h('img', { src: `${import.meta.env.BASE_URL}danny/danny.webp`, alt: 'Danny' }), h('figcaption', {}, 'Einsatzleiter Danny')])
+      ]),
       h('div.kicker', {}, 'Bonusspiel · Feuerwache itmX'),
       h('h1', {}, 'Frag den Danny!'),
       h('p', {}, 'Immer wenn es brennt, kommt Feuerwehrmann Danny. Berater denken nicht, Kunden erfinden Anforderungen, Entwickler hassen ihren Code und irgendwas ist mit SAP. Lösch alles, bevor das Projekt abbrennt. Eine Schicht dauert 3 Minuten.'),
@@ -509,6 +598,7 @@ export class DannyGame {
   onKeyDown(e) {
     const k = e.key.toLowerCase();
     this.keys.add(k);
+    if (this.state === 'safe') { this.safeKeys?.(e); return; }
     if (this.state === 'menu' && e.key === 'Enter') { unlockAudio(); this.startAlarm(); return; }
     if (this.state !== 'play' && this.state !== 'count') return;
     const idx = ['1', '2', '3', '4'].indexOf(e.key);
@@ -1581,7 +1671,7 @@ export class DannyGame {
 
   // ------------------------------------------------------------------ main loop
   update(dt, time) {
-    if (this.state === 'menu' || this.state === 'alarm') { this.updateStage(dt, time); this.fx.update(dt, time); return; }
+    if (this.state === 'menu' || this.state === 'alarm' || this.state === 'safe') { this.updateStage(dt, time); this.fx.update(dt, time); return; }
     if (this.state === 'idle') return;
     if (this.hitStop > 0) { this.hitStop -= dt; dt *= 0.12; }
     if (this.state === 'play') {

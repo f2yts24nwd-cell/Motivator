@@ -168,7 +168,7 @@ export function buildDanny() {
   const navy = phys(0x1b2640, { roughness: 0.75, clearcoat: 0.1, sheen: 0.4, sheenColor: new THREE.Color(0x4060a0) });
   const reflect = std(0xe4ff3a, { emissive: 0xc8e020, emissiveIntensity: 0.35, roughness: 0.4 });
   const silver = std(0xd6dde8, { emissive: 0x8090a0, emissiveIntensity: 0.25, metalness: 0.6, roughness: 0.25 });
-  const skin = phys(0xe8b892, { roughness: 0.55, clearcoat: 0, sheen: 0.4, sheenColor: new THREE.Color(0xff9a7a) });
+  const skin = phys(0xf0c4a4, { roughness: 0.55, clearcoat: 0, sheen: 0.4, sheenColor: new THREE.Color(0xff9a7a) });
   const boot = phys(0x121212, { roughness: 0.3, clearcoat: 1 });
   const glove = std(0x1a1a1a, { roughness: 0.8 });
 
@@ -225,51 +225,97 @@ export function buildDanny() {
   head.scale.set(1, 1.08, 1);
   head.position.y = 0.17;
   neck.add(head);
+  // face modelled on the real Danny: blue eyes, black rectangular glasses, short grey-blond
+  // hair swept up, light stubble, friendly half smile
   const eyeW = std(0xffffff, { roughness: 0.2 });
+  const iris = std(0x5f93c4, { roughness: 0.15 });
   const eyeB = std(0x111111, { roughness: 0.2 });
-  for (const sx of [-0.075, 0.075]) {
-    const e = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 10), eyeW);
-    e.position.set(sx, 0.2, 0.18);
-    const p = new THREE.Mesh(new THREE.SphereGeometry(0.018, 10, 8), eyeB);
-    p.position.set(sx, 0.2, 0.21);
-    const brow = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.022, 0.02), std(0x3a2414));
-    brow.position.set(sx, 0.255, 0.195);
-    brow.rotation.z = sx > 0 ? -0.25 : 0.25;
-    neck.add(e, p, brow);
+  const browM = std(0x9a8560, { roughness: 0.9 });
+  for (const sx of [-0.072, 0.072]) {
+    const e = new THREE.Mesh(new THREE.SphereGeometry(0.032, 12, 10), eyeW);
+    e.position.set(sx, 0.2, 0.178);
+    e.scale.y = 0.8;
+    const ir = new THREE.Mesh(new THREE.SphereGeometry(0.017, 10, 8), iris);
+    ir.position.set(sx, 0.2, 0.205);
+    const p = new THREE.Mesh(new THREE.SphereGeometry(0.008, 8, 6), eyeB);
+    p.position.set(sx, 0.2, 0.221);
+    const brow = new THREE.Mesh(new RoundedBoxGeometry(0.085, 0.018, 0.02, 1, 0.008), browM);
+    brow.position.set(sx, 0.262, 0.192);
+    brow.rotation.z = sx > 0 ? -0.08 : 0.08;
+    neck.add(e, ir, p, brow);
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), skin);
+    ear.scale.set(0.45, 1, 0.75);
+    ear.position.set(sx > 0 ? 0.208 : -0.208, 0.17, 0);
+    neck.add(ear);
   }
-  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 10), skin);
-  nose.position.set(0, 0.15, 0.21);
+  // glasses: black rectangular frames, silver temples
+  const frameM = phys(0x0c0c0e, { roughness: 0.25, clearcoat: 1 });
+  const lensShape = (w, hh, r) => { const sh = new THREE.Shape(); sh.moveTo(-w / 2 + r, -hh / 2); sh.lineTo(w / 2 - r, -hh / 2); sh.quadraticCurveTo(w / 2, -hh / 2, w / 2, -hh / 2 + r); sh.lineTo(w / 2, hh / 2 - r); sh.quadraticCurveTo(w / 2, hh / 2, w / 2 - r, hh / 2); sh.lineTo(-w / 2 + r, hh / 2); sh.quadraticCurveTo(-w / 2, hh / 2, -w / 2, hh / 2 - r); sh.lineTo(-w / 2, -hh / 2 + r); sh.quadraticCurveTo(-w / 2, -hh / 2, -w / 2 + r, -hh / 2); return sh; };
+  const rim = lensShape(0.105, 0.058, 0.012);
+  rim.holes.push(lensShape(0.088, 0.042, 0.008));
+  const rimGeo = new THREE.ExtrudeGeometry(rim, { depth: 0.012, bevelEnabled: false, curveSegments: 4 });
+  for (const sx of [-0.072, 0.072]) {
+    const f = new THREE.Mesh(rimGeo, frameM);
+    f.position.set(sx, 0.2, 0.222);
+    f.rotation.y = sx > 0 ? -0.12 : 0.12;
+    const lens = new THREE.Mesh(new THREE.PlaneGeometry(0.09, 0.044), new THREE.MeshPhysicalMaterial({ color: 0xdfeaf5, transparent: true, opacity: 0.18, roughness: 0.05, clearcoat: 1 }));
+    lens.position.set(sx, 0.2, 0.228);
+    lens.rotation.y = f.rotation.y;
+    const temple = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.012, 0.2), std(0xd8dce2, { metalness: 0.9, roughness: 0.25 }));
+    temple.position.set(sx > 0 ? 0.2 : -0.2, 0.205, 0.13);
+    temple.rotation.y = sx > 0 ? -0.18 : 0.18;
+    neck.add(f, lens, temple);
+  }
+  const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.01, 0.01), frameM);
+  bridge.position.set(0, 0.215, 0.232);
+  neck.add(bridge);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.036, 12, 10), skin);
+  nose.scale.set(0.9, 1.1, 1);
+  nose.position.set(0, 0.155, 0.21);
   neck.add(nose);
-  // the moustache. Every firefighter needs one.
-  const stache = new THREE.Group();
-  for (const sx of [-1, 1]) {
-    const m = new THREE.Mesh(new THREE.CapsuleGeometry(0.03, 0.1, 4, 8), std(0x3a2414, { roughness: 0.9 }));
-    m.rotation.z = Math.PI / 2 + sx * 0.35;
-    m.position.set(sx * 0.055, 0.095, 0.2);
-    stache.add(m);
+  // short swept-up hair (sides visible under the helmet) and light grey-blond stubble
+  const hairM = std(0x7f6f58, { roughness: 0.95 });
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.218, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.42), hairM);
+  hair.scale.set(1.01, 1.1, 1.03);
+  hair.position.set(0, 0.18, -0.01);
+  neck.add(hair);
+  for (let i = 0; i < 7; i++) {
+    const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.09, 6), hairM);
+    tuft.position.set(-0.12 + i * 0.04, 0.3, 0.17 - Math.abs(i - 3) * 0.015);
+    tuft.rotation.x = 1.0;
+    neck.add(tuft);
   }
-  neck.add(stache);
-  const grin = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.01, 6, 12, Math.PI), std(0x5a1010));
-  grin.rotation.z = Math.PI;
-  grin.position.set(0, 0.07, 0.19);
+  const stubM = new THREE.MeshStandardMaterial({ color: 0x7a6a52, roughness: 1, transparent: true, opacity: 0.8 });
+  const stubble = new THREE.Mesh(new THREE.SphereGeometry(0.214, 24, 12, Math.PI / 2 - 1.4, 2.8, 1.8, 0.95), stubM);
+  stubble.scale.set(1.01, 1.08, 1.02);
+  stubble.position.y = 0.17;
+  const stache = new THREE.Mesh(new THREE.CapsuleGeometry(0.016, 0.07, 4, 8), stubM);
+  stache.rotation.z = Math.PI / 2;
+  stache.position.set(0, 0.112, 0.205);
+  neck.add(stubble, stache);
+  const grin = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.007, 6, 14, Math.PI * 0.8), std(0x9a4a42));
+  grin.rotation.z = Math.PI * 1.1;
+  grin.position.set(0.004, 0.092, 0.2);
   neck.add(grin);
   // helmet: neon yellow shell, crest, dark visor
-  const helmMat = phys(0xe6f02a, { roughness: 0.25, clearcoat: 1, emissive: 0x2a2c00, emissiveIntensity: 0.4 });
+  const helmMat = phys(0xe6f02a, { roughness: 0.25, clearcoat: 1, emissive: 0x2a2c00, emissiveIntensity: 0.12 });
   const shell = new THREE.Mesh(new THREE.SphereGeometry(0.255, 28, 16, 0, Math.PI * 2, 0, Math.PI / 2), helmMat);
   shell.scale.set(1, 1.1, 1.12);
-  shell.position.y = 0.22;
+  shell.position.y = 0.31;
   const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.285, 0.3, 0.035, 28), helmMat);
   brim.scale.z = 1.15;
-  brim.position.set(0, 0.215, -0.01);
+  brim.position.set(0, 0.305, -0.02);
   const crest = new THREE.Mesh(new RoundedBoxGeometry(0.06, 0.08, 0.5, 2, 0.025), helmMat);
-  crest.position.y = 0.48;
+  crest.position.y = 0.57;
   const visor = new THREE.Mesh(new THREE.SphereGeometry(0.26, 24, 10, -Math.PI / 2.6, Math.PI / 1.3, Math.PI / 2.2, Math.PI / 5), new THREE.MeshPhysicalMaterial({ color: 0x223040, roughness: 0.05, metalness: 0.3, transparent: true, opacity: 0.55, clearcoat: 1 }));
   visor.position.set(0, 0.25, 0.03);
   visor.scale.set(1, 1.1, 1.15);
+  visor.rotation.x = -0.75; // flipped up, so you can see Danny's glasses
   const helmBand = new THREE.Mesh(new THREE.CylinderGeometry(0.262, 0.262, 0.03, 28, 1, true), silver);
   helmBand.scale.z = 1.12;
-  helmBand.position.y = 0.3;
-  neck.add(shell, brim, crest, visor, helmBand);
+  helmBand.position.y = 0.39;
+  void visor; // no visor: you want to see Danny's glasses
+  neck.add(shell, brim, crest, helmBand);
 
   // arms (pivot at the shoulder; rotation.x < 0 swings forward)
   const arms = [];
@@ -462,6 +508,12 @@ export function buildNPC(role) {
     hair.scale.set(1.03, role === 'berater' ? 0.75 : 0.9, 1.05);
     hair.rotation.x = -0.25;
     neck.add(hair);
+  for (let i = 0; i < 7; i++) {
+    const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.09, 6), hairM);
+    tuft.position.set(-0.12 + i * 0.04, 0.3, 0.17 - Math.abs(i - 3) * 0.015);
+    tuft.rotation.x = 1.0;
+    neck.add(tuft);
+  }
   }
   if (role === 'dev') {
     const band = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.02, 6, 20, Math.PI), M(0x111111));

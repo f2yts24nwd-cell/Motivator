@@ -3,7 +3,7 @@ import { rand, clamp, lerp } from '../../core/gfx.js';
 import { sfx, music, unlockAudio, isMuted, setMuted, createNoiseLoop } from '../../core/audio.js';
 import { h, mount, clearUI, storeGet, storeSet } from '../../core/ui.js';
 import { FX } from './fx.js';
-import { buildDanny, buildNPC, tintNPC, buildSAP, buildSpaghetti, buildLastenheft, buildDuck, buildToolbox, screenTexture } from './models.js';
+import { buildDanny, buildNPC, tintNPC, buildSAP, buildSpaghetti, buildLastenheft, buildDuck, buildToolbox, screenTexture, buildStraw } from './models.js';
 import { buildOffice, buildStage, AW, AD, STAGE } from './office.js';
 import * as C from './content.js';
 import { EMBLEM_SVG } from './emblem.js';
@@ -111,7 +111,7 @@ export class DannyGame {
     this.warnGeo.rotateX(-Math.PI / 2);
     this.fx = new FX(s);
     // pools for the problem objects
-    this.saps = []; this.monsters = []; this.docs = []; this.ducks = []; this.pickups = []; this.fires = [];
+    this.saps = []; this.monsters = []; this.docs = []; this.ducks = []; this.pickups = []; this.fires = []; this.straws = [];
     this.duckGeo = buildDuck();
     this.screens = { error: screenTexture('error') };
   }
@@ -362,7 +362,7 @@ export class DannyGame {
     music.setIntensity(4);
     this.speak('Alarm! Einsatz für Danny!', { force: true, rate: 1.15 });
     mount(h('div.dn-strobe.passthrough'));
-    mount(h('div.dn-alarm.passthrough', {}, [h('b', {}, 'ALARM!'), h('span', {}, 'Einsatz für Danny')]));
+    mount(h('div.dn-alarm.passthrough', {}, [h('b', {}, 'ALAAARM!'), h('span', {}, 'Einsatz für Danny')]));
   }
 
   // ------------------------------------------------------------------ round
@@ -374,6 +374,12 @@ export class DannyGame {
     for (const d of this.docs) this.scene.remove(d.group);
     for (const d of this.ducks) this.scene.remove(d.mesh);
     for (const p of this.pickups) this.scene.remove(p.group);
+    for (const st of this.straws) this.scene.remove(st.group);
+    this.straws.length = 0;
+    this.strohT = rand(45, 70);
+    this.maskT = 0;
+    this.danny.mask.visible = false;
+    document.querySelectorAll('.dn-meme, .dn-meme-alarm').forEach((e) => e.remove());
     this.saps.length = 0; this.monsters.length = 0; this.docs.length = 0; this.ducks.length = 0; this.pickups.length = 0;
     this.problems = [];
     this.fx.clear();
@@ -869,6 +875,18 @@ export class DannyGame {
       this.say(this.kunde.neck, pick(def.say), 'kunde', 4.2);
       this.speak(pick(def.say), { pitch: 0.75, rate: 1.0 });
       sfx.whoosh();
+    } else if (type === 'stroh') {
+      const p = this.freeSpot(2.5);
+      if (!p) return false;
+      const st = buildStraw();
+      st.group.position.set(p.x, 10, p.z);
+      this.scene.add(st.group);
+      const obj = { ...st, pos: p, vy: 0, landed: false, wet: 0, P, memeT: 0 };
+      this.straws.push(obj);
+      P.obj = obj;
+      P.pos.copy(p);
+      P.t = -1.4; // the fall does not count
+      sfx.whoosh();
     } else if (type === 'brand') {
       const seat = pick(this.office.seats);
       const p = seat.top.clone();
@@ -933,7 +951,8 @@ export class DannyGame {
     const i = this.problems.indexOf(P);
     if (i >= 0) this.problems.splice(i, 1);
     const at = npc ? npc.seat.top.clone() : P.pos.clone();
-    const f = this.addFire(at, 0.7);
+    if (P.type === 'stroh') this.removeStraw(P.obj, true);
+    const f = this.addFire(P.type === 'stroh' ? at.setY(0.05) : at, P.type === 'stroh' ? 1.35 : 0.7);
     if (f) {
       const NP = { type: 'brand', def: C.PROBLEMS.brand, t: 0, limit: 0, done: false, fire: f, pos: at.clone() };
       f.problem = NP;
@@ -941,7 +960,7 @@ export class DannyGame {
       this.addMarker(NP);
     }
     this.escalation = Math.min(100, this.escalation + 6);
-    this.feed(`🔥 ${pick(C.ESCALATED)}`, 'bad');
+    this.feed(`🔥 ${P.type === 'stroh' ? C.MEMES.stroh.fail : pick(C.ESCALATED)}`, 'bad');
     this.popup(at.clone().add(V(0, 1.6, 0)), 'ESKALIERT!', 'bad');
     sfx.error();
     this.shake = Math.max(this.shake, 0.3);
@@ -953,6 +972,7 @@ export class DannyGame {
       if (P.limit && P.t > P.limit) { this.failProblem(P); continue; }
       if (P.type === 'brand' && P.fire && !this.fires.includes(P.fire)) { if (!P.done) this.solveProblem(P, P.fire.pos.clone().add(V(0, 1, 0)), 'foam'); }
     }
+    this.updateStraws(dt);
     // flying requirement documents
     for (const d of [...this.docs]) {
       d.t += dt / d.dur;
@@ -1032,6 +1052,82 @@ export class DannyGame {
         if (this.validSpot(p.x, p.z, 0)) this.addFire(p, 0.4);
       }
     }
+  }
+
+  // ------------------------------------------------------------------ memes
+  updateStraws(dt) {
+    for (const st of [...this.straws]) {
+      if (!st.landed) {
+        st.vy -= 22 * dt;
+        st.group.position.y += st.vy * dt;
+        st.group.rotation.y += dt * 2;
+        if (st.group.position.y <= 0) {
+          st.group.position.y = 0;
+          st.landed = true;
+          sfx.thud();
+          this.shake = Math.max(this.shake, 0.3);
+          this.fx.dust(st.pos, 22, 1.4);
+          this.fx.noodles.burst(st.pos.clone().add(V(0, 0.4, 0)), 0xe0bf52, 18, { speed: 4, up: 4, size: 0.05 });
+          this.strawMeme(st);
+        }
+        continue;
+      }
+      if (st.wet > 0) st.mat.color.setScalar(1 - Math.min(1, st.wet) * 0.45);
+      // a fire next to the straw sets it alight right away
+      if (!st.P.done && this.fires.some((f) => Math.hypot(f.pos.x - st.pos.x, f.pos.z - st.pos.z) < 1.6 + f.I * 0.4)) this.failProblem(st.P);
+    }
+  }
+
+  strawMeme(st) {
+    const M = C.MEMES.stroh;
+    const near = [...this.npcs].filter((n) => n.fall <= 0).sort((a, b) => a.root.position.distanceTo(st.pos) - b.root.position.distanceTo(st.pos));
+    const asker = near[0], second = near[1] || near[0];
+    this.maskT = 14;
+    this.danny.mask.visible = true;
+    sfx.whoosh();
+    this.say(asker.neck, M.q, 'npc', 3.2);
+    this.speak(M.q, { pitch: 1.25, force: true });
+    this.later(1.7, () => {
+      this.say(second.neck, M.a, 'npc', 3.2);
+      this.speak(M.a, { pitch: 0.85, force: true });
+      this.memeCard(M.top, M.bottom, '🌾', 'stroh');
+    });
+    this.later(3.6, () => this.say(this.danny.neck, pick(M.danny), 'danny', 3));
+  }
+
+  removeStraw(st, burn) {
+    const i = this.straws.indexOf(st);
+    if (i < 0) return;
+    this.straws.splice(i, 1);
+    if (burn) { this.fx.noodles.burst(st.pos.clone().add(V(0, 0.5, 0)), 0xe0bf52, 30, { speed: 6, up: 7, size: 0.05 }); this.fx.sparks(st.pos.clone().add(V(0, 0.5, 0)), 40, 'ember', 6); sfx.ignite(); }
+    this.scene.remove(st.group);
+  }
+
+  /** classic image macro: picture with Impact text top and bottom */
+  memeCard(top, bottom, icon, cls = '') {
+    document.querySelectorAll('.dn-meme').forEach((e) => e.remove());
+    const el = mount(h(`div.dn-meme.passthrough.${cls}`, {}, [
+      h('div.dn-meme-pic', {}, [h('i', {}, icon), h('i.mask', {}, '😷')]),
+      h('b.top', {}, top),
+      h('b.bottom', {}, bottom)
+    ]));
+    setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 500); }, 3600);
+  }
+
+  /** the fire brigade ALARM meme: everybody jumps up and screams */
+  memeAlarm(stage) {
+    const M = C.MEMES.alarm;
+    document.querySelectorAll('.dn-meme-alarm').forEach((e) => e.remove());
+    const el = mount(h('div.dn-meme-alarm.passthrough', {}, [h('b', {}, M.big), h('span', {}, `ALARMSTUFE ${stage + 1}: ${M.subs[stage % M.subs.length]}`)]));
+    setTimeout(() => el.remove(), 1900);
+    sfx.siren(1);
+    sfx.alarm();
+    this.shake = Math.max(this.shake, 0.5);
+    this.speak('Alaaarm!', { pitch: 1.3, rate: 0.9, force: true });
+    const people = this.npcs.filter((n) => n.fall <= 0);
+    people.forEach((n) => { n.react = { type: 'alarm', t: -Math.random() * 0.25 }; });
+    for (const n of people.sort(() => Math.random() - 0.5).slice(0, 3)) this.say(n.neck, pick(M.shouts), 'shout', 1.8);
+    this.say(this.danny.neck, 'ALAAARM! Danny übernimmt!', 'danny', 2);
   }
 
   knockDown(npc) {
@@ -1136,7 +1232,7 @@ export class DannyGame {
       const d = Math.hypot(dx, dz), min = r + 0.3;
       if (d < min && d > 1e-4) { pos.x = np.x + (dx / d) * min; pos.z = np.z + (dz / d) * min; }
     }
-    for (const s of this.saps) {
+    for (const s of [...this.saps, ...this.straws]) {
       if (!s.landed) continue;
       const dx = pos.x - s.pos.x, dz = pos.z - s.pos.z;
       const d = Math.hypot(dx, dz), min = r + 0.85;
@@ -1257,6 +1353,18 @@ export class DannyGame {
       m.foamHp -= dt * k * 0.6;
       m.hurt = 0.1;
       if (m.foamHp <= 0) this.killMonster(m, 'foam');
+    }
+    for (const st of [...this.straws]) {
+      if (!st.landed || st.P.done) continue;
+      const k = hits(st.pos, 0.8);
+      if (!k) continue;
+      st.wet += dt * k * 0.8;
+      if (Math.random() < dt * 10) this.fx.splash(st.pos.clone().add(V(0, 0.8, 0)), 3);
+      if (st.wet >= 1) {
+        this.solveProblem(st.P, st.pos.clone().add(V(0, 1.6, 0)), 'foam');
+        const ref = st;
+        this.later(2.5, () => this.removeStraw(ref, false));
+      }
     }
     for (const s of this.saps) {
       if (!s.landed) continue;
@@ -1562,7 +1670,8 @@ export class DannyGame {
       n.panic = Math.max(0, n.panic - dt * 0.6);
       if (n.react) { n.react.t += dt; if (n.react.t > 1.1) n.react = null; }
       const r = n.react;
-      const stand = n.seat ? ((n.state === 'shout' || n.panic > 0.4 || n.fall > 0) ? 1 : 0) : 1;
+      const alarmed = n.react?.type === 'alarm' && n.react.t > 0;
+      const stand = n.seat ? ((n.state === 'shout' || n.panic > 0.4 || n.fall > 0 || alarmed) ? 1 : 0) : 1;
       n.standK = lerp(n.standK, stand, clamp(dt * 6, 0, 1));
       const b = n.body;
       // base position: seat, pulled out into the aisle when standing
@@ -1598,6 +1707,12 @@ export class DannyGame {
         aL = -2.4 + Math.sin(time * 20 + n.ph) * 0.6; aR = -2.4 + Math.sin(time * 20 + n.ph + 2) * 0.6; zL = 0.5; zR = -0.5;
         b.position.x = Math.sin(time * 30) * 0.03;
         if (Math.random() < dt * 0.15 && this.state === 'play') this.say(n.neck, pick(['ES BRENNT! DANNYYY!', 'Ich hab die Sicherung extra nicht angefasst!', 'Mein Laptop! Meine Pornos! Äh, Präsentationen!', 'Das ist bestimmt dieses Burn-out!', 'Rettet die Kaffeemaschine zuerst!']), 'shout', 2.2);
+      }
+      if (alarmed) {
+        const k = Math.sin(Math.min(1, r.t / 1.1) * Math.PI);
+        aL = -3.0 + Math.sin(time * 18) * 0.25; aR = -3.0 + Math.sin(time * 18 + 1) * 0.25; zL = 0.4; zR = -0.4;
+        b.position.y += Math.abs(Math.sin(r.t * 9)) * 0.35 * k;
+        neckX = -0.35;
       }
       if (r?.type === 'wet') { const k = Math.sin(Math.min(1, r.t / 1.1) * Math.PI); aL = lerp(aL, -2.2, k); aR = lerp(aR, -2.0, k); b.rotation.x = -0.25 * k; }
       if (r?.type === 'zap') {
@@ -1711,9 +1826,14 @@ export class DannyGame {
       if (st !== this.stageIdx) {
         this.stageIdx = st;
         this.feed(C.STAGE_LINES[st], 'stage');
-        sfx.siren(1);
-        this.popup(this.danny.root.position.clone().add(V(0, 3, 0)), `ALARMSTUFE ${st + 1}`, 'combo');
+        this.memeAlarm(st);
       }
+      this.strohT -= dt;
+      if (this.strohT <= 0) {
+        this.strohT = rand(55, 85);
+        if (!this.straws.length) this.spawnProblem('stroh');
+      }
+      if (this.maskT > 0) { this.maskT -= dt; if (this.maskT <= 0) this.danny.mask.visible = false; }
       this.spawnT -= dt;
       const open = this.problems.length;
       if (this.spawnT <= 0) {

@@ -403,7 +403,29 @@ export function buildDanny() {
   shadow(root);
   back.castShadow = false;
   patch.castShadow = false;
-  return { root, body, legs, arms, hands, neck, tools, ext };
+  // breathing apparatus mask (for the straw meme), hidden by default
+  const mask = new THREE.Group();
+  const rubber = phys(0x15161a, { roughness: 0.6, clearcoat: 0.3 });
+  const frame = new THREE.Mesh(new THREE.SphereGeometry(0.235, 24, 14, Math.PI / 2 - 1.15, 2.3, 1.05, 1.35), rubber);
+  frame.scale.set(1, 1.1, 1.12);
+  frame.position.y = 0.17;
+  const glass = new THREE.Mesh(new THREE.SphereGeometry(0.242, 24, 12, Math.PI / 2 - 0.85, 1.7, 1.12, 0.75), new THREE.MeshPhysicalMaterial({ color: 0xbfd8ff, transparent: true, opacity: 0.32, roughness: 0.05, clearcoat: 1, depthWrite: false }));
+  glass.scale.set(1, 1.1, 1.12);
+  glass.position.y = 0.17;
+  const filter = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.1, 18), std(0x50555e, { metalness: 0.6, roughness: 0.4 }));
+  filter.rotation.x = Math.PI / 2;
+  filter.position.set(0, 0.07, 0.27);
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.071, 0.071, 0.025, 18), std(0xff7a00));
+  band.rotation.x = Math.PI / 2;
+  band.position.set(0, 0.07, 0.3);
+  const hose = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.025, 8, 20, Math.PI * 0.9), rubber);
+  hose.rotation.set(0, Math.PI / 2, Math.PI * 0.55);
+  hose.position.set(0.05, -0.12, 0.12);
+  mask.add(frame, glass, filter, band, hose);
+  mask.visible = false;
+  neck.add(mask);
+
+  return { root, body, legs, arms, hands, neck, tools, ext, mask };
 }
 
 // ------------------------------------------------------------------ rubber duck
@@ -945,4 +967,46 @@ export function buildFireStation() {
   }
   shadow(g);
   return { group: g, door, lamps, doorH: H - 2.2 };
+}
+
+// ------------------------------------------------------------------ straw bale (meme)
+let strawTex = null;
+export function buildStraw() {
+  if (!strawTex) {
+    strawTex = canvasTexture(256, 256, (c, w, h) => {
+      c.fillStyle = '#c9a43c'; c.fillRect(0, 0, w, h);
+      for (let i = 0; i < 900; i++) {
+        c.strokeStyle = `hsl(${rand(40, 52)}, ${rand(55, 75)}%, ${rand(42, 72)}%)`;
+        c.lineWidth = rand(1, 2.5);
+        const x = rand(0, w), y = rand(0, h), a = rand(-0.4, 0.4);
+        c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(a) * rand(20, 60), y + Math.sin(a) * rand(20, 60)); c.stroke();
+      }
+    });
+    strawTex.wrapS = strawTex.wrapT = THREE.RepeatWrapping;
+  }
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ map: strawTex, roughness: 1 });
+  const bale = new THREE.Mesh(new RoundedBoxGeometry(1.3, 0.75, 0.85, 3, 0.12), mat);
+  bale.position.y = 0.38;
+  bale.rotation.y = rand(-0.5, 0.5);
+  g.add(bale);
+  const twine = new THREE.MeshStandardMaterial({ color: 0x8a2a12, roughness: 0.8 });
+  for (const x of [-0.3, 0.3]) {
+    const t = new THREE.Mesh(new THREE.TorusGeometry(0.44, 0.015, 6, 24), twine);
+    t.scale.set(1, 0.95, 1.05);
+    t.rotation.y = Math.PI / 2;
+    t.position.set(x, 0, 0);
+    bale.add(t);
+  }
+  // loose straw around it
+  const loose = new THREE.MeshStandardMaterial({ color: 0xe0bf52, roughness: 0.9 });
+  for (let i = 0; i < 40; i++) {
+    const st = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, rand(0.25, 0.5), 4), loose);
+    const a = Math.random() * Math.PI * 2, r = rand(0.5, 1.3);
+    st.position.set(Math.cos(a) * r, 0.02, Math.sin(a) * r);
+    st.rotation.set(Math.PI / 2, 0, Math.random() * Math.PI);
+    g.add(st);
+  }
+  g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  return { group: g, mat };
 }

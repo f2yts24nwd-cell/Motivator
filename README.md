@@ -130,6 +130,9 @@ Es brennt im Kundenprojekt. Immer wenn es Probleme gibt, rückt Feuerwehrmann **
   - 🍝 **Spaghetti-Code** (Entwickler unzufrieden mit seinem Quellcode, der Code kriecht als Monster aus dem Monitor und spuckt Fleischbällchen) → 🔨 **Hard-Reset-Hammer**
   - 🗿 **Irgendwas mit SAP** (ein SAP-Monolith kracht durch die Decke) → 🔨 drei Schläge
   - 📄 **Neue Anforderung, nie gehört** (der Kunde wirft ein brennendes Lastenheft aus dem Meetingraum) und 🔥 Kabelbrände → 🧯 **Löscher**
+- **Memes:**
+  - 🌾 **„Warum liegt hier eigentlich Stroh rum?“** Etwa einmal pro Minute kracht ein Strohballen ins Büro. Danny setzt die Atemschutzmaske auf, ein Kollege fragt nach dem Stroh, der nächste „Und warum hast du 'ne Maske auf?“, dazu kommt eine Meme-Karte im Impact-Look. Das Stroh muss innerhalb von 10 s nass gemacht werden, sonst (oder wenn ein Brand daneben ist) geht es in Flammen auf.
+  - 🚨 **Feuerwehr-„ALAAARM!“** Beim Start und bei jeder neuen Alarmstufe erscheint es riesig und wackelnd, mit Blaulicht-Flackern. Das ganze Büro springt auf und brüllt mit.
 - Wer nicht rechtzeitig reagiert, bekommt einen Brand. Brände wachsen und springen auf Nachbartische über. Läuft die **Eskalation** auf 100 %, ist das Projekt abgebrannt. Eine Schicht dauert 3 Minuten mit 5 Alarmstufen.
 - **Abreibung:** Mit dem Löscher kann man auch Kollegen duschen (sie rutschen aus), mit dem Defi schocken (verkohlt, Haare stehen ab) oder mit dem Hammer „neu starten“. Den Kunden duschen gibt viele Punkte, treibt aber die Eskalation hoch („Change Request!“).
 - **Werkzeugkoffer** tauchen zwischendurch auf: 🚒 Großschlauch (unendlich Druck, doppelte Reichweite), ☕ Espresso (schneller), 🦆 Enten-Nachschub und 💦 Sprinkleranlage (löscht das ganze Büro).

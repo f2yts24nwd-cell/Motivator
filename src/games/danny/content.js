@@ -172,6 +172,22 @@ export const PROBLEMS = {
       'Danny hat SAP repariert. Also kaputt gemacht. Im Ergebnis gleich.'
     ]
   },
+  stroh: {
+    label: 'Stroh im Büro',
+    tool: 'foam',
+    icon: '🌾',
+    points: 350,
+    limit: 10,
+    feed: [
+      'Strohballen im Großraumbüro. Keiner weiß, warum. Keiner will es wissen.',
+      'Stroh-Alarm! Brennt wie Zunder, wenn keiner nass macht.'
+    ],
+    say: [],
+    solved: [
+      'Stroh nass gemacht. Romantik gerettet, Büro auch.',
+      'Stroh gelöscht. Die Maske bleibt trotzdem auf.'
+    ]
+  },
   brand: {
     label: 'Brand',
     tool: 'foam',
@@ -306,3 +322,20 @@ export const WIN_LINES = [
   'Schicht vorbei. Alle leben. Fast alle. Der Drucker nicht.',
   'Schichtende. Die Berater sind nass, das Projekt läuft. Mehr kann man nicht verlangen.'
 ];
+
+/** Meme moments */
+export const MEMES = {
+  stroh: {
+    q: 'Warum liegt hier eigentlich Stroh rum?',
+    a: 'Und warum hast du \'ne Maske auf?',
+    danny: ['Atemschutz, Baby. Wer löscht, der bleibt.', 'Frag nicht. Mach nass.', 'Die Maske bleibt auf. Das Stroh bleibt nicht.'],
+    top: 'WARUM LIEGT HIER EIGENTLICH STROH RUM?',
+    bottom: 'UND WARUM HAST DU \'NE MASKE AUF?',
+    fail: 'Das Stroh brennt. Hat keiner gefragt, warum es da liegt.'
+  },
+  alarm: {
+    big: 'ALAAARM!',
+    subs: ['ALLE MANN AN DIE SCHLÄUCHE!', 'DER KUNDE HAT ANGERUFEN!', 'ES BRENNT! WIEDER!', 'IRGENDWAS MIT SAP!', 'FREITAG 16 UHR DEPLOYMENT!'],
+    shouts: ['ALAAARM!', 'ALARM! ALARM!', 'AAALAAARM!!!', 'Alarm? Wo? WAS?!', 'Ich hab nix gemacht! ALARM!']
+  }
+};

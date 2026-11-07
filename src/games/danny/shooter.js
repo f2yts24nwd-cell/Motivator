@@ -63,6 +63,9 @@ export class DannyShooter extends DannyGame {
     this.vm = { group: vm, ext, nozzle: ext.userData.nozzle, lever: ext.userData.lever, base: vm.position.clone() };
     this.cross = { x: 0.5, y: 0.52 };
     this.aimYaw = 0; this.aimPitch = 0;
+    // touch: free look by swiping (crosshair stays in the middle) + a big spray button
+    this.lookYaw = 0; this.lookPitch = 0;
+    this.drags = new Map();
     this.camPos = V();
     this.yaw = 0; this.pitch = 0;
     this.hitTargets = [];
@@ -109,7 +112,7 @@ export class DannyShooter extends DannyGame {
         h('div', {}, [h('b', {}, '🌾 Stroh?'), 'Frag nicht. Mach nass.']),
         h('div', {}, [h('b', {}, '💦 Abreibung'), 'Kollegen und Kunde duschen gibt Bonuspunkte.'])
       ]),
-      h('p.dn-controls', {}, touch ? 'Steuerung: Finger aufs Ziel legen und gedrückt halten.' : 'Steuerung: Maus zielt, linke Maustaste (oder Leertaste) spritzt.'),
+      h('p.dn-controls', {}, touch ? 'Steuerung: Wischen zum Umschauen, das Fadenkreuz bleibt in der Mitte. Den roten Löscher-Knopf unten rechts gedrückt halten zum Spritzen. Eine Zielhilfe zieht dich sanft aufs nächste Ziel.' : 'Steuerung: Maus zielt, linke Maustaste (oder Leertaste) spritzt.'),
       this.best ? h('p', {}, `Dein Rekord: ${this.best.toLocaleString('de-DE')} Punkte`) : null,
       h('div.row', {}, [h('button.btn.dn-go', { onclick: () => { unlockAudio(); sfx.click(); this.startAlarm(); } }, '🚨 Einsatz!')])
     ])));
@@ -133,6 +136,8 @@ export class DannyShooter extends DannyGame {
     this.pressure = 100;
     this.stationIdx = -1;
     this.walk = null;
+    this.lookYaw = 0; this.lookPitch = 0; this.btnFire = false;
+    this.drags?.clear();
     this.subEl = null;
   }
 
@@ -167,6 +172,19 @@ export class DannyShooter extends DannyGame {
     this.markersEl = mount(h('div.dn-markers.passthrough'));
     this.bubblesEl = mount(h('div.dn-bubbles.passthrough'));
     this.crossEl = mount(h('div.dn-cross.passthrough', {}, [h('i'), h('i'), h('i'), h('i'), h('b')]));
+    if (this.coarse) {
+      // big spray button for the thumb; works together with a second finger that looks around
+      const btn = mount(h('button.dn-firebtn', { 'aria-label': 'Spritzen' }, [h('i', {}, '🧯'), h('span', {}, 'SPRITZEN')]));
+      const on = (e) => { e.preventDefault(); e.stopPropagation(); unlockAudio(); this.btnFire = true; btn.classList.add('on'); try { btn.setPointerCapture?.(e.pointerId); } catch { /* not a real pointer */ } };
+      const off = (e) => { e.preventDefault?.(); this.btnFire = false; btn.classList.remove('on'); };
+      btn.addEventListener('pointerdown', on);
+      btn.addEventListener('pointerup', off);
+      btn.addEventListener('pointercancel', off);
+      btn.addEventListener('lostpointercapture', off);
+      btn.addEventListener('contextmenu', (e) => e.preventDefault());
+      this.fireBtn = btn;
+      this.cross.x = 0.5; this.cross.y = 0.5;
+    }
     this.gauge = h('canvas', { width: '120', height: '120' });
     mount(h('div.dn-fpsgauge.passthrough', {}, [this.gauge, h('small', {}, 'Druck')]));
     this.subEl = mount(h('div.dn-sub.passthrough'));
@@ -278,7 +296,7 @@ export class DannyShooter extends DannyGame {
       const f0 = this.fireTarget(V(-7.9, 0.05, 0.6), 0.6);
       await this.talk('leit_intro', run);
       await this.talk('danny_intro', run);
-      if (!f0.done) { this.feed(this.coarse ? '👉 Finger auf den Brand legen und gedrückt halten.' : '🖱️ Zielen und linke Maustaste gedrückt halten.', 'tip'); this.talk('danny_tut', run).catch(() => {}); }
+      if (!f0.done) { this.feed(this.coarse ? '👉 Wischen zum Zielen, roten Knopf unten rechts gedrückt halten.' : '🖱️ Zielen und linke Maustaste gedrückt halten.', 'tip'); this.talk('danny_tut', run).catch(() => {}); }
       await this.cleared(run);
       await this.finishStation(run);
       // 2 open-plan office: sleeping consultant, desk fires, then the straw
@@ -636,16 +654,54 @@ export class DannyShooter extends DannyGame {
   onDown(e) {
     unlockAudio();
     if (this.state !== 'play') return;
+    if (e.pointerType !== 'mouse') {
+      // touch: swipe to look around
+      this.drags.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      this.lastLookT = performance.now();
+      return;
+    }
     this.setCross(e);
     this.firing = true;
     this.aimPtr = e.pointerId;
   }
   onMove(e) {
     if (this.state !== 'play') return;
+    const d = this.drags.get(e.pointerId);
+    if (d) {
+      const sens = (this.portrait ? 2.4 : 1.9) / Math.max(window.innerWidth, window.innerHeight);
+      this.lookYaw -= (e.clientX - d.x) * sens * 1.6;
+      this.lookPitch = clamp(this.lookPitch - (e.clientY - d.y) * sens * 1.3, -0.75, 0.6);
+      d.x = e.clientX; d.y = e.clientY;
+      this.lastLookT = performance.now();
+      return;
+    }
     if (e.pointerType === 'mouse' || e.pointerId === this.aimPtr) this.setCross(e);
   }
   onUp(e) {
+    this.drags.delete(e.pointerId);
     if (e.pointerId === this.aimPtr || e.pointerType === 'mouse') { this.firing = false; this.aimPtr = null; }
+  }
+
+  /** touch aim assist: while spraying, the view drifts onto a target close to the crosshair */
+  aimAssist(dt) {
+    if (!this.coarse || !this.btnFire) return;
+    const camYaw = this.yaw + this.lookYaw, camPitch = this.pitch + this.lookPitch;
+    let best = null, bestA = 0.2;
+    for (const t of this.hitTargets) {
+      if (t.done || (t.active && !t.active())) continue;
+      const v = t.pos().sub(this.camPos);
+      const ty = Math.atan2(-v.x, -v.z), tp = Math.atan2(v.y, Math.hypot(v.x, v.z));
+      let dy = ty - camYaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+      const dp = tp - camPitch;
+      const a = Math.hypot(dy, dp);
+      if (a < bestA) { bestA = a; best = { dy, dp }; }
+    }
+    if (!best) return;
+    // stronger pull the closer you already are, a bit weaker while the thumb is actively swiping
+    const swiping = performance.now() - (this.lastLookT || 0) < 120;
+    const k = clamp(dt * (swiping ? 2.5 : 5), 0, 1);
+    this.lookYaw += best.dy * k;
+    this.lookPitch += best.dp * k;
   }
   onKeyDown(e) {
     const k = e.key.toLowerCase();
@@ -717,14 +773,23 @@ export class DannyShooter extends DannyGame {
 
   updateCamera(dt, time) {
     const w = this.walk;
+    const walking0 = !!w?.moving;
     if (w && !w.moving) {
       this.yaw = this.lerpAngle(this.yaw, w.yaw, clamp(dt * 3, 0, 1));
       this.pitch = lerp(this.pitch, w.pitch, clamp(dt * 3, 0, 1));
     }
     // gentle look-around towards the crosshair
-    const spanX = this.portrait ? 0.32 : 0.5, spanY = 0.3;
-    this.aimYaw = lerp(this.aimYaw, -(this.cross.x - 0.5) * spanX, clamp(dt * 4, 0, 1));
-    this.aimPitch = lerp(this.aimPitch, -(this.cross.y - 0.5) * spanY, clamp(dt * 4, 0, 1));
+    if (this.coarse) {
+      // crosshair fixed in the middle; the swipe offset slowly returns to the scene while walking
+      this.cross.x = 0.5; this.cross.y = 0.5;
+      if (walking0) { this.lookYaw = lerp(this.lookYaw, 0, clamp(dt * 2.5, 0, 1)); this.lookPitch = lerp(this.lookPitch, 0, clamp(dt * 2.5, 0, 1)); }
+      this.aimAssist(dt);
+      this.aimYaw = this.lookYaw; this.aimPitch = this.lookPitch;
+    } else {
+      const spanX = this.portrait ? 0.32 : 0.5, spanY = 0.3;
+      this.aimYaw = lerp(this.aimYaw, -(this.cross.x - 0.5) * spanX, clamp(dt * 4, 0, 1));
+      this.aimPitch = lerp(this.aimPitch, -(this.cross.y - 0.5) * spanY, clamp(dt * 4, 0, 1));
+    }
     const walking = w?.moving;
     const bob = walking ? Math.sin(this.bob) * 0.035 : Math.sin(time * 1.6) * 0.006;
     this.camera.position.set(this.camPos.x, this.camPos.y + bob, this.camPos.z);
@@ -760,7 +825,7 @@ export class DannyShooter extends DannyGame {
       const dist = o.clone().addScaledVector(d, t).distanceTo(c);
       if (dist < r) { bestT = t; best = obj; }
     };
-    for (const t of this.hitTargets) if (!t.done && (!t.active || t.active())) test(t.pos(), t.r() * 1.15, { target: t });
+    for (const t of this.hitTargets) if (!t.done && (!t.active || t.active())) test(t.pos(), t.r() * (this.coarse ? 1.6 : 1.15), { target: t });
     // targets win over colleagues standing in front of them; only otherwise you shower someone
     if (!best) for (const n of this.npcs) {
       if (this.hitTargets.some((t) => !t.done && t.npc === n)) continue;
@@ -770,7 +835,7 @@ export class DannyShooter extends DannyGame {
   }
 
   updateSpray(dt, time) {
-    const want = (this.firing || this.keyFire) && this.state === 'play';
+    const want = (this.firing || this.keyFire || this.btnFire) && this.state === 'play';
     const p = this.pick();
     this.aimTarget = p.hit?.target || null;
     const power = this.pressure > 2 ? 1 : 0.45; // never fully empty, just weaker: no stress

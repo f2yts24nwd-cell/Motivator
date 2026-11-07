@@ -271,3 +271,12 @@
 .dn-maskview { position: absolute; inset: 0; background: radial-gradient(ellipse 62% 58% at 50% 48%, rgba(0,0,0,0) 62%, rgba(10,12,16,.85) 74%, #07080b 82%); animation: fadeIn .5s ease; }
 .dn-maskview i { position: absolute; left: 50%; bottom: -6%; width: 22vmin; height: 22vmin; transform: translateX(-50%); border-radius: 50%; background: radial-gradient(circle at 50% 40%, #50555e, #22252b 70%); box-shadow: inset 0 0 0 6px #ff7a00, 0 0 30px rgba(0,0,0,.8); }
 .dn-maskview em { position: absolute; inset: 8% 14% 20%; border-radius: 50%; background: linear-gradient(120deg, rgba(255,255,255,.12), rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,.06)); }
+
+/* touch: big spray button */
+.dn-firebtn { position: absolute; right: calc(18px + env(safe-area-inset-right)); bottom: calc(18px + env(safe-area-inset-bottom)); width: 104px; height: 104px; border-radius: 50%; border: 0; padding: 0; display: grid; place-content: center; justify-items: center; gap: 0; font: inherit; color: #fff; background: radial-gradient(circle at 40% 35%, #ff6a4a, #c4141c 60%, #7a0a0e); box-shadow: 0 0 0 4px rgba(255,255,255,.85), 0 10px 26px rgba(0,0,0,.55); touch-action: none; -webkit-user-select: none; user-select: none; z-index: 5; transition: transform .08s; }
+.dn-firebtn i { font-style: normal; font-size: 40px; line-height: 1; }
+.dn-firebtn span { font-size: 11px; font-weight: 900; letter-spacing: .08em; }
+.dn-firebtn.on { transform: scale(.92); box-shadow: 0 0 0 4px #e4ff3a, 0 0 30px rgba(255,90,30,.8); }
+@media (max-height: 500px) and (orientation: landscape) { .dn-firebtn { width: 92px; height: 92px; } }
+@media (pointer: coarse) { .dn-sub { max-width: calc(100% - 290px); } }
+@media (pointer: coarse) and (max-width: 600px) { .dn-sub { max-width: calc(100% - 32px); bottom: calc(140px + env(safe-area-inset-bottom)); } }

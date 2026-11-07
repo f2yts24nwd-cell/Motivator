@@ -134,7 +134,7 @@ Es brennt im Kundenprojekt, und du bist Feuerwehrmann **Danny**, im Ego-Look mit
 - **Einsatzbericht** am Ende mit Punkten, Treffsicherheit, geduschten Kollegen und vier Rängen vom „Praktikant mit Wasserpistole“ bis „Danny, der Feuergott“.
 - **Grafik und Sound:** Flammen, Rauch, Schaum, Dampf, Funken und Trümmer als Partikel mit Bloom, flackernde Feuerlichter, Schaumpfützen auf dem Teppich, Kamerawackler. Dazu Martinshorn, Brandmelder, zischender Löscher, Feuerknistern und Hammer-Klang, alles per WebAudio.
 
-Steuerung: Maus zielt, linke Maustaste (oder Leertaste) spritzt. Am Handy den Finger aufs Ziel legen und gedrückt halten.
+Steuerung: Maus zielt, linke Maustaste (oder Leertaste) spritzt. Am Handy und Tablet bleibt das Fadenkreuz in der Mitte: Wischen dreht den Blick frei, der rote Löscher-Knopf unten rechts spritzt (beides gleichzeitig mit zwei Fingern). Eine Zielhilfe zieht den Blick beim Spritzen sanft aufs nächste Ziel, und wenn Danny weiterläuft, richtet sich der Blick wieder auf die Szene.
 
 ## Plantafel (Tourenplanung)
 

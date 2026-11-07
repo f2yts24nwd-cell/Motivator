@@ -137,7 +137,7 @@ Es brennt im Kundenprojekt. Immer wenn es Probleme gibt, rückt Feuerwehrmann **
 - **Abreibung:** Mit dem Löscher kann man auch Kollegen duschen (sie rutschen aus), mit dem Defi schocken (verkohlt, Haare stehen ab) oder mit dem Hammer „neu starten“. Den Kunden duschen gibt viele Punkte, treibt aber die Eskalation hoch („Change Request!“).
 - **Werkzeugkoffer** tauchen zwischendurch auf: 🚒 Großschlauch (unendlich Druck, doppelte Reichweite), ☕ Espresso (schneller), 🦆 Enten-Nachschub und 💦 Sprinkleranlage (löscht das ganze Büro).
 - Combos bis x5, Rekord, Einsatzbericht am Ende und vier Ränge vom „Praktikant mit Wasserpistole“ bis „Danny, der Feuergott“.
-- Viel schwarzer Humor: Sprechblasen, Einsatzmeldungen, Danny-Sprüche. Optional liest die Sprachausgabe des Geräts die Rufe vor (im Startmenü abschaltbar).
+- Viel schwarzer Humor: Sprechblasen, Einsatzmeldungen, Danny-Sprüche.
 - **Song „Frag den Danny“** (Deutschrap, mit Suno erstellt) läuft im Bonusspiel vom Tresor bis zum Einsatzbericht in Schleife und steht auch in der Jukebox. Oben rechts schaltet ein Tipp auf den Song-Button zwischen Song und Metal-Soundtrack um, die Wahl wird gespeichert.
 - **Sound:** Synthetischer Thrash-Metal in e-Moll (168 BPM) mit Palm-Mute-Riffs über eine Verzerrer-Kette, Double-Bass und Leadgitarre ab Alarmstufe 4. Dazu Martinshorn, Brandmelder, zischender Löscher, Feuerknistern, Defi, Hammer-Klang, Quietscheente und Schreie. Alles per WebAudio.
 - **Grafik:** Flammen, Rauch, Schaum, Dampf, Funken, Blitze und Trümmer als Partikel mit Bloom, flackernde Feuerlichter, Schaumpfützen und Brandflecken auf dem Teppich, Kamerawackler und Hit-Stop.

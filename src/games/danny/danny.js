@@ -10,6 +10,7 @@ import { EMBLEM_SVG } from './emblem.js';
 import { songById } from '../../core/songs.js';
 
 const SONG = songById('frag-den-danny');
+const SPEECH = false;
 import './danny.css';
 
 const pick = C.pick;
@@ -168,6 +169,8 @@ export class DannyGame {
 
   // ------------------------------------------------------------------ speech (optional)
   speak(text, { pitch = 1, rate = 1.08, force = false } = {}) {
+    // the browser's text-to-speech sounds like a robot: switched off until real voice lines exist
+    if (!SPEECH) return;
     if (!this.voice || isMuted() || !window.speechSynthesis) return;
     const ss = window.speechSynthesis;
     if (ss.speaking && !force) return;
@@ -337,7 +340,7 @@ export class DannyGame {
       this.best ? h('p', {}, `Dein Rekord: ${this.best.toLocaleString('de-DE')} Punkte`) : null,
       h('div.row', {}, [
         h('button.btn.dn-go', { onclick: () => { unlockAudio(); sfx.click(); this.startAlarm(); } }, '🚨 Einsatz!'),
-        voiceBtn
+        SPEECH ? voiceBtn : null
       ])
     ])));
   }

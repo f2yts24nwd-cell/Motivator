@@ -35,6 +35,7 @@ CAST = {
     'kunde':    ('thorsten', 1.05, 0.7, PITCH(0.84) + ',bass=g=3'),
     'kerstin':  ('kerstin', 0.92, 0.7, 'aresample=22050,highpass=f=450,lowpass=f=3200,acrusher=bits=10:mode=log:aa=1,volume=1.6'),
     'ramona':   ('ramona', 0.9, 0.8, 'aresample=22050'),
+    'kerstin_clean': ('kerstin', 0.9, 0.8, 'aresample=22050'),
     'eva':      ('eva_k', 0.92, 0.8, 'aresample=22050'),
     'monster':  ('karlsson', 1.1, 0.6, PITCH(0.66) + ',aecho=0.8:0.7:60|120:0.45|0.3,bass=g=6'),
 }

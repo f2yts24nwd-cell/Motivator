@@ -1,39 +1,205 @@
 {
   "_comment": "Voice lines for the first-person mode. Generated offline with Piper (scripts/make-danny-voices.py) into public/danny/voice/<id>.mp3",
   "lines": {
-    "leit_intro": { "who": "Leitstelle", "voice": "kerstin", "text": "Achtung, Einsatz für Danny. Großraumbüro, Kundenprojekt. Es brennt mal wieder überall." },
-    "danny_intro": { "who": "Danny", "voice": "danny", "text": "Keine Panik. Der Danny ist da." },
-    "danny_tut": { "who": "Danny", "voice": "danny", "text": "Erst mal der Kabelbrand. Zielen, draufhalten, fertig." },
-    "danny_go": { "who": "Danny", "voice": "danny", "text": "Weiter geht's." },
-    "danny_go2": { "who": "Danny", "voice": "danny", "text": "Wer löscht, der bleibt." },
-    "danny_go3": { "who": "Danny", "voice": "danny", "text": "Ich hab den längsten Schlauch im ganzen Büro." },
-    "danny_fire": { "who": "Danny", "voice": "danny", "text": "Wasser marsch!" },
-    "berater_lazy": { "who": "Berater", "voice": "karlsson", "text": "Nachdenken? Dafür werd ich nicht bezahlt. Frag den Danny." },
-    "berater_wake": { "who": "Berater", "voice": "karlsson", "text": "Aaah! Ich bin wach! Ich hab eine Idee! Ach nee, war nur das Wasser." },
-    "stroh_q": { "who": "Kollegin", "voice": "ramona", "text": "Warum liegt hier eigentlich Stroh rum?" },
-    "stroh_a": { "who": "Berater", "voice": "karlsson", "text": "Und warum hast du 'ne Maske auf?" },
-    "danny_stroh": { "who": "Danny", "voice": "danny", "text": "Atemschutz, Baby. Frag nicht. Mach nass." },
-    "dev_code": { "who": "Entwickler", "voice": "dev", "text": "Wer hat diesen Code geschrieben? Oh. Ich. Frag den Danny." },
-    "monster": { "who": "Spaghetti-Code", "voice": "monster", "text": "Ich bin dein Legacy-Code! Bolognese-Breitseite!" },
-    "pl_frage": { "who": "Projektleiterin", "voice": "eva", "text": "Danny, kurze Frage! Wo ist eigentlich der Anschalter vom Internet?" },
-    "danny_frage": { "who": "Danny", "voice": "danny", "text": "Kurze Antwort: Nein." },
-    "danny_splat": { "who": "Danny", "voice": "danny", "text": "Bolognese im Gesicht. Wie jeden Montag." },
-    "dev_done": { "who": "Entwickler", "voice": "dev", "text": "Danke, Danny! Heute Abend gibt's Code Bolognese." },
-    "kunde_req": { "who": "Kunde", "voice": "kunde", "text": "Kleine Änderung: Alles anders. Budget bleibt gleich. Steht im Lastenheft, Seite achthundertsiebenundvierzig." },
-    "kunde_wet": { "who": "Kunde", "voice": "kunde", "text": "Ist das im Wartungsvertrag drin?" },
-    "danny_req": { "who": "Danny", "voice": "danny", "text": "Anforderung gelöscht. Wortwörtlich." },
-    "sap_witness": { "who": "Kollegin", "voice": "ramona", "text": "Irgendwas mit SAP. Ich kenn mich da nicht aus. Frag den Danny!" },
-    "danny_sap": { "who": "Danny", "voice": "danny", "text": "Monolith in Microservices zerlegen. Mit Wasser. So geht Architektur." },
-    "danny_sap_done": { "who": "Danny", "voice": "danny", "text": "SAP gelöscht. Die Lizenzgebühren laufen trotzdem weiter." },
-    "pl_forgot": { "who": "Projektleiterin", "voice": "eva", "text": "Was hab ich gestern definiert? Keine Ahnung. Gestern war heute schon morgen." },
-    "pl_wake": { "who": "Projektleiterin", "voice": "eva", "text": "Ah, jetzt weiß ich's wieder! Stand auf dem Bierdeckel." },
-    "danny_end": { "who": "Danny", "voice": "danny", "text": "Feierabend. Alle nass, keiner tot. Morgen brennt's wieder." },
-    "alarm_crowd": { "who": "Alle", "voice": "crowd", "text": "Alaaarm!" },
-    "wet_berater": { "who": "Berater", "voice": "karlsson", "text": "Ey! Mein Anzug kostet mehr als dein Auto!" },
-    "wet_dev": { "who": "Entwickler", "voice": "dev", "text": "Hey! Ich hab gerade kompiliert!" },
-    "wet_pl": { "who": "Projektleiterin", "voice": "eva", "text": "Das kommt in meinen Statusreport. In Rot!" },
-    "wet_frau": { "who": "Kollegin", "voice": "ramona", "text": "Danke, Danny. Jetzt bin ich endlich mal produktiv. Nass." },
-    "wet_berater2": { "who": "Berater", "voice": "karlsson", "text": "Mein Gel! Mein schönes Gel!" },
-    "wet_dev2": { "who": "Entwickler", "voice": "dev", "text": "Meine Tastatur! Da sind noch Chips von 2019 drin!" }
+    "leit_intro": {
+      "who": "Leitstelle",
+      "voice": "kerstin",
+      "text": "Achtung, Einsatz für Danny. Großraumbüro, Kundenprojekt. Es brennt mal wieder überall."
+    },
+    "danny_intro": {
+      "who": "Danny",
+      "voice": "danny",
+      "text": "Keine Panik. Der Danny ist da."
+    },
+    "danny_tut": {
+      "who": "Danny",
+      "voice": "danny",
+      "text": "Erst mal der Kabelbrand. Zielen, draufhalten, fertig."
+    },
+    "danny_go": {
+      "who": "Danny",
+      "voice": "danny",
+      "text": "Weiter geht's."
+    },
+    "danny_go2": {
+      "who": "Danny",
+      "voice": "danny",
+      "text": "Wer löscht, der bleibt."
+    },
+    "danny_go3": {
+      "who": "Danny",
+      "voice": "danny",
+      "text": "Ich hab den längsten Schlauch im ganzen Büro."
+    },
+    "danny_fire": {
+      "who": "Danny",
+      "voice": "danny",
+      "text": "Wasser marsch!"
+    },
+    "berater_lazy": {
+      "who": "Berater",
+      "voice": "karlsson",
+      "text": "Nachdenken? Dafür werd ich nicht bezahlt. Frag den Danny."
+    },
+    "berater_wake": {
+      "who": "Berater",
+      "voice": "karlsson",
+      "text": "Aaah! Ich bin wach! Ich hab eine Idee! Ach nee, war nur das Wasser."
+    },
+    "stroh_q": {
+      "who": "Kollegin",
+      "voice": "ramona",
+      "text": "Warum liegt hier eigentlich Stroh rum?"
+    },
+    "stroh_a": {
+      "who": "Berater",
+      "voice": "karlsson",
+      "text": "Und warum hast du 'ne Maske auf?"
+    },
+    "danny_stroh": {
+      "who": "Danny",
+      "voice": "danny",
+      "text": "Atemschutz, Baby. Frag nicht. Mach nass."
+    },
+    "dev_code": {
+      "who": "Entwickler",
+      "voice": "dev",
+      "text": "Wer hat diesen Code geschrieben? Oh. Ich. Frag den Danny."
+    },
+    "monster": {
+      "who": "Spaghetti-Code",
+      "voice": "monster",
+      "text": "Ich bin dein Legacy-Code! Bolognese-Breitseite!"
+    },
+    "pl_frage": {
+      "who": "Projektleiterin",
+      "voice": "eva",
+      "text": "Danny, kurze Frage! Wo ist eigentlich der Anschalter vom Internet?"
+    },
+    "danny_frage": {
+      "who": "Danny",
+      "voice": "danny",
+      "text": "Kurze Antwort: Nein."
+    },
+    "danny_splat": {
+      "who": "Danny",
+      "voice": "danny",
+      "text": "Bolognese im Gesicht. Wie jeden Montag."
+    },
+    "dev_done": {
+      "who": "Entwickler",
+      "voice": "dev",
+      "text": "Danke, Danny! Heute Abend gibt's Code Bolognese."
+    },
+    "kunde_req": {
+      "who": "Kunde",
+      "voice": "kunde",
+      "text": "Kleine Änderung: Alles anders. Budget bleibt gleich. Steht im Lastenheft, Seite achthundertsiebenundvierzig."
+    },
+    "kunde_wet": {
+      "who": "Kunde",
+      "voice": "kunde",
+      "text": "Ist das im Wartungsvertrag drin?"
+    },
+    "danny_req": {
+      "who": "Danny",
+      "voice": "danny",
+      "text": "Anforderung gelöscht. Wortwörtlich."
+    },
+    "sap_witness": {
+      "who": "Kollegin",
+      "voice": "ramona",
+      "text": "Irgendwas mit SAP. Ich kenn mich da nicht aus. Frag den Danny!"
+    },
+    "danny_sap": {
+      "who": "Danny",
+      "voice": "danny",
+      "text": "Monolith in Microservices zerlegen. Mit Wasser. So geht Architektur."
+    },
+    "danny_sap_done": {
+      "who": "Danny",
+      "voice": "danny",
+      "text": "SAP gelöscht. Die Lizenzgebühren laufen trotzdem weiter."
+    },
+    "pl_forgot": {
+      "who": "Projektleiterin",
+      "voice": "eva",
+      "text": "Was hab ich gestern definiert? Keine Ahnung. Gestern war heute schon morgen."
+    },
+    "pl_wake": {
+      "who": "Projektleiterin",
+      "voice": "eva",
+      "text": "Ah, jetzt weiß ich's wieder! Stand auf dem Bierdeckel."
+    },
+    "danny_end": {
+      "who": "Danny",
+      "voice": "danny",
+      "text": "Feierabend. Alle nass, keiner tot. Morgen brennt's wieder."
+    },
+    "alarm_crowd": {
+      "who": "Alle",
+      "voice": "crowd",
+      "text": "Alaaarm!"
+    },
+    "wet_berater": {
+      "who": "Berater",
+      "voice": "karlsson",
+      "text": "Ey! Mein Anzug kostet mehr als dein Auto!"
+    },
+    "wet_dev": {
+      "who": "Entwickler",
+      "voice": "dev",
+      "text": "Hey! Ich hab gerade kompiliert!"
+    },
+    "wet_pl": {
+      "who": "Projektleiterin",
+      "voice": "eva",
+      "text": "Das kommt in meinen Statusreport. In Rot!"
+    },
+    "wet_frau": {
+      "who": "Kollegin",
+      "voice": "ramona",
+      "text": "Danke, Danny. Jetzt bin ich endlich mal produktiv. Nass."
+    },
+    "wet_berater2": {
+      "who": "Berater",
+      "voice": "karlsson",
+      "text": "Mein Gel! Mein schönes Gel!"
+    },
+    "wet_dev2": {
+      "who": "Entwickler",
+      "voice": "dev",
+      "text": "Meine Tastatur! Da sind noch Chips von 2019 drin!"
+    },
+    "eine_tun": {
+      "who": "Kollege",
+      "voice": "dev",
+      "text": "Danny! Man muss das eine tun und das andere nicht lassen."
+    },
+    "eine_tun_fail": {
+      "who": "Kollege",
+      "voice": "dev",
+      "text": "Und das andere nicht lassen, Danny!"
+    },
+    "danny_eine": {
+      "who": "Danny",
+      "voice": "danny",
+      "text": "Das eine getan. Das andere auch nicht gelassen."
+    },
+    "fuenf_q": {
+      "who": "Kollegin",
+      "voice": "kerstin_clean",
+      "text": "Danny? Hast du mal fünf Minuten?"
+    },
+    "danny_fuenf": {
+      "who": "Danny",
+      "voice": "danny",
+      "text": "Fünf Minuten? Das sagen alle. Dann sind's zwei Stunden."
+    },
+    "fuenf_wet": {
+      "who": "Kollegin",
+      "voice": "kerstin_clean",
+      "text": "Okay, okay! Ich schreib dir 'ne Mail!"
+    }
   }
 }

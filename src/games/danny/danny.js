@@ -7,6 +7,9 @@ import { buildDanny, buildNPC, tintNPC, buildSAP, buildSpaghetti, buildLastenhef
 import { buildOffice, buildStage, AW, AD, STAGE } from './office.js';
 import * as C from './content.js';
 import { EMBLEM_SVG } from './emblem.js';
+import { songById } from '../../core/songs.js';
+
+const SONG = songById('frag-den-danny');
 import './danny.css';
 
 const pick = C.pick;
@@ -125,6 +128,7 @@ export class DannyGame {
     c.addEventListener('wheel', this.onWheel, { passive: true });
     this.best = storeGet('danny-best', 0);
     this.voice = storeGet('danny-voice', true);
+    this.songOn = storeGet('danny-song', true);
     this.resize(window.innerWidth, window.innerHeight);
     this.showSafe();
     if (!this.warmed) { this.warmed = true; try { this.app.gfx.renderer.compile(this.scene, this.camera); } catch { /* ignore */ } }
@@ -266,10 +270,36 @@ export class DannyGame {
   }
 
   // ------------------------------------------------------------------ menu
+  /** the Suno song "Frag den Danny" (default) or the synthesized metal soundtrack */
+  startMusic() {
+    if (this.songOn && SONG) music.playSong(SONG.src, { loop: true });
+    else music.play('metal');
+  }
+  toggleSong() {
+    this.songOn = !this.songOn;
+    storeSet('danny-song', this.songOn);
+    if (!this.songOn) music.stopSong(0.6);
+    this.startMusic();
+    sfx.click();
+    document.querySelectorAll('.dn-songbtn').forEach((b) => this.paintSongBtn(b));
+  }
+  paintSongBtn(b) {
+    b.classList.toggle('off', !this.songOn);
+    b.querySelector('b').textContent = this.songOn ? SONG.title : 'Metal-Soundtrack';
+  }
+
   baseUI() {
     clearUI();
-    mount(h('button.icon-btn.left', { title: 'Zurück zur Spielewelt', onclick: () => { sfx.click(); this.app.goHub(); } }, '⟵'));
-    const mute = mount(h('button.icon-btn.right', { title: 'Ton an/aus', onclick: () => { setMuted(!isMuted()); mute.textContent = isMuted() ? '🔇' : '🔊'; if (isMuted()) this.shutUp(); } }, isMuted() ? '🔇' : '🔊'));
+    if (SONG) {
+      const sb = mount(h('button.dn-songbtn.panel', { title: 'Song oder Metal-Soundtrack', onclick: () => this.toggleSong() }, [
+        h('img', { src: SONG.cover, alt: '' }),
+        h('span', {}, [h('small', {}, '♪ Musik'), h('b')]),
+        h('i.kr-eq', {}, [h('em'), h('em'), h('em')])
+      ]));
+      this.paintSongBtn(sb);
+    }
+    mount(h('button.icon-btn.left.dn-top', { title: 'Zurück zur Spielewelt', onclick: () => { sfx.click(); this.app.goHub(); } }, '⟵'));
+    const mute = mount(h('button.icon-btn.right.dn-top', { title: 'Ton an/aus', onclick: () => { setMuted(!isMuted()); mute.textContent = isMuted() ? '🔇' : '🔊'; if (isMuted()) this.shutUp(); } }, isMuted() ? '🔇' : '🔊'));
   }
 
   showMenu() {
@@ -277,7 +307,7 @@ export class DannyGame {
     this.resetRound();
     this.baseUI();
     music.setIntensity(-1);
-    music.play('metal');
+    this.startMusic();
     this.placeDannyAtStage();
     this.stage.station.door.position.y = this.stage.station.doorH / 2;
     this.stage.station.door.scale.y = 1;

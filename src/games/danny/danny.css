@@ -194,3 +194,18 @@
 .dn-safe.open .dn-wheel { box-shadow: inset 0 8px 10px rgba(0,0,0,.55), inset 0 -8px 10px rgba(0,0,0,.55), 0 0 0 2px #3ddc84, 0 0 16px rgba(61,220,132,.7); }
 .dn-safe-hint { min-height: 2.8em; margin: 4px 0 0; font-size: 15px; color: var(--muted); max-width: 360px; }
 .dn-safe-hint.bad { color: #ffb0b0; font-weight: 700; }
+
+/* song / soundtrack toggle */
+.dn-songbtn { position: absolute; top: calc(12px + env(safe-area-inset-top)); right: calc(64px + env(safe-area-inset-right)); height: 44px; display: flex; align-items: center; gap: 8px; padding: 4px 14px 4px 4px; border-radius: 999px; cursor: pointer; font: inherit; color: var(--text); text-align: left; }
+.dn-songbtn img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+.dn-songbtn span { display: grid; line-height: 1.15; }
+.dn-songbtn small { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.dn-songbtn b { font-size: 13px; white-space: nowrap; }
+.dn-songbtn .kr-eq em { background: #ff7a2a; }
+.dn-songbtn.off img { filter: grayscale(1); opacity: .6; }
+.dn-songbtn.off .kr-eq em { animation: none; height: 4px; opacity: .5; }
+@media (max-width: 1000px) {
+  .dn-songbtn { padding: 4px; gap: 0; }
+  .dn-songbtn span, .dn-songbtn .kr-eq { display: none; }
+}
+.dn-songbtn, .icon-btn.dn-top { z-index: 6; }

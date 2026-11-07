@@ -115,6 +115,35 @@ Quartalsende in Ludlein: Danny the Boss fehlen noch 500.000 €. Du holst dir im
 
 Steuerung: Am iPhone im Querformat lenkst du links mit ◀ ▶, rechts sind Gas und Bremse/Rückwärts. Lenken per Neigen lässt sich im Bordcomputer umschalten. Auf der Tastatur: W/S oder Pfeiltasten für Gas und Bremse, A/D zum Lenken, Leertaste für die Handbremse, C für die Kamera (Verfolger, weit, Motorhaube), H für die Hupe, P fürs Autoradio, N für den nächsten Song, R zum Abschleppen auf die Straße und M für den Bordcomputer. Mit 1–3 beantwortest du Fragen. Ein Tipp auf die Minikarte öffnet den Bordcomputer.
 
+## Bonusspiel: „Frag den Danny!“
+
+Es brennt im Kundenprojekt. Immer wenn es Probleme gibt, rückt Feuerwehrmann **Danny** von der Feuerwache itmX aus und löscht alles: Brände und Probleme. In der Spielewelt steht dafür statt eines Automaten eine kleine **Feuerwache** mit Rolltor-Bildschirm, Blaulicht, „BONUS“-Schild und Dannys Feuerlöscher an der Wand.
+
+- **Schlüsseltresor:** Vor dem Start muss man am Tresor (vier Zahlenrädchen, Schieber zum Öffnen) den Code einstellen. Rädchen antippen, wischen oder per Mausrad drehen, auf der Tastatur Ziffern, Pfeiltasten und Enter. Bei einer falschen Kombination kommt der Tipp: „Der Code entspricht deiner Arbeitseinstellung.“
+- **Danny** ist eine 3D-Figur mit schwarzer Brille, blauen Augen, graublonden Haaren und Dreitagebart. Im Startmenü steht ein Render davon als „Einsatzleiter Danny“ (`public/danny/danny-3d.webp`), auch das Song-Cover zeigt die 3D-Figur.
+- **Startmenü an der Feuerwache:** Backsteinfassade, Löschfahrzeug „DANNY 1-12“ in der Garage, Blaulicht und das Feuerwache-Emblem. Beim Einsatz geht das Rolltor hoch, das Martinshorn heult, der Wagen rollt raus und Danny rennt los.
+- **Der Feuerlöscher** ist dem Original nachgebaut: weiß gesprenkelte Hammerschlag-Optik, grünes itmX-Logo, senkrechter „DANNY“-Schriftzug in Inline-Lettern, schwarzer Griff mit Hebel, Manometer und schwarze Düse. Das Manometer taucht auch im HUD als Druckanzeige auf. Ist der Druck leer, füllt Danny am roten **Hydranten** in der Kaffeeecke nach.
+- **Einsätze im Großraumbüro** (mit Meetingraum für den Kunden und Serverraum):
+  - 💤 **Berater denkt nicht** (zu faul zum Nachdenken) → ⚡ **Denk-Defi**
+  - 🐟 **Gestern war heute schon morgen** (gestern definiert, heute vergessen) → ⚡ **Denk-Defi**
+  - ❓ **„DANNY! Kurze Frage …“** (technische Frage, kein Bock nachzudenken) → 🦆 **Debug-Ente** werfen, dann löst der Kollege es selbst
+  - 🍝 **Spaghetti-Code** (Entwickler unzufrieden mit seinem Quellcode, der Code kriecht als Monster aus dem Monitor und spuckt Fleischbällchen) → 🔨 **Hard-Reset-Hammer**
+  - 🗿 **Irgendwas mit SAP** (ein SAP-Monolith kracht durch die Decke) → 🔨 drei Schläge
+  - 📄 **Neue Anforderung, nie gehört** (der Kunde wirft ein brennendes Lastenheft aus dem Meetingraum) und 🔥 Kabelbrände → 🧯 **Löscher**
+- **Memes:**
+  - 🌾 **„Warum liegt hier eigentlich Stroh rum?“** Etwa einmal pro Minute kracht ein Strohballen ins Büro. Danny setzt die Atemschutzmaske auf, ein Kollege fragt nach dem Stroh, der nächste „Und warum hast du 'ne Maske auf?“, dazu kommt eine Meme-Karte im Impact-Look. Das Stroh muss innerhalb von 10 s nass gemacht werden, sonst (oder wenn ein Brand daneben ist) geht es in Flammen auf.
+  - 🚨 **Feuerwehr-„ALAAARM!“** Beim Start und bei jeder neuen Alarmstufe erscheint es riesig und wackelnd, mit Blaulicht-Flackern. Das ganze Büro springt auf und brüllt mit.
+- Wer nicht rechtzeitig reagiert, bekommt einen Brand. Brände wachsen und springen auf Nachbartische über. Läuft die **Eskalation** auf 100 %, ist das Projekt abgebrannt. Eine Schicht dauert 3 Minuten mit 5 Alarmstufen.
+- **Abreibung:** Mit dem Löscher kann man auch Kollegen duschen (sie rutschen aus), mit dem Defi schocken (verkohlt, Haare stehen ab) oder mit dem Hammer „neu starten“. Den Kunden duschen gibt viele Punkte, treibt aber die Eskalation hoch („Change Request!“).
+- **Werkzeugkoffer** tauchen zwischendurch auf: 🚒 Großschlauch (unendlich Druck, doppelte Reichweite), ☕ Espresso (schneller), 🦆 Enten-Nachschub und 💦 Sprinkleranlage (löscht das ganze Büro).
+- Combos bis x5, Rekord, Einsatzbericht am Ende und vier Ränge vom „Praktikant mit Wasserpistole“ bis „Danny, der Feuergott“.
+- Viel schwarzer Humor: Sprechblasen, Einsatzmeldungen, Danny-Sprüche. Optional liest die Sprachausgabe des Geräts die Rufe vor (im Startmenü abschaltbar).
+- **Song „Frag den Danny“** (Deutschrap, mit Suno erstellt) läuft im Bonusspiel vom Tresor bis zum Einsatzbericht in Schleife und steht auch in der Jukebox. Oben rechts schaltet ein Tipp auf den Song-Button zwischen Song und Metal-Soundtrack um, die Wahl wird gespeichert.
+- **Sound:** Synthetischer Thrash-Metal in e-Moll (168 BPM) mit Palm-Mute-Riffs über eine Verzerrer-Kette, Double-Bass und Leadgitarre ab Alarmstufe 4. Dazu Martinshorn, Brandmelder, zischender Löscher, Feuerknistern, Defi, Hammer-Klang, Quietscheente und Schreie. Alles per WebAudio.
+- **Grafik:** Flammen, Rauch, Schaum, Dampf, Funken, Blitze und Trümmer als Partikel mit Bloom, flackernde Feuerlichter, Schaumpfützen und Brandflecken auf dem Teppich, Kamerawackler und Hit-Stop.
+
+Steuerung: Tastatur WASD/Pfeile zum Laufen, Maus zielen, linke Maustaste (oder Leertaste) benutzt das Werkzeug. Werkzeuge mit 1–4, Q/E, Mausrad oder rechter Maustaste. Am Handy links ziehen zum Laufen, rechts gedrückt halten zum Zielen und Benutzen, Werkzeuge unten rechts antippen.
+
 ## Plantafel (Tourenplanung)
 
 Links im Büro steht eine fahrbare Plantafel. Sie zeigt den echten Plan des nächsten Arbeitstags. Antippen öffnet die **Plantafel-App**, eine minimalistische Tourenplanung für den Außendienst, die als Vollbild-Ebene über der Spielewelt liegt.
@@ -189,6 +218,9 @@ src/
   games/leadrush/      „Lead Rush“ (2D-Runner: engine.js, Bildschirme in markup.js, Styles in leadrush.css)
   games/drive/         „Ludlein Drive“ (cars.js Autos & Tuning, showroom.js Fuhrpark, world.js Stadt & Autobahn,
                        traffic.js Verkehr/Fußgänger/Cloudius, vehicle.js Fahrphysik, hud.js, drive.js Missionen)
+  games/danny/         Bonusspiel „Frag den Danny!“ (danny.js Spiellogik, models.js Danny/Löscher/Kollegen/SAP/Spaghetti,
+                       office.js Büro & Feuerwache, fx.js Partikel, content.js Sprüche & Einsätze, emblem.js, danny.css)
+  hub/firestation.js   Feuerwache als Bonus-Automat in der Spielewelt
   cert/                Dumêz G. Schwetz, Übergabe-Szene, Zertifikat-Rendering
   hub/avatar.js        Avatar und Kleiderschrank (Business-Look-Pflicht)
   hub/planboard.js     Plantafel im Büro (3D-Tafel mit dem echten Tagesplan)

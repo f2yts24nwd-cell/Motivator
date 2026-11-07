@@ -7,6 +7,8 @@ import { WARDROBE, loadAvatar, saveAvatar, buildAvatar, disposeAvatar } from './
 import { GAMES } from '../games/registry.js';
 import { buildJukebox, JukeboxPlayer } from './jukebox.js';
 import { buildPlanBoard } from './planboard.js';
+import { buildFireStationCabinet, drawFireStationScreen } from './firestation.js';
+import { EMBLEM_SVG } from '../games/danny/emblem.js';
 
 const ROOM_W = 26, ROOM_D = 18;
 
@@ -161,9 +163,10 @@ export class Hub {
 
     // arcade cabinets
     const n = GAMES.length;
+    const gap = n > 6 ? 3.45 : 4.2;
     GAMES.forEach((game, i) => {
-      const x = (i - (n - 1) / 2) * 4.2;
-      const cab = this.buildCabinet(game);
+      const x = (i - (n - 1) / 2) * gap;
+      const cab = game.bonus ? buildFireStationCabinet(game) : this.buildCabinet(game);
       cab.group.position.set(x, 0, -ROOM_D / 2 + 1.3);
       s.add(cab.group);
       this.cabinets.push({ ...cab, game, pos: new THREE.Vector3(x, 0, -ROOM_D / 2 + 1.3), front: new THREE.Vector3(x, 0, -ROOM_D / 2 + 3.4) });
@@ -173,7 +176,7 @@ export class Hub {
     // office furniture
     const deskSpots = [[-9, 2.5, 0], [-9, -2, 0], [9, 4.8, Math.PI], [-4.5, 6.2, Math.PI / 2], [4.5, 6.2, -Math.PI / 2]];
     for (const [x, z, r] of deskSpots) this.addDesk(x, z, r);
-    for (const [x, z] of [[-12, -8], [12, -8], [-12, 8], [12, 8], [-11.8, 0.3]]) this.addPlant(x, z);
+    for (const [x, z] of [[-12.25, -8.2], [12.25, -8.2], [-12, 8], [12, 8], [-11.8, 0.3]]) this.addPlant(x, z);
     this.addWhiteboard();
     this.addCoffee(11.6, -1.6);
     this.addJukebox(12.0, 2.6);
@@ -280,7 +283,9 @@ export class Hub {
     const w = cab.screenCanvas.width, hh = cab.screenCanvas.height;
     c.fillStyle = '#05070f';
     c.fillRect(0, 0, w, hh);
-    if (cab.game.id === 'whack') {
+    if (cab.game.id === 'danny') {
+      drawFireStationScreen(c, w, hh, time);
+    } else if (cab.game.id === 'whack') {
       // mini attract-mode: 3x3 holes with popping icons and a hammer
       const items = [['#1d6f42', 'X'], ['#0a53b8', 'SAP'], ['#a4373a', 'A'], ['#0a63c9', 'e'], ['#00a1e0', '☁']];
       for (let i = 0; i < 9; i++) {
@@ -894,11 +899,12 @@ export class Hub {
     if (this.prompt && this.prompt.dataset.id === cab.game.id) return;
     this.prompt?.remove();
     const g = cab.game;
-    this.prompt = mount(h('div.game-prompt.panel', { 'data-id': g.id }, [
+    this.prompt = mount(h('div.game-prompt.panel' + (g.bonus ? '.bonus' : ''), { 'data-id': g.id }, [
+      g.bonus ? h('div.dn-emblem-wrap.small', { html: EMBLEM_SVG }) : null,
       h('h3', {}, g.title),
       h('p', {}, g.tagline),
       g.available
-        ? h('button.btn', { onclick: () => this.launch(g) }, '▶ Spielen')
+        ? h('button.btn' + (g.bonus ? '.dn-go' : ''), { onclick: () => this.launch(g) }, g.bonus ? '🚨 Zur Feuerwache' : '▶ Spielen')
         : h('button.btn.secondary', { disabled: 'true' }, 'Bald verfügbar')
     ]));
     if (this.hint) this.hint.style.display = 'none';
@@ -1042,6 +1048,7 @@ export class Hub {
       if (d < 1.9) near = cab;
       cab.glow.material.opacity = (cab.game.available ? 0.45 : 0.12) + (near === cab ? 0.35 : 0) + Math.sin(time * 3) * 0.05;
       if (redraw) this.drawScreen(cab, time);
+      cab.update?.(dt, time);
     }
     if (wardrobe) near = null;
     // jukebox

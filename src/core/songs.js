@@ -7,14 +7,23 @@ const file = (name) => `${BASE}music/${name}`;
 
 export const SONGS = [
   {
+    id: 'frag-den-danny',
+    title: 'Frag den Danny',
+    artist: 'itmX Spielewelt · mit Suno erstellt',
+    src: file('frag-den-danny.mp3'),
+    cover: file('frag-den-danny-cover-3d.webp'),
+    duration: 272,
+    note: 'Deutschrap · Der Song zum Bonusspiel',
+    neu: true
+  },
+  {
     id: 'crm-cruise',
     title: 'CRM Cruise',
     artist: 'itmX Spielewelt · mit Suno erstellt',
     src: file('crm-cruise.mp3'),
     cover: file('crm-cruise-cover.webp'),
     duration: 198,
-    note: 'Chill Rap · Das Autoradio aus „Ludlein Drive“',
-    neu: true
+    note: 'Chill Rap · Das Autoradio aus „Ludlein Drive“'
   },
   {
     id: 'mehr-verkaufen',

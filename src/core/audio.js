@@ -1469,3 +1469,295 @@ Object.assign(sfx, {
     inst.pluck(sfxBus, T0(), 76 + Math.round(k * 12), 0.025, 0);
   }
 });
+
+// ------------------------------------------------------------------ "Frag den Danny!" (Bonusspiel)
+// Synthesized thrash metal in E minor: palm-muted chugs through a shared distortion stack,
+// double bass drum, snare backbeat. intensity: -1 intro (clean), 0 groove, 1 + gallop,
+// 2 + double bass, 3 + lead guitar, 4 alarm (taiko + braams)
+function guitarBus(bus) {
+  const pre = ctx.createGain(); pre.gain.value = 1;
+  const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 90;
+  const drive = ctx.createWaveShaper();
+  const curve = new Float32Array(1024);
+  for (let i = 0; i < 1024; i++) { const x = i / 512 - 1; curve[i] = Math.tanh(x * 28) * 0.9; }
+  drive.curve = curve; drive.oversample = '2x';
+  const mid = ctx.createBiquadFilter(); mid.type = 'peaking'; mid.frequency.value = 720; mid.Q.value = 0.8; mid.gain.value = -6;
+  const cabF = ctx.createBiquadFilter(); cabF.type = 'lowpass'; cabF.frequency.value = 4200; cabF.Q.value = 0.9;
+  const low = ctx.createBiquadFilter(); low.type = 'peaking'; low.frequency.value = 140; low.gain.value = 4;
+  const post = ctx.createGain(); post.gain.value = 0.11;
+  pre.connect(hp).connect(drive).connect(mid).connect(cabF).connect(low).connect(post).connect(bus);
+  const s = ctx.createGain(); s.gain.value = 0.12; post.connect(s).connect(reverbSend);
+  return pre;
+}
+function riffNote(gin, t, midi, dur, { mute = true, vol = 0.5, pan = 0 } = {}) {
+  const g = ctx.createGain();
+  adsr(g.gain, t, { a: 0.002, d: mute ? 0.06 : 0.3, s: mute ? 0.15 : 0.7, r: mute ? 0.03 : 0.12, peak: vol, dur: mute ? Math.min(dur, 0.07) : dur });
+  let node = g;
+  if (pan && ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = pan; g.connect(p); node = p; }
+  node.connect(gin);
+  const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = mute ? 1300 : 5000;
+  f.connect(g);
+  for (const [iv, det] of [[0, -6], [7, 5], [12, 0]]) osc('sawtooth', mtof(midi + iv), t, t + dur + 0.2, det).connect(f);
+}
+THEMES.metal = {
+  bpm: 168,
+  // per bar: 16 steps; number = semitone above E2 (40), '.' rest; capital = open accent chord
+  riffs: [
+    [0, 0, 0, 0, 0, 0, 'O3', '.', 0, 0, 0, 0, 'O5', '.', 'O3', '.'],
+    [0, 0, 0, 0, 0, 0, 'O7', '.', 0, 0, 0, 0, 'O8', '.', 'O7', 'O5'],
+    [0, '.', 0, 0, 0, '.', 0, 0, 'O3', '.', 'O2', '.', 'O0', '.', '.', '.'],
+    ['O8', '.', '.', '.', 'O8', '.', 'O7', '.', 'O5', '.', '.', '.', 'O3', '.', 'O2', '.']
+  ],
+  order: [0, 0, 1, 0, 0, 0, 2, 3],
+  lead: [[76, 2], [79, 2], [83, 4], [81, 2], [79, 2], [78, 4], [79, 2], [78, 2], [76, 8], [74, 2], [76, 2], [78, 4], [79, 4], [83, 6], [86, 2], [88, 8], [0, 8]],
+  step(bus, s, t, sd, bar, I) {
+    if (this.gBus !== bus) { this.gin = guitarBus(bus); this.gBus = bus; }
+    const intro = I < 0;
+    const riff = this.riffs[this.order[bar % this.order.length]];
+    const n = riff[s];
+    if (intro) {
+      // clean arpeggio + toms while the alarm builds up
+      if (s % 2 === 0) inst.pluck(bus, t, [64, 67, 71, 74, 76, 71, 67, 64][(s / 2) % 8], 0.05, (s % 4 - 1.5) * 0.3);
+      if (s === 0) inst.ens(bus, t, 40, sd * 15, { vol: 0.05, cutoff: 500, a: 0.4, r: 1, voices: 2, wet: 0.5 });
+      if (s === 12 || s === 14) inst.taiko(bus, t, 0.5, 0, 1.2);
+      return;
+    }
+    if (n !== '.') {
+      const open = typeof n === 'string';
+      const semi = open ? +n.slice(1) : n;
+      const dur = open ? sd * 1.9 : sd * 0.9;
+      riffNote(this.gin, t, 40 + semi, dur, { mute: !open, vol: open ? 0.5 : 0.42, pan: -0.55 });
+      riffNote(this.gin, t + 0.006, 40 + semi, dur, { mute: !open, vol: open ? 0.5 : 0.42, pan: 0.55 });
+      inst.bass(bus, t, 28 + semi, dur, { vol: 0.08, cutoff: 380, q: 3 });
+    }
+    // drums
+    const dbl = I >= 2;
+    if (dbl || s % 4 === 0 || (I >= 1 && (s % 4 === 3))) inst.kick(bus, t, dbl ? (s % 2 ? 0.55 : 0.75) : 0.95);
+    if (s === 4 || s === 12) inst.snare(bus, t, 0.85, 0.05);
+    if (I >= 3 && (s === 14 || s === 15) && bar % 2 === 1) inst.snare(bus, t, 0.45, -0.1);
+    if (s % 2 === 0) inst.hat(bus, t, s % 4 === 0 ? 0.05 : 0.035, false, 0.25);
+    if (s === 0 && (bar % 4 === 0 || I >= 3)) inst.crash(bus, t, 0.09);
+    // lead guitar (distorted, with vibrato) on top
+    if (I >= 3) {
+      const pos = (bar % 4) * 16 + s;
+      let acc = 0;
+      for (const [m, len] of this.lead) {
+        if (acc === pos && m) {
+          const g = ctx.createGain();
+          adsr(g.gain, t, { a: 0.005, d: 0.1, s: 0.8, r: 0.1, peak: 0.3, dur: sd * len * 0.95 });
+          g.connect(this.gin);
+          const o = osc('square', mtof(m - 12), t, t + sd * len + 0.2);
+          const lfo = osc('sine', 6.5, t, t + sd * len + 0.2); const lg = ctx.createGain(); lg.gain.value = 9;
+          lfo.connect(lg).connect(o.detune);
+          o.connect(g);
+        }
+        acc += len;
+        if (acc > 64) break;
+      }
+    }
+    if (I >= 4) {
+      if (s === 0 || s === 8) inst.taiko(bus, t, 1, (s % 3 - 1) * 0.3, 0.7);
+      if (s === 0 && bar % 2 === 0) inst.braam(bus, t, [28, 35], 1.4, 0.05);
+    }
+  }
+};
+
+/** Continuous filtered noise (spray, fire roar). set(level 0..1, tone 0..1) */
+export function createNoiseLoop(kind = 'spray') {
+  if (!ac()) return null;
+  const n = noise();
+  const f = ctx.createBiquadFilter();
+  const f2 = ctx.createBiquadFilter();
+  const g = ctx.createGain();
+  g.gain.value = 0;
+  if (kind === 'spray') { f.type = 'bandpass'; f.frequency.value = 2400; f.Q.value = 0.7; f2.type = 'highshelf'; f2.frequency.value = 5000; f2.gain.value = 4; }
+  else { f.type = 'lowpass'; f.frequency.value = 600; f.Q.value = 0.5; f2.type = 'peaking'; f2.frequency.value = 180; f2.gain.value = 8; }
+  n.connect(f).connect(f2).connect(g).connect(out(sfxBus, { wet: kind === 'spray' ? 0.1 : 0.25 }));
+  n.start();
+  // fire: random crackle pops modulating the gain
+  let crackle = null;
+  if (kind === 'fire') {
+    crackle = ctx.createGain(); crackle.gain.value = 0;
+    const cn = noise(); const cf = ctx.createBiquadFilter(); cf.type = 'highpass'; cf.frequency.value = 1800;
+    cn.connect(cf).connect(crackle).connect(out(sfxBus, { wet: 0.2 }));
+    cn.start();
+  }
+  let level = 0;
+  return {
+    set(v, tone = 0.5) {
+      if (!ctx) return;
+      const t = ctx.currentTime;
+      level = v;
+      g.gain.setTargetAtTime(v * (kind === 'spray' ? 0.32 : 0.5), t, 0.05);
+      if (kind === 'spray') f.frequency.setTargetAtTime(1500 + tone * 2500, t, 0.08);
+      else f.frequency.setTargetAtTime(300 + tone * 900, t, 0.2);
+      if (crackle && v > 0.02 && Math.random() < 0.5 + v * 0.5) {
+        const k = t + Math.random() * 0.05;
+        crackle.gain.setValueAtTime(0.0001, k);
+        crackle.gain.linearRampToValueAtTime(0.06 + v * 0.18 * Math.random(), k + 0.002);
+        crackle.gain.exponentialRampToValueAtTime(0.0001, k + 0.03);
+      }
+    },
+    get level() { return level; },
+    stop() {
+      try {
+        g.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.05);
+        setTimeout(() => { try { n.stop(); g.disconnect(); crackle?.disconnect(); } catch { /* ignore */ } }, 400);
+      } catch { /* ignore */ }
+    }
+  };
+}
+
+Object.assign(sfx, {
+  /** German two-tone siren ("Martinshorn"): A4 / D5 */
+  siren(cycles = 3) {
+    if (!ready()) return;
+    const t = T0();
+    const dest = out(sfxBus, { wet: 0.35 });
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2600;
+    const g = ctx.createGain();
+    const len = cycles * 1.2;
+    adsr(g.gain, t, { a: 0.05, d: 0.1, s: 1, r: 0.3, peak: 0.07, dur: len });
+    const o1 = osc('sawtooth', 440, t, t + len + 0.5);
+    const o2 = osc('square', 440, t, t + len + 0.5, 6);
+    for (let i = 0; i < cycles * 2; i++) {
+      const fr = i % 2 ? 587 : 440;
+      o1.frequency.setValueAtTime(fr, t + i * 0.6);
+      o2.frequency.setValueAtTime(fr, t + i * 0.6);
+    }
+    o1.connect(f); o2.connect(f);
+    f.connect(g).connect(dest);
+  },
+  /** fire alarm bell */
+  alarm() {
+    if (!ready()) return;
+    const t = T0();
+    for (let i = 0; i < 10; i++) {
+      const dest = out(sfxBus, { wet: 0.3 });
+      const o = osc('square', 1250, t + i * 0.06, t + i * 0.06 + 0.05);
+      const g = ctx.createGain();
+      adsr(g.gain, t + i * 0.06, { a: 0.002, d: 0.04, s: 0.0001, r: 0.01, peak: 0.05, dur: 0.01 });
+      o.connect(g).connect(dest);
+    }
+  },
+  /** big metal clang (hammer) */
+  clang(pitch = 1) {
+    if (!ready()) return;
+    const t = T0();
+    inst.taiko(sfxBus, t, 1, 0, 0.9 * pitch);
+    for (const [fr, v] of [[523, 0.07], [1187, 0.05], [1873, 0.035], [2961, 0.025]]) {
+      const o = osc('sine', fr * pitch, t, t + 1.2);
+      const g = ctx.createGain();
+      adsr(g.gain, t, { a: 0.001, d: 0.8, s: 0.0001, r: 0.2, peak: v, dur: 0.01 });
+      o.connect(g).connect(out(sfxBus, { wet: 0.4 }));
+    }
+    const n = noise(); const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 3000;
+    const ng = ctx.createGain(); adsr(ng.gain, t, { a: 0.001, d: 0.05, s: 0.0001, r: 0.02, peak: 0.4, dur: 0.01 });
+    n.connect(f).connect(ng).connect(out(sfxBus, { wet: 0.2 })); n.start(t, Math.random()); n.stop(t + 0.2);
+  },
+  /** defibrillator: charge whine + thump + crackle */
+  defi() {
+    if (!ready()) return;
+    const t = T0();
+    const o = osc('sine', 1800, t, t + 0.2);
+    o.frequency.exponentialRampToValueAtTime(4200, t + 0.15);
+    const g = ctx.createGain(); adsr(g.gain, t, { a: 0.01, d: 0.1, s: 0.6, r: 0.03, peak: 0.05, dur: 0.15 });
+    o.connect(g).connect(out(sfxBus, { wet: 0.1 }));
+    const t2 = t + 0.16;
+    inst.kick(sfxBus, t2, 1);
+    const n = noise(); const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 3200; f.Q.value = 0.6;
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(0.0001, t2);
+    for (let i = 0; i < 12; i++) { const k = t2 + i * 0.022; ng.gain.setValueAtTime(rnd(0.1, 0.4), k); ng.gain.setValueAtTime(0.0001, k + 0.01); }
+    n.connect(f).connect(ng).connect(out(sfxBus, { wet: 0.25 })); n.start(t2, Math.random()); n.stop(t2 + 0.35);
+    const buzz = osc('sawtooth', 110, t2, t2 + 0.3);
+    const bg = ctx.createGain(); adsr(bg.gain, t2, { a: 0.002, d: 0.25, s: 0.0001, r: 0.05, peak: 0.08, dur: 0.01 });
+    buzz.connect(bg).connect(out(sfxBus, { wet: 0.1 }));
+  },
+  /** rubber duck squeak */
+  quack(pitch = 1) {
+    if (!ready()) return;
+    const t = T0();
+    const o = osc('sawtooth', 600 * pitch, t, t + 0.25);
+    o.frequency.linearRampToValueAtTime(980 * pitch, t + 0.05);
+    o.frequency.exponentialRampToValueAtTime(420 * pitch, t + 0.2);
+    const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1400; f.Q.value = 3;
+    const g = ctx.createGain(); adsr(g.gain, t, { a: 0.01, d: 0.15, s: 0.0001, r: 0.05, peak: 0.12, dur: 0.05 });
+    o.connect(f).connect(g).connect(out(sfxBus, { wet: 0.2 }));
+  },
+  /** cartoon bonk */
+  bonk() {
+    if (!ready()) return;
+    const t = T0();
+    const o = osc('sine', 300, t, t + 0.35);
+    o.frequency.exponentialRampToValueAtTime(90, t + 0.25);
+    const g = ctx.createGain(); adsr(g.gain, t, { a: 0.002, d: 0.25, s: 0.0001, r: 0.05, peak: 0.3, dur: 0.01 });
+    o.connect(g).connect(out(sfxBus, { wet: 0.2 }));
+    inst.taiko(sfxBus, t, 0.5, 0, 1.8);
+  },
+  /** water splash on someone */
+  splash() {
+    if (!ready()) return;
+    const t = T0();
+    const n = noise(); const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.2;
+    f.frequency.setValueAtTime(3000, t); f.frequency.exponentialRampToValueAtTime(700, t + 0.3);
+    const g = ctx.createGain(); adsr(g.gain, t, { a: 0.005, d: 0.3, s: 0.0001, r: 0.1, peak: 0.35, dur: 0.01 });
+    n.connect(f).connect(g).connect(out(sfxBus, { wet: 0.3 })); n.start(t, Math.random()); n.stop(t + 0.5);
+  },
+  /** fire goes out: hiss */
+  steam() {
+    if (!ready()) return;
+    const t = T0();
+    const n = noise(); const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 3500;
+    const g = ctx.createGain(); adsr(g.gain, t, { a: 0.01, d: 0.6, s: 0.0001, r: 0.2, peak: 0.28, dur: 0.05 });
+    n.connect(f).connect(g).connect(out(sfxBus, { wet: 0.3 })); n.start(t, Math.random()); n.stop(t + 0.9);
+    inst.pluck(sfxBus, t + 0.05, 84, 0.03);
+  },
+  /** explosion / impact from the ceiling */
+  boom(big = 1) {
+    if (!ready()) return;
+    const t = T0();
+    inst.braam(sfxBus, t, [26, 33], 1.2, 0.06 * big);
+    inst.taiko(sfxBus, t, 1, -0.2, 0.5);
+    inst.taiko(sfxBus, t + 0.02, 1, 0.2, 0.7);
+    const dest = out(sfxBus, { wet: 0.35 });
+    const sub = osc('sine', 60, t, t + 1.2); sub.frequency.exponentialRampToValueAtTime(22, t + 1);
+    const sg = ctx.createGain(); adsr(sg.gain, t, { a: 0.002, d: 0.9, s: 0.0001, r: 0.2, peak: 1, dur: 0.01 });
+    sub.connect(sg).connect(dest);
+    const n = noise(); const f = ctx.createBiquadFilter(); f.type = 'lowpass';
+    f.frequency.setValueAtTime(5000, t); f.frequency.exponentialRampToValueAtTime(200, t + 1.2);
+    const ng = ctx.createGain(); adsr(ng.gain, t, { a: 0.002, d: 1, s: 0.0001, r: 0.2, peak: 0.6 * big, dur: 0.01 });
+    n.connect(f).connect(ng).connect(dest); n.start(t, Math.random()); n.stop(t + 1.5);
+  },
+  /** fire ignites (whoomp) */
+  ignite() {
+    if (!ready()) return;
+    const t = T0();
+    const n = noise(); const f = ctx.createBiquadFilter(); f.type = 'lowpass';
+    f.frequency.setValueAtTime(200, t); f.frequency.exponentialRampToValueAtTime(2400, t + 0.15); f.frequency.exponentialRampToValueAtTime(300, t + 0.6);
+    const g = ctx.createGain(); adsr(g.gain, t, { a: 0.03, d: 0.5, s: 0.0001, r: 0.1, peak: 0.45, dur: 0.05 });
+    n.connect(f).connect(g).connect(out(sfxBus, { wet: 0.3 })); n.start(t, Math.random()); n.stop(t + 0.8);
+  },
+  /** power-up from the toolbox */
+  powerup() {
+    if (!ready()) return;
+    const t = T0();
+    [64, 68, 71, 76, 80, 83].forEach((m, i) => inst.arp(sfxBus, t + i * 0.05, m, { vol: 0.06, cutoff: 3800, delay: 0.3, pan: (i - 2.5) * 0.2 }));
+    inst.crash(sfxBus, t + 0.3, 0.06);
+  },
+  /** "AAAH" — a falling vowel formant scream */
+  scream(pitch = 1) {
+    if (!ready()) return;
+    const t = T0();
+    const o = osc('sawtooth', 380 * pitch, t, t + 0.7);
+    o.frequency.linearRampToValueAtTime(520 * pitch, t + 0.08);
+    o.frequency.exponentialRampToValueAtTime(240 * pitch, t + 0.65);
+    const lfo = osc('sine', 7, t, t + 0.7); const lg = ctx.createGain(); lg.gain.value = 18; lfo.connect(lg).connect(o.frequency);
+    const g = ctx.createGain(); adsr(g.gain, t, { a: 0.02, d: 0.2, s: 0.7, r: 0.15, peak: 0.07, dur: 0.5 });
+    for (const [fr, q] of [[800, 6], [1150, 8], [2900, 10]]) {
+      const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = fr * pitch; f.Q.value = q;
+      o.connect(f).connect(g);
+    }
+    g.connect(out(sfxBus, { wet: 0.3 }));
+  }
+});

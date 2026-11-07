@@ -1706,7 +1706,7 @@ export class DannyGame {
       if (n.panic > 0.4 && n.state !== 'sleep') {
         aL = -2.4 + Math.sin(time * 20 + n.ph) * 0.6; aR = -2.4 + Math.sin(time * 20 + n.ph + 2) * 0.6; zL = 0.5; zR = -0.5;
         b.position.x = Math.sin(time * 30) * 0.03;
-        if (Math.random() < dt * 0.15 && this.state === 'play') this.say(n.neck, pick(['ES BRENNT! DANNYYY!', 'Ich hab die Sicherung extra nicht angefasst!', 'Mein Laptop! Meine Pornos! Äh, Präsentationen!', 'Das ist bestimmt dieses Burn-out!', 'Rettet die Kaffeemaschine zuerst!']), 'shout', 2.2);
+        if (Math.random() < dt * 0.15 && this.state === 'play') this.say(n.neck, pick(['ES BRENNT! DANNYYY!', 'Ich hab die Sicherung extra nicht angefasst!', 'Mein Laptop! Da ist das einzige Backup drauf!', 'Das ist bestimmt dieses Burn-out!', 'Rettet die Kaffeemaschine zuerst!']), 'shout', 2.2);
       }
       if (alarmed) {
         const k = Math.sin(Math.min(1, r.t / 1.1) * Math.PI);

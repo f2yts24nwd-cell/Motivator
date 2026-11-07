@@ -231,3 +231,43 @@
 /* the start alarm in meme style too */
 .dn-alarm b { font-family: var(--meme); font-weight: 400; -webkit-text-stroke: 5px #000; paint-order: stroke fill; text-shadow: 6px 6px 0 #000, 0 0 40px #ff2a1a; }
 .dn-alarm b::after { content: ''; }
+
+/* ---------- first-person mode ---------- */
+.dn-cross { position: absolute; left: 0; top: 0; width: 0; height: 0; will-change: transform; }
+.dn-cross i { position: absolute; width: 14px; height: 3px; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.6); border-radius: 2px; transition: transform .15s; }
+.dn-cross i:nth-child(1) { left: -24px; top: -1.5px; }
+.dn-cross i:nth-child(2) { left: 10px; top: -1.5px; }
+.dn-cross i:nth-child(3) { width: 3px; height: 14px; left: -1.5px; top: -24px; }
+.dn-cross i:nth-child(4) { width: 3px; height: 14px; left: -1.5px; top: 10px; }
+.dn-cross b { position: absolute; left: -4px; top: -4px; width: 8px; height: 8px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.6); }
+.dn-cross.on i, .dn-cross.on b { background: #ff7a2a; box-shadow: 0 0 8px #ff7a2a; }
+.dn-cross.fire i:nth-child(1) { transform: translateX(-4px); } .dn-cross.fire i:nth-child(2) { transform: translateX(4px); }
+.dn-cross.fire i:nth-child(3) { transform: translateY(-4px); } .dn-cross.fire i:nth-child(4) { transform: translateY(4px); }
+@media (pointer: coarse) { .dn-cross { opacity: .85; } }
+
+.dn-fpsgauge { position: absolute; left: calc(14px + env(safe-area-inset-left)); bottom: calc(14px + env(safe-area-inset-bottom)); display: grid; justify-items: center; gap: 2px; }
+.dn-fpsgauge canvas { width: 86px; height: 86px; border-radius: 50%; box-shadow: 0 6px 18px rgba(0,0,0,.5); }
+.dn-fpsgauge small { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #fff; text-shadow: 0 1px 3px #000; }
+
+.dn-sub { position: absolute; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom)); transform: translate(-50%, 10px); max-width: min(680px, calc(100% - 140px)); padding: 10px 16px; border-radius: 12px; background: rgba(6, 8, 14, .78); color: #fff; font-size: 17px; line-height: 1.35; text-align: center; opacity: 0; transition: opacity .25s, transform .25s; }
+.dn-sub.on { opacity: 1; transform: translate(-50%, 0); }
+.dn-sub b { display: block; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #ffb27a; margin-bottom: 2px; }
+.dn-sub.danny b { color: #e4ff3a; }
+@media (max-width: 600px) { .dn-sub { font-size: 14px; max-width: calc(100% - 120px); bottom: calc(110px + env(safe-area-inset-bottom)); } }
+
+.dn-banner { position: absolute; left: 50%; top: 32%; transform: translateX(-50%); text-align: center; animation: dnBanner 2.6s ease forwards; }
+.dn-banner small { display: block; font-size: 13px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; color: #ffb27a; text-shadow: 0 2px 6px #000; }
+.dn-banner b { font-size: clamp(30px, 6vw, 54px); font-weight: 900; color: #fff; text-shadow: 0 4px 0 rgba(0,0,0,.4), 0 0 30px rgba(255,90,30,.6); }
+@keyframes dnBanner { 0% { opacity: 0; transform: translate(-50%, 16px); } 15%, 75% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
+
+.dn-marker.small { width: 40px; height: 40px; margin: -20px 0 0 -20px; opacity: .9; }
+.dn-marker.small b { font-size: 17px; margin-top: 0; }
+
+.dn-splat { position: absolute; inset: 0; transition: opacity .8s; }
+.dn-splat.out { opacity: 0; }
+.dn-splat i { position: absolute; border-radius: 46% 54% 60% 40% / 50% 42% 58% 50%; background: radial-gradient(circle at 40% 35%, #e0412a, #8a0d06 60%, rgba(90,10,4,.9)); box-shadow: 0 0 0 6px rgba(140,16,8,.35); transform: translate(-50%, -50%) scale(0); animation: dnSplat .25s cubic-bezier(.2,1.6,.4,1) forwards; }
+@keyframes dnSplat { to { transform: translate(-50%, -50%) scale(1); } }
+
+.dn-maskview { position: absolute; inset: 0; background: radial-gradient(ellipse 62% 58% at 50% 48%, rgba(0,0,0,0) 62%, rgba(10,12,16,.85) 74%, #07080b 82%); animation: fadeIn .5s ease; }
+.dn-maskview i { position: absolute; left: 50%; bottom: -6%; width: 22vmin; height: 22vmin; transform: translateX(-50%); border-radius: 50%; background: radial-gradient(circle at 50% 40%, #50555e, #22252b 70%); box-shadow: inset 0 0 0 6px #ff7a00, 0 0 30px rgba(0,0,0,.8); }
+.dn-maskview em { position: absolute; inset: 8% 14% 20%; border-radius: 50%; background: linear-gradient(120deg, rgba(255,255,255,.12), rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,.06)); }

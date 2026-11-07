@@ -457,7 +457,7 @@ const SKIN = [0xf1c6a5, 0xe0ac82, 0xc68a5e, 0x9a6440, 0x6e4528, 0xf6d2b8];
 const HAIR = [0x2a1c12, 0x5a3a20, 0x111111, 0xc9a36a, 0x8a3a1a, 0x9a9a9a];
 export const ROLE_LABEL = { berater: 'Berater', dev: 'Entwickler', pl: 'Projektleiter', kunde: 'Kunde' };
 
-export function buildNPC(role) {
+export function buildNPC(role, { female = false } = {}) {
   const root = new THREE.Group();
   const body = new THREE.Group();
   root.add(body);
@@ -490,7 +490,8 @@ export function buildNPC(role) {
   const torso = new THREE.Mesh(new RoundedBoxGeometry(0.54, 0.66, 0.32, 3, 0.1), topM);
   torso.position.y = 1.14;
   body.add(torso);
-  if (look.shirt) {
+  if (female && look.tie) { look.tie = null; look.shirt = 0xf4f6fa; }
+  if (look.shirt && !female) {
     const shirt = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.36), M(look.shirt));
     shirt.position.set(0, 1.27, 0.162);
     body.add(shirt);
@@ -535,7 +536,23 @@ export function buildNPC(role) {
   // hair
   const hairM = M(hairC, { roughness: 0.85 });
   let hair = null;
-  if (role !== 'kunde' || Math.random() < 0.3) {
+  if (female) {
+    // longer hair: bob around the head plus a ponytail
+    hair = new THREE.Mesh(new THREE.SphereGeometry(0.215, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), hairM);
+    hair.position.y = 0.19;
+    hair.scale.set(1.06, 1.0, 1.08);
+    hair.rotation.x = -0.35;
+    neck.add(hair);
+    const tail = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.26, 4, 8), hairM);
+    tail.position.set(0, 0.06, -0.2);
+    tail.rotation.x = 0.35;
+    neck.add(tail);
+    for (const sx of [-0.05, 0.05]) {
+      const lash = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.012, 0.01), M(0x111111));
+      lash.position.set(sx * 1.3, 0.245, 0.17);
+      neck.add(lash);
+    }
+  } else if (role !== 'kunde' || Math.random() < 0.3) {
     hair = new THREE.Mesh(new THREE.SphereGeometry(0.2, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2.1), hairM);
     hair.position.y = 0.2;
     hair.scale.set(1.03, role === 'berater' ? 0.75 : 0.9, 1.05);
@@ -579,7 +596,7 @@ export function buildNPC(role) {
   shadow(root);
   // remember the colours for soot / wet tinting
   for (const m of mats) { m.userData.base = m.color.clone(); m.userData.cc = m.clearcoat; m.userData.rough = m.roughness; }
-  return { root, body, legs, arms, neck, head, eyes, hair, mats, role };
+  return { root, body, legs, arms, neck, head, eyes, hair, mats, role, female };
 }
 
 /** tint 0..1 soot (black), wet 0..1 (darker + glossy) */

@@ -80,7 +80,7 @@ export class DannyGame {
     // colleagues
     this.npcs = [];
     const addNPC = (seat) => {
-      const m = buildNPC(seat.role);
+      const m = buildNPC(seat.role, { female: !!seat.female });
       m.root.position.copy(seat.pos);
       m.root.rotation.y = seat.yaw;
       s.add(m.root);
@@ -91,7 +91,7 @@ export class DannyGame {
     for (const seat of this.office.seats) if (seat.role) addNPC(seat);
     for (const seat of this.office.meeting.seats) { const n = addNPC(seat); if (seat.role === 'kunde') this.kunde = n; }
     // the wandering project manager
-    const pm = buildNPC('pl');
+    const pm = buildNPC('pl', { female: true });
     s.add(pm.root);
     this.wanderer = { ...pm, seat: null, standK: 1, state: 'walk', problem: null, wet: 0, soot: 0, react: null, showerCd: 0, hitCd: 0, fall: 0, panic: 0, ph: 0, walk: { target: V(), speed: 1.4, wait: 0 } };
     this.npcs.push(this.wanderer);

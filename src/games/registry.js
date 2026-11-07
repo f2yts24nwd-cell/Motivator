@@ -4,7 +4,7 @@ import { ConversionGame } from './conversion/conversion.js';
 import { KoenigreichGame } from './crm/crm.js';
 import { LeadRushGame } from './leadrush/leadrush.js';
 import { DriveGame } from './drive/drive.js';
-import { DannyGame } from './danny/danny.js';
+import { DannyShooter } from './danny/shooter.js';
 
 // Every game in the world gets its own arcade cabinet in the office hub.
 // To add a new game: create a class with enter()/exit()/update(dt,time)/resize(w,h)
@@ -61,10 +61,10 @@ export const GAMES = [
   {
     id: 'danny',
     title: 'Frag den Danny!',
-    tagline: 'Bonusspiel: Es brennt im Kundenprojekt! Berater denken nicht, Anforderungen fallen vom Himmel, irgendwas ist mit SAP. Feuerwehrmann Danny löscht alles, mit Löscher, Denk-Defi, Hammer und Debug-Ente.',
+    tagline: 'Bonusspiel im Ego-Look: Mit dem DANNY-Löscher durchs brennende Kundenprojekt. Berater pennen, Lastenhefte brennen, Spaghetti-Code wirft Fleischbällchen und irgendwas ist mit SAP. Ganz in Ruhe, ohne Zeitdruck.',
     color: '#ff3b1f',
     available: true,
     bonus: true, // gets the fire station instead of a regular cabinet in the hub
-    create: (app) => new DannyGame(app)
+    create: (app) => new DannyShooter(app)
   }
 ];

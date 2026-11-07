@@ -1761,3 +1761,41 @@ Object.assign(sfx, {
     g.connect(out(sfxBus, { wet: 0.3 }));
   }
 });
+
+// ------------------------------------------------------------------ voice lines (pre-rendered mp3s)
+// Decoded once and played through WebAudio, so they mix with the song element on iOS too.
+const voiceBuf = new Map();
+let voiceSrc = null;
+function loadVoiceBuffer(url) {
+  if (!voiceBuf.has(url)) {
+    voiceBuf.set(url, fetch(url).then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+      .then((b) => new Promise((res, rej) => ctx.decodeAudioData(b, res, rej)))
+      .catch(() => { voiceBuf.delete(url); return null; }));
+  }
+  return voiceBuf.get(url);
+}
+/** Fetches + decodes voice files ahead of time (call after the audio unlock). */
+export function preloadVoices(urls) { if (ac()) urls.forEach(loadVoiceBuffer); }
+/** Plays a voice line. Resolves with its duration in seconds (0 when audio is unavailable). */
+export async function playVoice(url, { gain = 1.5, interrupt = true } = {}) {
+  if (!ready()) return 0;
+  const buf = await loadVoiceBuffer(url);
+  if (!buf || !ready()) return 0;
+  if (interrupt && voiceSrc) { try { voiceSrc.stop(); } catch { /* ignore */ } }
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  const g = ctx.createGain();
+  g.gain.value = gain;
+  src.connect(g).connect(out(sfxBus, { wet: 0.06 }));
+  // duck the synthesized music and (where the browser allows it) the song while someone talks
+  const t = ctx.currentTime;
+  musicBus.gain.cancelScheduledValues(t);
+  musicBus.gain.setTargetAtTime(0.22, t, 0.08);
+  musicBus.gain.setTargetAtTime(0.55, t + buf.duration, 0.3);
+  if (song.el && song.playing) { fadeSong(song.volume * 0.35, 0.2); setTimeout(() => { if (voiceSrc === src || !voiceSrc) fadeSong(song.volume, 0.5); }, buf.duration * 1000); }
+  src.onended = () => { if (voiceSrc === src) voiceSrc = null; };
+  src.start();
+  voiceSrc = src;
+  return buf.duration;
+}
+export function stopVoice() { if (voiceSrc) { try { voiceSrc.stop(); } catch { /* ignore */ } voiceSrc = null; } }

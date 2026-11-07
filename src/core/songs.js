@@ -11,7 +11,7 @@ export const SONGS = [
     title: 'Frag den Danny',
     artist: 'itmX Spielewelt · mit Suno erstellt',
     src: file('frag-den-danny.mp3'),
-    cover: file('frag-den-danny-cover.webp'),
+    cover: file('frag-den-danny-cover-3d.webp'),
     duration: 272,
     note: 'Deutschrap · Der Song zum Bonusspiel',
     neu: true

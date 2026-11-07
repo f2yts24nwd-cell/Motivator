@@ -317,7 +317,7 @@ export class DannyGame {
     mount(h('div.overlay.dn-menu', {}, h('div.card.panel.dn-card', {}, [
       h('div.dn-head', {}, [
         h('div.dn-emblem-wrap', { html: EMBLEM_SVG }),
-        h('figure.dn-portrait', {}, [h('img', { src: `${import.meta.env.BASE_URL}danny/danny.webp`, alt: 'Danny' }), h('figcaption', {}, 'Einsatzleiter Danny')])
+        h('figure.dn-portrait', {}, [h('img', { src: `${import.meta.env.BASE_URL}danny/danny-3d.webp`, alt: 'Danny' }), h('figcaption', {}, 'Einsatzleiter Danny')])
       ]),
       h('div.kicker', {}, 'Bonusspiel · Feuerwache itmX'),
       h('h1', {}, 'Frag den Danny!'),

@@ -285,7 +285,18 @@ export function buildDanny() {
     tuft.rotation.x = 1.0;
     neck.add(tuft);
   }
-  const stubM = new THREE.MeshStandardMaterial({ color: 0x7a6a52, roughness: 1, transparent: true, opacity: 0.8 });
+  const stubTex = canvasTexture(256, 128, (c, w, hh) => {
+    // speckled stubble that fades out towards the cheeks and the top edge
+    for (let i = 0; i < 5200; i++) {
+      const x = Math.random() * w, y = Math.random() * hh;
+      const edge = Math.min(1, y / (hh * 0.35)) * Math.min(1, Math.min(x, w - x) / (w * 0.18));
+      if (Math.random() > edge) continue;
+      const v = 95 + Math.random() * 70;
+      c.fillStyle = `rgba(${v + 25},${v + 10},${v - 15},${0.55 + Math.random() * 0.4})`;
+      c.fillRect(x, y, 1.6, 1.6);
+    }
+  });
+  const stubM = new THREE.MeshStandardMaterial({ map: stubTex, roughness: 1, transparent: true, depthWrite: false });
   const stubble = new THREE.Mesh(new THREE.SphereGeometry(0.214, 24, 12, Math.PI / 2 - 1.4, 2.8, 1.8, 0.95), stubM);
   stubble.scale.set(1.01, 1.08, 1.02);
   stubble.position.y = 0.17;

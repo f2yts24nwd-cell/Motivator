@@ -78,6 +78,7 @@ export function buildOffice(scene) {
   // ---- desk islands
   const seats = [];
   const roles = [['berater', 'dev', 'berater'], ['dev', 'berater', 'pl'], ['berater', 'dev', 'dev'], ['pl', 'berater', 'dev']];
+  const females = [[false, true, false], [false, true, true], [false, true, false], [true, false, false]];
   const islands = [[-5.2, -1.3], [1.2, -1.3], [-5.2, 4.3], [1.2, 4.3]];
   islands.forEach(([cx, cz], ii) => {
     let k = 0;
@@ -90,7 +91,7 @@ export function buildOffice(scene) {
       const top = new THREE.Vector3(cx + dx, 0.82, cz + dz);
       // three of four seats are taken
       const role = k < 3 ? roles[ii][k] : null;
-      seats.push({ pos: new THREE.Vector3(cx + dx, 0, cz + dz + dir * 0.78), yaw: rot === 0 ? Math.PI : 0, desk: d, top, role, aisle: dir });
+      seats.push({ pos: new THREE.Vector3(cx + dx, 0, cz + dz + dir * 0.78), yaw: rot === 0 ? Math.PI : 0, desk: d, top, role, aisle: dir, female: k < 3 && females[ii][k], island: ii, k });
       k++;
     }
     // partition between the monitors
@@ -147,8 +148,8 @@ export function buildOffice(scene) {
   const meeting = {
     door: new THREE.Vector3(-8.3, 1.2, MZ),
     seats: [
-      { pos: new THREE.Vector3(-9.8, 0, -5.35), yaw: Math.PI, role: 'kunde', aisle: 1, top: new THREE.Vector3(-9.8, 0.82, -6.1) },
-      { pos: new THREE.Vector3(-8.6, 0, -7.25), yaw: 0, role: 'pl', aisle: -1, top: new THREE.Vector3(-8.6, 0.82, -6.5) }
+      { pos: new THREE.Vector3(-8.9, 0, -7.25), yaw: 0, role: 'kunde', aisle: -1, top: new THREE.Vector3(-8.9, 0.82, -6.5) },
+      { pos: new THREE.Vector3(-9.9, 0, -5.35), yaw: Math.PI, role: 'pl', aisle: 1, top: new THREE.Vector3(-9.9, 0.82, -6.1) }
     ]
   };
 
@@ -194,7 +195,7 @@ export function buildOffice(scene) {
   box(9.95, 10.65, 2.85, 3.55);
 
   // plants
-  for (const [x, z] of [[6.2, -7.4], [-11.3, -3.4], [7.4, 7.3]]) {
+  for (const [x, z] of [[6.2, -7.4], [-11.3, -3.4], [11.4, 5.4]]) {
     const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.26, 0.6, 16), std(0xf0ebe0, { roughness: 0.4 }));
     pot.position.set(x, 0.3, z);
     const bush = new THREE.Mesh(new THREE.IcosahedronGeometry(0.6, 1), std(0x2f8f4e, { roughness: 0.8, flatShading: true }));

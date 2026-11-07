@@ -4,7 +4,7 @@ import { rand, clamp, lerp } from '../../core/gfx.js';
 import { sfx, music, unlockAudio, createNoiseLoop, playVoice, preloadVoices, stopVoice } from '../../core/audio.js';
 import { h, mount, clearUI, storeSet } from '../../core/ui.js';
 import { DannyGame } from './danny.js';
-import { buildExtinguisher, buildSAP, buildSpaghetti, buildStraw, buildLastenheft } from './models.js';
+import { buildExtinguisher, buildSAP, buildSpaghetti, buildStraw, buildLastenheft, buildNPC } from './models.js';
 import * as C from './content.js';
 import { EMBLEM_SVG } from './emblem.js';
 import VO from './voices.json';
@@ -24,7 +24,7 @@ const RANKS = [
   { ...C.RANKS[3], min: 0, line: 'Das Büro steht noch. Irgendwie. Du hast schön gespritzt.' }
 ];
 const rankFor = (s) => RANKS.find((r) => s >= r.min);
-const POINTS = { fire: 150, sleep: 300, straw: 350, monster: 500, page: 90, ball: 40, spot: 250, forgot: 300, shower: 50, kunde: 200 };
+const POINTS = { fuenf: 250, fire: 150, sleep: 300, straw: 350, monster: 500, page: 90, ball: 40, spot: 250, forgot: 300, shower: 50, kunde: 200 };
 
 class Abort extends Error {}
 
@@ -71,6 +71,40 @@ export class DannyShooter extends DannyGame {
     this.hitTargets = [];
     this.balls = []; this.pages = [];
     this.rayc = new THREE.Raycaster();
+    // two extra colleagues for their own scenes
+    const extra = (role, female) => {
+      const m = buildNPC(role, { female });
+      this.scene.add(m.root);
+      const n = { ...m, seat: null, standK: 1, state: 'sit', problem: null, wet: 0, soot: 0, react: null, showerCd: 0, hitCd: 0, fall: 0, panic: 0, ph: 0, walk: { target: V(), speed: 1.4, wait: 1e9 } };
+      this.npcs.push(n);
+      return n;
+    };
+    this.kollege = extra('berater', false); // "das eine tun, das andere nicht lassen"
+    this.fuenf = extra('pl', true); // "hast du mal 5 Minuten?"
+    this.approach = null;
+  }
+
+  park(n) { n.root.position.set(-60, 0, -60); n.state = 'sit'; }
+
+  /** extra colleagues walk via this.approach instead of wandering around */
+  walkWanderer(n, dt) {
+    if (this.approach?.npc === n) { this.updateApproach(dt); return; }
+    if (n === this.kollege || n === this.fuenf) { n.walking = false; return; }
+    super.walkWanderer(n, dt);
+  }
+
+  /** a colleague walks to a point (used by the interruption scene) */
+  updateApproach(dt) {
+    const a = this.approach;
+    if (!a) return;
+    const p = a.npc.root.position;
+    const d = Math.hypot(a.to.x - p.x, a.to.z - p.z);
+    a.npc.walking = d > 0.05;
+    if (d > 0.05) {
+      const step = Math.min(d, a.speed * dt);
+      p.x += ((a.to.x - p.x) / d) * step; p.z += ((a.to.z - p.z) / d) * step;
+      a.npc.root.rotation.y = Math.atan2(a.to.x - p.x, a.to.z - p.z);
+    } else if (a.face) a.npc.root.rotation.y = Math.atan2(this.camPos.x - p.x, this.camPos.z - p.z);
   }
 
   resize(w, hh) {
@@ -138,6 +172,8 @@ export class DannyShooter extends DannyGame {
     this.walk = null;
     this.lookYaw = 0; this.lookPitch = 0; this.btnFire = false;
     this.drags?.clear();
+    this.approach = null; this.twin = null;
+    if (this.kollege) { this.park(this.kollege); this.park(this.fuenf); }
     this.subEl = null;
   }
 
@@ -166,7 +202,7 @@ export class DannyShooter extends DannyGame {
   buildHUD() {
     this.baseUI();
     const stat = (cls, label) => { const strong = h('strong', {}, '0'); const el = h(`div.stat.panel.${cls}`, {}, [h('small', {}, label), strong]); return { el, strong }; };
-    this.hud = { score: stat('score', 'Punkte'), stage: stat('stage', 'Einsatzort'), acc: stat('combo', 'Treffer') };
+    this.hud = { score: stat('score', 'Punkte'), stage: stat('stage', 'Einsatzort'), left: stat('time', 'Noch offen'), acc: stat('combo', 'Treffer') };
     mount(h('div.hud.dn-hud.passthrough', {}, Object.values(this.hud).map((s) => s.el)));
     this.feedEl = mount(h('div.dn-feed.passthrough'));
     this.markersEl = mount(h('div.dn-markers.passthrough'));
@@ -197,6 +233,8 @@ export class DannyShooter extends DannyGame {
     const set = (k, v) => { if (this.lastHud[k] !== v) { this.lastHud[k] = v; this.hud[k].strong.textContent = v; } };
     set('score', this.score.toLocaleString('de-DE'));
     set('stage', `${Math.max(1, this.stationIdx + 1)} / ${this.stations.length}`);
+    const open = this.hitTargets.filter((t) => !t.done && !t.optional).length;
+    set('left', this.walk?.moving ? '🚶' : open ? `${open}` : '✓');
     set('acc', this.shots.spray > 0.5 ? `${Math.round((this.shots.on / this.shots.spray) * 100)} %` : '–');
     this.drawFpsGauge();
   }
@@ -344,6 +382,23 @@ export class DannyShooter extends DannyGame {
       await this.cleared(run);
       await this.talk('danny_req', run);
       await this.finishStation(run);
+      // on the way: "Hast du mal 5 Minuten?"
+      const fv = this.fuenf;
+      fv.root.position.set(-2.6, 0, -3.35);
+      fv.state = 'sit';
+      this.approach = { npc: fv, to: V(-5.3, 0, -3.35), speed: 1.6, face: true };
+      await this.goTo(3, run, { at: [-6.9, -3.45], look: [-5.3, 1.45, -3.35], via: [] });
+      await this.talk('fuenf_q', run);
+      fv.state = 'confused';
+      this.npcTarget(fv, 'fuenf', '⏳', () => {
+        fv.state = 'sit';
+        this.talk('fuenf_wet').catch(() => {});
+        this.approach = { npc: fv, to: V(-4.2, 0, -6.6), speed: 2.6, face: false };
+        setTimeout(() => { if (this.approach?.npc === fv) { this.approach = null; this.park(fv); } }, 3000);
+      });
+      await this.talk('danny_fuenf', run);
+      await this.cleared(run);
+      await this.wait(0.8, run);
       // 5 server room boss: SAP monolith
       await this.goTo(4, run);
       await this.talk('sap_witness', run);
@@ -355,12 +410,23 @@ export class DannyShooter extends DannyGame {
       await this.finishStation(run);
       // 6 coffee kitchen: the project manager forgot everything
       await this.goTo(5, run);
+      // "Man muss das eine tun und das andere nicht lassen": both fires have to go out
+      const ko = this.kollege;
+      ko.root.position.set(8.0, 0, 6.35);
+      ko.root.rotation.y = Math.atan2(this.camPos.x - 8.0, this.camPos.z - 6.35);
+      ko.state = 'shout';
+      await this.talk('eine_tun', run);
+      const pa = V(9.6, 1.68, 7.35), pb = V(10.9, 0.98, 7.3);
+      this.twin = { a: this.fireTarget(pa, 1.0), b: this.fireTarget(pb, 1.0), pa, pb, t: 0 };
+      await this.cleared(run);
+      this.twin = null;
+      ko.state = 'sit';
+      await this.talk('danny_eine', run);
       const pm = this.wanderer;
       pm.root.position.set(9.0, 0, 6.15);
       pm.root.rotation.y = Math.atan2(this.camPos.x - 9.0, this.camPos.z - 6.15);
       pm.state = 'confused';
-      this.fireTarget(V(9.6, 1.68, 7.35), 0.6);
-      this.fireTarget(V(10.9, 0.98, 7.3), 0.7);
+      this.fireTarget(V(10.9, 0.98, 7.3), 0.6);
       await this.talk('pl_forgot', run);
       this.npcTarget(pm, 'forgot', '🐟', () => { pm.state = 'walk'; this.talk('pl_wake').catch(() => {}); });
       await this.cleared(run);
@@ -383,8 +449,8 @@ export class DannyShooter extends DannyGame {
   }
 
   /** walk along the waypoints to a station */
-  goTo(i, run) {
-    const st = this.stations[i];
+  goTo(i, run, custom = null) {
+    const st = custom || this.stations[i];
     const pts = [this.camPos.clone().setY(0), ...st.via.map(([x, z]) => V(x, 0, z)), V(st.at[0], 0, st.at[1])];
     const segs = [];
     let total = 0;
@@ -397,7 +463,7 @@ export class DannyShooter extends DannyGame {
     return new Promise((res, rej) => {
       const tick = () => {
         if (run !== this.run || this.state !== 'play') return rej(new Abort());
-        if (!this.walk.moving && this.walk.d >= this.walk.total) { this.stationT0 = performance.now(); this.banner(i + 1, st.name); return res(); }
+        if (!this.walk.moving && this.walk.d >= this.walk.total) { if (!custom) { this.stationT0 = performance.now(); this.banner(i + 1, st.name); } return res(); }
         setTimeout(tick, 100);
       };
       this.walk.moving = true;
@@ -686,7 +752,8 @@ export class DannyShooter extends DannyGame {
   aimAssist(dt) {
     if (!this.coarse || !this.btnFire) return;
     const camYaw = this.yaw + this.lookYaw, camPitch = this.pitch + this.lookPitch;
-    let best = null, bestA = 0.2;
+    const stuck = performance.now() - (this.stationT0 || 0) > 40000;
+    let best = null, bestA = stuck ? 0.45 : 0.2;
     for (const t of this.hitTargets) {
       if (t.done || (t.active && !t.active())) continue;
       const v = t.pos().sub(this.camPos);
@@ -719,6 +786,7 @@ export class DannyShooter extends DannyGame {
     this.updateWalk(dt, time);
     this.updateCamera(dt, time);
     this.updateTargets(dt, time);
+    this.updateTwin(dt);
     this.updateSpray(dt, time);
     this.updateFiresFPS(dt, time);
     this.updateBalls(dt);
@@ -884,6 +952,23 @@ export class DannyShooter extends DannyGame {
   updateTargets(dt, time) {
     for (const t of this.hitTargets) if (!t.done) t.update?.(dt, time);
     this.hitTargets = this.hitTargets.filter((t) => !t.done);
+  }
+
+  /** "das andere nicht lassen": a fire that is out lights up again while its twin still burns */
+  updateTwin(dt) {
+    const tw = this.twin;
+    if (!tw) return;
+    if (tw.a.done && tw.b.done) { this.twin = null; return; }
+    if (tw.a.done !== tw.b.done) {
+      tw.t += dt;
+      if (tw.t > 4) {
+        tw.t = 0;
+        if (tw.a.done) tw.a = this.fireTarget(tw.pa, 0.45); else tw.b = this.fireTarget(tw.pb, 0.45);
+        sfx.ignite();
+        this.quip('eine_tun_fail');
+        this.feed('🔁 Das andere nicht lassen! Beide Brände müssen aus.', 'tip');
+      }
+    } else tw.t = 0;
   }
 
   updateBalls(dt) {

@@ -94,8 +94,58 @@ export function unlockAudio() {
 // iOS/iPadOS only lets an element play later without a tap if THAT element was started inside a
 // gesture before. So there is exactly one <audio> element for all songs: switching songs only
 // changes its src (a new element per song would be blocked, e.g. when the next song starts by itself).
-const song = { el: null, url: null, playing: false, volume: 0.8, fadeTimer: null, startedAt: 0, priming: false };
+// The file itself is downloaded completely first and played from memory (blob URL): as a
+// home-screen app (PWA) on the iPhone, Safari fails to stream songs straight into the element
+// ("Medienfehler 4", nothing loaded), a fully downloaded file plays reliably.
+// While a song is still downloading the element plays a short silence, started inside the tap,
+// so iOS lets it play the real song once it has arrived.
+const song = { el: null, url: null, playing: false, volume: 0.8, fadeTimer: null, startedAt: 0, priming: false, ready: false };
 window.__song = song; // for debugging / automated checks
+const songFiles = new Map(); // url -> Promise<blob URL>
+const songLoaded = new Map(); // url -> blob URL (downloaded)
+let silentUrl = null;
+/** half a second of silence as a WAV blob (8 kHz, 8 bit, mono) */
+function silence() {
+  if (silentUrl) return silentUrl;
+  const n = 4000;
+  const b = new DataView(new ArrayBuffer(44 + n));
+  const str = (o, t) => { for (let i = 0; i < t.length; i++) b.setUint8(o + i, t.charCodeAt(i)); };
+  str(0, 'RIFF'); b.setUint32(4, 36 + n, true); str(8, 'WAVE'); str(12, 'fmt ');
+  b.setUint32(16, 16, true); b.setUint16(20, 1, true); b.setUint16(22, 1, true);
+  b.setUint32(24, 8000, true); b.setUint32(28, 8000, true); b.setUint16(32, 1, true); b.setUint16(34, 8, true);
+  str(36, 'data'); b.setUint32(40, n, true);
+  for (let i = 0; i < n; i++) b.setUint8(44 + i, 128);
+  silentUrl = URL.createObjectURL(new Blob([b.buffer], { type: 'audio/wav' }));
+  return silentUrl;
+}
+/** downloads a song once and keeps it in memory */
+function songFile(url) {
+  if (!songFiles.has(url)) {
+    // version in the URL: never reuse an old/broken copy from an earlier build's caches
+    const u = new URL(url, document.baseURI);
+    u.searchParams.set('v', typeof __BUILD_ID__ !== 'undefined' ? String(__BUILD_ID__).replace(/\D/g, '') : '1');
+    const p = fetch(u.href)
+      .then((r) => { if (!r.ok) throw { name: `HTTP ${r.status}` }; return r.blob(); })
+      .then((b) => { const f = URL.createObjectURL(new Blob([b], { type: 'audio/mpeg' })); songLoaded.set(url, f); return f; });
+    p.catch(() => songFiles.delete(url)); // try again next time
+    songFiles.set(url, p);
+  }
+  return songFiles.get(url);
+}
+function setSongSrc(f) {
+  song.el.src = f;
+  song.el.load();
+  song.ready = true;
+}
+/** resolves true once the element holds the downloaded song (false: another song was chosen meanwhile) */
+function songReady(url) {
+  if (song.ready && song.url === url) return Promise.resolve(true);
+  return songFile(url).then((f) => {
+    if (song.url !== url) return false;
+    if (!song.ready) setSongSrc(f);
+    return true;
+  });
+}
 function songElement(url) {
   let el = song.el;
   if (!el) {
@@ -107,7 +157,7 @@ function songElement(url) {
     el.style.display = 'none';
     document.body.appendChild(el); // Safari is more reliable with media elements that live in the page
     el.addEventListener('ended', () => {
-      if (song.priming) return;
+      if (song.priming || !song.ready) return; // the placeholder silence ended, not the song
       const played = el.currentTime;
       song.playing = false;
       // a real end only after the song actually ran; otherwise it failed to load
@@ -115,7 +165,7 @@ function songElement(url) {
       else music.onSongError?.(song.url);
     });
     el.addEventListener('error', () => {
-      if (!song.url || el.error?.code === 1) return; // 1 = aborted by a new load, not a failure
+      if (!song.url || !song.ready || el.error?.code === 1) return; // 1 = aborted by a new load, not a failure
       song.playing = false;
       music.onSongError?.(song.url, songErrorText());
     });
@@ -125,11 +175,10 @@ function songElement(url) {
   if (song.url !== url || el.error || el.networkState === 3) {
     el.pause();
     song.url = url;
-    // version in the URL: never reuse an old/broken copy from an earlier build's caches
-    const u = new URL(url, document.baseURI);
-    u.searchParams.set('v', typeof __BUILD_ID__ !== 'undefined' ? String(__BUILD_ID__).replace(/\D/g, '') : '1');
-    el.src = u.href;
-    el.load();
+    song.ready = false;
+    const f = songLoaded.get(url);
+    if (f) setSongSrc(f);
+    else { el.src = silence(); el.load(); }
   }
   el.muted = muted;
   return el;
@@ -139,7 +188,7 @@ function songErrorText(e) {
   const el = song.el;
   const codes = { 1: 'abgebrochen', 2: 'Netzwerk', 3: 'Dekodierung', 4: 'Format/Quelle' };
   const parts = [];
-  if (e?.name) parts.push(e.name);
+  if (e?.name) parts.push(e.message ? `${e.name}: ${e.message}` : e.name);
   if (el?.error) parts.push(`Medienfehler ${el.error.code} (${codes[el.error.code] || '?'})${el.error.message ? ': ' + el.error.message : ''}`);
   if (el) parts.push(`net ${el.networkState}, ready ${el.readyState}`);
   return parts.join(' · ');
@@ -165,6 +214,7 @@ export function primeSong(url) {
   const done = () => { song.priming = false; if (!song.playing) { el.pause(); el.currentTime = 0; } el.muted = muted; };
   const p = el.play();
   if (p?.then) p.then(done).catch(done); else done();
+  songReady(url).catch(() => { /* reported when the song is played */ });
 }
 export function suspendAudio() {
   if (ctx && ctx.state === 'running') ctx.suspend();
@@ -755,35 +805,45 @@ export const music = {
     song.priming = false;
     el.loop = loop;
     el.muted = muted;
-    if (song.playing && !restart && !el.paused) return;
-    if (restart || el.ended) { try { el.currentTime = 0; } catch { /* not loaded yet */ } }
+    if (song.playing && !restart && !el.paused && song.ready) return;
+    if (song.ready && (restart || el.ended)) { try { el.currentTime = 0; } catch { /* not loaded yet */ } }
     song.playing = true;
     song.startedAt = performance.now();
+    const started = song.startedAt;
+    clearTimeout(song.watchdog);
     // iOS 17+: treat it as music playback (plays even with the silent switch on)
     try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { /* ignore */ }
-    try { el.volume = 0; } catch { /* ignore */ }
-    const p = el.play();
     const ok = () => fadeSong(song.volume, 2);
     const fail = (e) => {
-      if (song.url !== url || !song.playing) return;
+      if (song.url !== url || !song.playing || song.startedAt !== started) return;
       song.playing = false;
       this.onSongError?.(url, songErrorText(e));
     };
-    // Safari rejects play() with AbortError when a load interrupts it; that is not a real failure.
-    // Real failures arrive as 'error' events; a watchdog catches songs that silently never start.
-    if (p?.then) p.then(ok).catch((e) => { if (e?.name === 'AbortError') return; fail(e); });
-    else ok();
-    clearTimeout(song.watchdog);
-    const started = song.startedAt;
-    song.watchdog = setTimeout(() => {
-      if (song.startedAt !== started || !song.playing || song.url !== url) return;
-      if (el.paused || el.currentTime < 0.2) {
-        // one silent retry, then give up with details
-        if (!song.retried) { song.retried = true; el.load(); el.play().then(ok).catch(() => {}); song.watchdog = setTimeout(() => { if (el.currentTime < 0.2) fail({ name: 'Zeitüberschreitung' }); }, 6000); }
-        else fail({ name: 'Zeitüberschreitung' });
-      }
-    }, 10000);
-    song.retried = false;
+    const start = () => {
+      try { el.volume = 0; } catch { /* ignore */ }
+      const p = el.play();
+      // Safari rejects play() with AbortError when a load interrupts it; that is not a real failure.
+      // Real failures arrive as 'error' events; a watchdog catches songs that silently never start.
+      if (p?.then) p.then(ok).catch((e) => { if (e?.name === 'AbortError') return; fail(e); });
+      else ok();
+      song.retried = false;
+      song.watchdog = setTimeout(() => {
+        if (song.startedAt !== started || !song.playing || song.url !== url) return;
+        if (el.paused || el.currentTime < 0.2) {
+          // one silent retry, then give up with details
+          if (!song.retried) { song.retried = true; el.load(); el.play().then(ok).catch(() => {}); song.watchdog = setTimeout(() => { if (el.currentTime < 0.2) fail({ name: 'Zeitüberschreitung' }); }, 6000); }
+          else fail({ name: 'Zeitüberschreitung' });
+        }
+      }, 10000);
+    };
+    if (song.ready) { start(); return; }
+    // still downloading: play the placeholder silence now (inside the tap), the song when it is there
+    el.play()?.catch?.(() => {});
+    songReady(url).then((here) => {
+      if (!here || song.startedAt !== started || !song.playing) return;
+      el.muted = muted;
+      start();
+    }).catch(fail);
   },
   stopSong(fade = 1) {
     this.wantedSong = null;
@@ -798,9 +858,10 @@ export const music = {
   /** { url, playing, t, dur } of the current song element (for the jukebox) */
   songState() {
     const el = song.el;
-    return { url: song.url, playing: song.playing, t: el?.currentTime || 0, dur: el && isFinite(el.duration) ? el.duration : 0 };
+    const real = el && song.ready;
+    return { url: song.url, playing: song.playing, loading: song.playing && !song.ready, t: real ? el.currentTime || 0 : 0, dur: real && isFinite(el.duration) ? el.duration : 0 };
   },
-  seekSong(t) { if (song.el) song.el.currentTime = Math.max(0, t); },
+  seekSong(t) { if (song.el && song.ready) song.el.currentTime = Math.max(0, t); },
   /** called when a non-looping song ends */
   onSongEnd: null,
   /** called when a song cannot be loaded or played */

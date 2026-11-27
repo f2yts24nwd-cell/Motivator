@@ -157,7 +157,8 @@ wiederholt sich. Solange Musik läuft, zeigt eine Kachel im Büro das aktuelle L
 
 **Neues Lied hinzufügen:** Datei (mp3, ideal 96–128 kbps) und ein kleines Cover (~160×160, webp/png) nach `public/music/` legen und in
 `src/core/songs.js` einen Eintrag ergänzen (`title`, `artist`, `src`, `cover`, `duration` in Sekunden, `note`, optional `neu: true`).
-Die Jukebox zeigt es automatisch an. Die Lieder landen im Offline-Cache der App (Grenze 6 MB pro Datei).
+Die Jukebox zeigt es automatisch an. Jedes Lied wird beim ersten Abspielen komplett geladen (Anzeige „Lädt …“) und dann aus dem
+Speicher abgespielt: als App auf dem iPhone-Home-Bildschirm scheitert Safari sonst am Streamen der Datei („Medienfehler 4“).
 
 ## Avatar & Kleiderschrank
 

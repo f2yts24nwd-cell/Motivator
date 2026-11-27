@@ -194,6 +194,7 @@ export class JukeboxPlayer {
     const playing = this.playing;
     this.bar = h('i');
     this.timeEl = h('span.jb-time', {}, '0:00 / 0:00');
+    this.stateEl = h('small', {}, playing ? '♪ Läuft gerade' : 'Ausgewählt');
     const seek = h('div.jb-seek', {
       onclick: (e) => {
         const r = seek.getBoundingClientRect();
@@ -210,7 +211,7 @@ export class JukeboxPlayer {
       ]),
       h(`div.jb-now${playing ? '.on' : ''}`, {}, [
         h('img', { src: cur.cover, alt: '' }),
-        h('div', {}, [h('small', {}, playing ? '♪ Läuft gerade' : 'Ausgewählt'), h('b', {}, cur.title), h('span', {}, cur.artist)])
+        h('div', {}, [this.stateEl, h('b', {}, cur.title), h('span', {}, cur.artist)])
       ]),
       seek,
       this.timeEl,
@@ -239,5 +240,6 @@ export class JukeboxPlayer {
     const t = mine ? st.t : 0;
     this.bar.style.width = `${dur ? (t / dur) * 100 : 0}%`;
     this.timeEl.textContent = `${fmtTime(t)} / ${fmtTime(dur)}`;
+    if (mine && st.playing) this.stateEl.textContent = st.loading ? '⏳ Lädt …' : '♪ Läuft gerade';
   }
 }

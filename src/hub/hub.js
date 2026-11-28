@@ -9,6 +9,11 @@ import { buildJukebox, JukeboxPlayer } from './jukebox.js';
 import { buildPlanBoard } from './planboard.js';
 import { buildFireStationCabinet, drawFireStationScreen } from './firestation.js';
 import { EMBLEM_SVG } from '../games/danny/emblem.js';
+import { buildXTile, buildBeam } from '../games/xcity/xtile.js';
+
+const CABINET_GAMES = GAMES.filter((g) => !g.portal);
+const PORTAL_GAME = GAMES.find((g) => g.portal);
+const PORTAL = new THREE.Vector3(0, 0, 1.5); // the X in the middle of the rug
 
 const ROOM_W = 26, ROOM_D = 18;
 
@@ -162,9 +167,9 @@ export class Hub {
     }
 
     // arcade cabinets
-    const n = GAMES.length;
+    const n = CABINET_GAMES.length;
     const gap = n > 6 ? 3.45 : 4.2;
-    GAMES.forEach((game, i) => {
+    CABINET_GAMES.forEach((game, i) => {
       const x = (i - (n - 1) / 2) * gap;
       const cab = game.bonus ? buildFireStationCabinet(game) : this.buildCabinet(game);
       cab.group.position.set(x, 0, -ROOM_D / 2 + 1.3);
@@ -172,6 +177,8 @@ export class Hub {
       this.cabinets.push({ ...cab, game, pos: new THREE.Vector3(x, 0, -ROOM_D / 2 + 1.3), front: new THREE.Vector3(x, 0, -ROOM_D / 2 + 3.4) });
       this.obstacles.push({ x, z: -ROOM_D / 2 + 1.3, r: 1.3 });
     });
+
+    if (PORTAL_GAME) this.buildPortal();
 
     // office furniture
     const deskSpots = [[-9, 2.5, 0], [-9, -2, 0], [9, 4.8, Math.PI], [-4.5, 6.2, Math.PI / 2], [4.5, 6.2, -Math.PI / 2]];
@@ -198,6 +205,34 @@ export class Hub {
     this.marker.position.y = 0.02;
     this.marker.visible = false;
     s.add(this.marker);
+  }
+
+  // "Das X in der Mitte der Spielwelt": a floating itmX tile over the rug opens the open world
+  buildPortal() {
+    const g = new THREE.Group();
+    g.position.copy(PORTAL);
+    const tile = buildXTile(1.1, { glow: 0.55 });
+    tile.position.y = 3.3;
+    g.add(tile);
+    const ringMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.5, 2.6, 0.5), transparent: true, opacity: 0.8, toneMapped: false, depthWrite: false });
+    const ring = new THREE.Mesh(new THREE.RingGeometry(1.15, 1.35, 64), ringMat);
+    ring.rotation.x = -Math.PI / 2; ring.position.y = 0.03;
+    g.add(ring);
+    const beam = buildBeam(1.1, 3.2, 0x7dff6a);
+    beam.material.opacity = 0.35;
+    g.add(beam);
+    const light = new THREE.PointLight(0x7dff6a, 6, 7, 2);
+    light.position.y = 2.6;
+    g.add(light);
+    // floor label
+    const label = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.6), new THREE.MeshBasicMaterial({
+      map: canvasTexture(1024, 170, (c, w, hh) => { c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = 'italic 900 96px "Arial Black", Impact, sans-serif'; c.shadowColor = '#7dff6a'; c.shadowBlur = 20; c.fillStyle = '#eaffe4'; c.fillText('LUDLEIN BAY', w / 2, hh / 2); }),
+      transparent: true, depthWrite: false, toneMapped: false, color: new THREE.Color(1.4, 1.4, 1.4)
+    }));
+    label.rotation.x = -Math.PI / 2; label.position.set(0, 0.035, 1.95);
+    g.add(label);
+    this.scene.add(g);
+    this.portal = { group: g, tile, ring, beam, pickables: [tile.children[0]], game: PORTAL_GAME, front: PORTAL.clone() };
   }
 
   buildCabinet(game) {
@@ -860,7 +895,8 @@ export class Hub {
     this.buildUI();
     music.play('hub');
     // after a game, step back in front of its cabinet
-    if (this.lastGame) {
+    if (this.lastGame && this.lastGame === PORTAL_GAME?.id) { this.player.root.position.set(0, 0, 4.4); this.player.root.rotation.y = Math.PI; }
+    else if (this.lastGame) {
       const cab = this.cabinets.find((x) => x.game.id === this.lastGame);
       if (cab) { this.player.root.position.copy(cab.front).add(new THREE.Vector3(0, 0, 0.6)); this.player.root.rotation.y = Math.PI; }
     }
@@ -904,7 +940,7 @@ export class Hub {
       h('h3', {}, g.title),
       h('p', {}, g.tagline),
       g.available
-        ? h('button.btn' + (g.bonus ? '.dn-go' : ''), { onclick: () => this.launch(g) }, g.bonus ? '🚨 Zur Feuerwache' : '▶ Spielen')
+        ? h('button.btn' + (g.bonus ? '.dn-go' : ''), { onclick: () => this.launch(g) }, g.bonus ? '🚨 Zur Feuerwache' : g.portal ? '🌴 Ab nach Ludlein Bay' : '▶ Spielen')
         : h('button.btn.secondary', { disabled: 'true' }, 'Bald verfügbar')
     ]));
     if (this.hint) this.hint.style.display = 'none';
@@ -941,6 +977,14 @@ export class Hub {
     const bh = this.raycaster.intersectObjects(this.board.pickables, false)[0];
     const picks = this.cabinets.flatMap((c) => c.pickables);
     const hit = this.raycaster.intersectObjects(picks, false)[0];
+    const ph = this.portal && this.raycaster.intersectObjects(this.portal.pickables, false)[0];
+    if (ph && (!hit || ph.distance < hit.distance)) {
+      this.walkTarget = this.portal.front.clone();
+      this.walkCab = null; this.walkJuke = false; this.walkBoard = false;
+      this.marker.position.set(this.walkTarget.x, 0.02, this.walkTarget.z);
+      this.marker.visible = true;
+      return;
+    }
     if (bh && (!hit || bh.distance < hit.distance) && (!jh || bh.distance < jh.distance)) {
       this.walkTarget = this.board.front.clone();
       this.walkCab = null;
@@ -1049,6 +1093,15 @@ export class Hub {
       cab.glow.material.opacity = (cab.game.available ? 0.45 : 0.12) + (near === cab ? 0.35 : 0) + Math.sin(time * 3) * 0.05;
       if (redraw) this.drawScreen(cab, time);
       cab.update?.(dt, time);
+    }
+    if (this.portal) {
+      const P = this.portal;
+      const d = Math.hypot(pos.x - P.front.x, pos.z - P.front.z);
+      if (!near && d < 1.6) near = P;
+      P.tile.rotation.y = time * 0.9;
+      P.tile.position.y = 3.3 + Math.sin(time * 1.6) * 0.15;
+      P.ring.material.opacity = 0.55 + Math.sin(time * 3) * 0.2 + (near === P ? 0.25 : 0);
+      P.ring.scale.setScalar(1 + (near === P ? 0.12 : 0) + Math.sin(time * 3) * 0.03);
     }
     if (wardrobe) near = null;
     // jukebox

@@ -5,6 +5,7 @@ import { KoenigreichGame } from './crm/crm.js';
 import { LeadRushGame } from './leadrush/leadrush.js';
 import { DriveGame } from './drive/drive.js';
 import { DannyShooter } from './danny/shooter.js';
+import { XCityGame } from './xcity/xcity.js';
 
 // Every game in the world gets its own arcade cabinet in the office hub.
 // To add a new game: create a class with enter()/exit()/update(dt,time)/resize(w,h)
@@ -66,5 +67,14 @@ export const GAMES = [
     available: true,
     bonus: true, // gets the fire station instead of a regular cabinet in the hub
     create: (app) => new DannyShooter(app)
+  },
+  {
+    id: 'xcity',
+    title: 'Ludlein Bay: Operation X',
+    tagline: 'Open World zur goldenen Stunde: Cloudius von Silo hat das X geklaut, die Kachel mit allen Kundendaten. Zu Fuß und im Dienstwagen durch Ludlein Bay, den Silo-Van rammen, das X sichern und der Silo-Security entkommen.',
+    color: '#50af30',
+    available: true,
+    portal: true, // no cabinet: the X in the middle of the office floor is the entrance
+    create: (app) => new XCityGame(app)
   }
 ];

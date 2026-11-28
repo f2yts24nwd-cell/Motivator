@@ -9,7 +9,7 @@ import { carById } from '../drive/content.js';
 
 const SPECS = [
   { from: 'fuenfer', name: 'Kombi GT', body: 'touring' },
-  { from: 'fuenfer', name: 'Limousine GT', body: 'limousine' },
+  { i5: true },
   { from: 'sklasse', name: 'Executive' },
   { from: 'skoda', name: 'E-Crossover', ev: true },
   { from: 'volvo', name: 'Nordic Kombi' },
@@ -17,6 +17,16 @@ const SPECS = [
   { id: 'kompakt', type: 'wagon', style: 'kompakt', dims: { L: 4.2, W: 1.8, H: 1.48, wb: 2.63, wr: 0.33, belt: 0.98, hood: 0.86 } },
   { id: 'suv', type: 'suv', style: 'suvT', dims: { L: 4.6, W: 1.88, H: 1.68, wb: 2.75, wr: 0.37, belt: 1.08, hood: 0.96 } }
 ];
+
+/** electric business saloon in the style of the current 5-series generation (no logos, no lettering) */
+export function i5Def(plate = 'BI-KS 24') {
+  return {
+    id: 'i5', name: 'Business-Limousine elektrisch', type: 'sedan', style: 'i5', ev: true, plate,
+    vmax: 215, t100: 6.0, grip: 0.88,
+    dims: { L: 5.06, W: 1.9, H: 1.505, wb: 3.0, wr: 0.37, belt: 0.95, hood: 0.8 },
+    def: { color: 'weiss', finish: 'uni', rim: 'aero', rimColor: 'anthrazit', caliper: 'blau', drop: 10, spoiler: 'none', parts: [] }
+  };
+}
 
 /** car definition without any brand features (used for traffic and the player's cars) */
 export function brandFree(id, extra = {}) {
@@ -27,6 +37,7 @@ export function brandFree(id, extra = {}) {
 }
 
 function specDef(s) {
+  if (s.i5) return i5Def('BI-' + ['AB', 'CD', 'EV', 'KS'][Math.floor(Math.random() * 4)] + ' ' + Math.floor(10 + Math.random() * 989));
   if (s.from) return brandFree(s.from, { name: s.name });
   return { id: s.id, name: s.id, type: s.type, style: s.style, dims: s.dims, plate: 'LB-' + Math.floor(100 + Math.random() * 899), vmax: 180, t100: 9, grip: 0.8, def: { color: 'weiss', finish: 'metallic', rim: 'fuenf', rimColor: 'silber', caliper: 'grau', drop: 0, spoiler: 'none', parts: [] } };
 }

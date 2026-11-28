@@ -14,7 +14,8 @@ export class Hud {
     this.clock = h('div.xc-clock', {}, '18:42');
     this.money = h('div.xc-money', {}, fmtEuro(0));
     this.stars = h('div.xc-stars', {}, Array.from({ length: 5 }, () => h('i', {}, '★')));
-    R.append(h('div.xc-tr', {}, [this.clock, this.money, this.stars]));
+    this.weapon = h('div.xc-weapon', {}, ['🏏', h('small', {}, 'Baseballschläger')]);
+    R.append(h('div.xc-tr', {}, [this.clock, this.money, this.stars, this.weapon]));
     // radar + health
     this.radar = h('canvas.xc-radar');
     this.hp = h('i');
@@ -90,10 +91,17 @@ export class Hud {
     this.tbSprint = btn('sprint', '🏃', 'sprint');
     this.tbJump = btn('jump', '⤒', null, () => g.jump());
     this.tbHorn = btn('horn', '📯', null, () => g.horn());
-    this.root.append(stick, h('div.xc-tbs', {}, [this.tbEnter, this.tbHorn, this.tbHand, this.tbSprint, this.tbJump, this.tbBrake, this.tbGas]));
+    this.tbBat = btn('bat', '🏏', null, () => g.toggleBat());
+    this.tbSwing = btn('swing', '💥', null, () => g.swing());
+    this.tbRadio = btn('radio', '📻', null, () => g.radio?.togglePanel());
+    this.root.append(stick, h('div.xc-tbs', {}, [this.tbEnter, this.tbHorn, this.tbRadio, this.tbHand, this.tbBat, this.tbSwing, this.tbSprint, this.tbJump, this.tbBrake, this.tbGas]));
   }
   setMode(mode) {
     this.root.classList.toggle('in-car', mode === 'car');
+  }
+  setWeapon(on) {
+    this.root.classList.toggle('armed', on);
+    this.weapon.classList.toggle('show', on);
   }
 
   // ---------------------------------------------------------------- texts

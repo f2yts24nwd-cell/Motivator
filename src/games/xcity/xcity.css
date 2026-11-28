@@ -147,3 +147,42 @@ body.xc-hit #ui::after { content: ''; position: fixed; inset: 0; pointer-events:
 .xc-quality small { width: 100%; opacity: .7; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
 .xc-quality button { border: 0; border-radius: 999px; padding: 8px 16px; font: 700 14px system-ui; color: #fff; background: rgba(255,255,255,.1); cursor: pointer; }
 .xc-quality button.on { background: #50af30; color: #08130a; }
+
+/* weapon indicator */
+.xc-weapon { display: none; margin-top: 4px; font-size: 30px; font-style: normal; -webkit-text-stroke: 0; }
+.xc-weapon small { display: block; font: 800 11px system-ui; letter-spacing: .08em; text-transform: uppercase; color: #ffd84a; }
+.xc-weapon.show { display: block; }
+.xc-tb.swing { display: none; background: rgba(255,80,80,.45); }
+.xc-hud.armed:not(.in-car) .xc-tb.swing { display: block; }
+.xc-hud.in-car .xc-tb.bat { display: none; }
+.xc-tb.radio { display: none; }
+.xc-hud.in-car .xc-tb.radio { display: block; }
+
+/* car radio */
+.xc-radio { position: absolute; right: calc(20px + env(safe-area-inset-right)); bottom: calc(110px + env(safe-area-inset-bottom)); display: none; grid-template-columns: 42px auto 20px; gap: 10px; align-items: center; padding: 6px 12px 6px 6px; border: 0; border-radius: 16px; background: rgba(12,16,26,.75); color: #fff; text-align: left; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
+.xc-radio.show { display: grid; }
+.xc-radio img { width: 42px; height: 42px; border-radius: 10px; display: block; object-fit: cover; }
+.xc-radio small { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: #ff9fcf; font-weight: 800; }
+.xc-radio b { font-size: 14px; white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; display: block; }
+.xc-radio.off { opacity: .6; }
+.xc-eq { display: flex; gap: 2px; align-items: flex-end; height: 16px; }
+.xc-eq em { width: 4px; background: #ff9fcf; border-radius: 2px; animation: xcEq .9s ease-in-out infinite alternate; }
+.xc-eq em:nth-child(2) { animation-delay: -.3s; } .xc-eq em:nth-child(3) { animation-delay: -.6s; }
+.xc-radio.off .xc-eq em { animation: none; height: 4px; }
+@keyframes xcEq { from { height: 4px; } to { height: 16px; } }
+.xc-radio-panel { position: absolute; right: calc(20px + env(safe-area-inset-right)); bottom: calc(176px + env(safe-area-inset-bottom)); width: min(340px, 86vw); max-height: 56vh; overflow: auto; display: none; padding: 12px; border-radius: 18px; background: rgba(12,16,26,.92); box-shadow: 0 16px 40px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.12); pointer-events: auto !important; }
+.xc-radio-panel * { pointer-events: auto !important; }
+.xc-radio-panel.on { display: block; }
+.xc-rhead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.xc-rclose, .xc-rbtn { border: 0; border-radius: 999px; background: rgba(255,255,255,.1); color: #fff; font-size: 18px; width: 40px; height: 40px; cursor: pointer; }
+.xc-rctl { display: flex; gap: 10px; justify-content: center; margin-bottom: 10px; }
+.xc-rlist { display: grid; gap: 6px; }
+.xc-rsong { display: grid; grid-template-columns: 44px 1fr; gap: 10px; align-items: center; padding: 6px; border: 0; border-radius: 12px; background: rgba(255,255,255,.05); color: #fff; text-align: left; cursor: pointer; }
+.xc-rsong.on { background: rgba(255,159,207,.22); box-shadow: inset 0 0 0 1px rgba(255,159,207,.6); }
+.xc-rsong img { width: 44px; height: 44px; border-radius: 9px; object-fit: cover; }
+.xc-rsong b { display: block; font-size: 14px; } .xc-rsong small { font-size: 12px; opacity: .7; }
+.xc-hud.cine .xc-radio { display: none; }
+.xc-hud.touch .xc-radio { bottom: auto; top: calc(200px + env(safe-area-inset-top)); padding: 4px 8px 4px 4px; grid-template-columns: 32px auto 16px; }
+.xc-hud.touch .xc-radio img { width: 32px; height: 32px; }
+.xc-hud.touch .xc-radio small { display: none; }
+.xc-hud.touch .xc-radio-panel { bottom: auto; top: calc(60px + env(safe-area-inset-top)); }

@@ -1860,3 +1860,55 @@ export async function playVoice(url, { gain = 1.5, interrupt = true } = {}) {
   return buf.duration;
 }
 export function stopVoice() { if (voiceSrc) { try { voiceSrc.stop(); } catch { /* ignore */ } voiceSrc = null; } }
+
+// ------------------------------------------------------------------ "Ludlein Bay: Operation X"
+// West-coast trap at golden hour (C minor, 88 BPM). intensity: -1 intro (pads + keys),
+// 0 cruising, 1 chase (808 slides, rolling hats), 2 escape with the X (+ brass stabs & lead)
+const XC = {
+  Cm: { root: 36, tones: [60, 63, 67, 70] },
+  Ab: { root: 32, tones: [60, 63, 68, 72] },
+  Eb: { root: 39, tones: [58, 63, 67, 70] },
+  Bb: { root: 34, tones: [58, 62, 65, 70] },
+  Fm: { root: 41, tones: [60, 65, 68, 72] },
+  G: { root: 31, tones: [59, 62, 67, 71] }
+};
+THEMES.xcity = {
+  bpm: 88,
+  prog: ['Cm', 'Ab', 'Eb', 'Bb', 'Cm', 'Ab', 'Fm', 'G'],
+  kickPat: [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0],
+  lead: [[75, 3], [74, 1], [72, 4], [70, 2], [72, 2], [67, 4], [0, 4], [75, 2], [77, 2], [79, 4], [77, 2], [75, 2], [74, 8], [0, 8]],
+  step(bus, s, t, sd, bar, I) {
+    const ch = XC[this.prog[bar % this.prog.length]];
+    const intro = I < 0;
+    // warm pad every bar
+    if (s === 0) for (const m of ch.tones) inst.ens(bus, t, m - 12, sd * 15.5, { vol: intro ? 0.022 : 0.014, cutoff: intro ? 1200 : 1700, a: 0.5, r: 1.2, voices: 2, spread: 12, wet: 0.65 });
+    // electric piano chords (offbeat stabs)
+    if (!intro && (s === 3 || s === 10)) ch.tones.forEach((m, i) => inst.pluck(bus, t + i * 0.012, m, 0.022, (i - 1.5) * 0.3));
+    if (intro && s % 4 === 0) inst.pluck(bus, t, ch.tones[(s / 4) % 4] + 12, 0.03, (s / 8 - 1) * 0.4);
+    if (intro) return;
+    // drums
+    const kick = this.kickPat[s] || (I >= 1 && s === 14 && bar % 2 === 1);
+    if (kick) inst.kick(bus, t, s === 0 ? 1 : 0.85);
+    if (s === 4 || s === 12) { inst.clap(bus, t, 0.32); inst.snare?.(bus, t, 0.5); }
+    // hats: 8ths cruising, 16ths + triplet rolls in a chase
+    if (I <= 0 ? s % 2 === 0 : true) inst.hat(bus, t, s % 4 === 2 ? 0.07 : 0.045, false, 0.2);
+    if (I >= 1 && (s === 14 || s === 15) && bar % 2 === 0) { inst.hat(bus, t + sd / 3, 0.04, false, -0.2); inst.hat(bus, t + (sd * 2) / 3, 0.04, false, -0.2); }
+    if (I >= 2 && s === 8) inst.hat(bus, t, 0.08, true, 0);
+    // 808: long sub notes, octave jump before the next bar
+    if (s === 0) inst.bass(bus, t, ch.root, sd * (I >= 1 ? 6 : 10), { vol: 0.13, cutoff: 180 + Math.max(0, I) * 90, q: 2 });
+    if (I >= 1 && s === 7) inst.bass(bus, t, ch.root + 12, sd * 2, { vol: 0.1, cutoff: 260, q: 2 });
+    if (s === 10) inst.bass(bus, t, ch.root + (bar % 2 ? 7 : 0), sd * 4, { vol: 0.11, cutoff: 200, q: 2 });
+    // brass stabs while escaping with the X
+    if (I >= 2 && (s === 0 || s === 6) && bar % 2 === 0) inst.ens(bus, t, ch.tones[0] - 12, sd * 1.6, { vol: 0.03, cutoff: 2600, a: 0.01, r: 0.2, voices: 3, spread: 10, wet: 0.3, filterEnv: 1 });
+    // lead melody (chase + escape)
+    if (I >= 1) {
+      const len = this.lead.reduce((a, [, d]) => a + d, 0);
+      let pos = (bar * 16 + s) % len, acc = 0;
+      for (const [m, d] of this.lead) {
+        if (pos === acc && m) inst.arp(bus, t, m - (I >= 2 ? 0 : 12), { vol: 0.03, cutoff: 2200, delay: 0.5, wet: 0.4 });
+        acc += d;
+        if (acc > pos) break;
+      }
+    }
+  }
+};

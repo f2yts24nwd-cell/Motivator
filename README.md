@@ -115,6 +115,22 @@ Quartalsende in Ludlein: Danny the Boss fehlen noch 500.000 €. Du holst dir im
 
 Steuerung: Am iPhone im Querformat lenkst du links mit ◀ ▶, rechts sind Gas und Bremse/Rückwärts. Lenken per Neigen lässt sich im Bordcomputer umschalten. Auf der Tastatur: W/S oder Pfeiltasten für Gas und Bremse, A/D zum Lenken, Leertaste für die Handbremse, C für die Kamera (Verfolger, weit, Motorhaube), H für die Hupe, P fürs Autoradio, N für den nächsten Song, R zum Abschleppen auf die Straße und M für den Bordcomputer. Mit 1–3 beantwortest du Fragen. Ein Tipp auf die Minikarte öffnet den Bordcomputer.
 
+## Spiel 7: „Ludlein Bay: Operation X“ (das X in der Mitte)
+
+Ein eigener Ausschnitt im Stil großer Open-World-Actionspiele. Der Eingang ist **das X in der Mitte der Spielwelt**: Über dem Teppich im Büro schwebt das itmX-Logo als 3D-Kachel mit Lichtsäule. Wer sich daraufstellt oder darauf tippt, landet in Ludlein Bay.
+
+- **Story:** Quartalsende, Freitag, goldene Stunde. Cloudius von Silo hat das X vom X-Platz geklaut, die Kachel mit allen Kundendaten (Customer 360). Tim X. holt es zurück.
+- **Kino-Intro** mit Letterbox, Kamerafahrt übers Meer auf die Skyline, Titelkarte „LUDLEIN BAY / OPERATION X“ und Untertiteln von Danny the Boss und Cloudius. Lässt sich überspringen.
+- **Zu Fuß und im Auto:** Laufen, Sprinten und Springen mit deinem eigenen Avatar aus dem Kleiderschrank. Mit **F** (Handy: 🚗) steigt man in jedes geparkte Auto ein und wieder aus. Zur Wahl stehen der Fünfer mit itmX-Streifen, der Hilti-Passat am Ocean Drive, ein Volvo und der Elektro-Škoda. Fahrphysik und Automodelle stammen aus „Ludlein Drive“.
+- **Mission in vier Akten:** zum Dienstwagen, **Verfolgungsjagd** auf den Silo-Van (rammen, bis er liegen bleibt; der Van hat einen Lebensbalken und sagt jedes Mal einen Spruch), aussteigen und das X holen, dann **Silo-Alarm ★★★**: Drei Silo-Security-SUVs mit Blaulicht jagen dich übers Straßennetz zurück zum X-Platz. Im Finale fliegt das X zurück auf den Sockel, mit Lichtsäule und Feuerwerk. Danach kommt **AUFTRAG ERLEDIGT** mit +250.000 €, Zeit, Rammstößen, Spitzentempo und einer Lernkarte zu Customer 360.
+- **Scheitern:** Entkommt der Van (mehr als 230 m Abstand), heißt es „Auftrag gescheitert“. Ist die Gesundheit leer, kommt „AUSGELOGGT“. Danach geht es mit einem Klick wieder los.
+- **Offene Stadt:** Schachbrett-Stadt mit dem X-Platz exakt in der Mitte. Dazu die itmX-Zentrale (128-m-Glasturm mit Logo), der Silo-Tower von Cloudius mit Wolke, Art-déco-Hotels in Pastell am Ocean Drive mit Neonschildern (Deal Diner, Motel Pipeline, Lead Bar …), Werbetafeln, ein Park, Promenade, Strand mit Rettungsschwimmer-Hütten und Sonnenschirmen, Meer mit Brandung. Es gibt Verkehr, der an Kreuzungen abbiegt und vor Hindernissen bremst, und Fußgänger, die beiseitespringen (wer doch umgeschubst wird, steht wieder auf).
+- **Grafik:** Sonnenuntergang mit physikalischem Himmel und Umgebungsreflexionen in Lack und Glasfassaden, weiche Schatten, Fenster, die in der Dämmerung angehen, und Straßenlaternen mit Lichtkegeln. Eigene Farbkorrektur mit warmen Lichtern, Türkis in den Schatten, Vignette und Filmkorn. Alles ist prozedural, mit zusammengefassten bzw. instanzierten Meshes.
+- **HUD:** Rundes Radar mit Blips (X-Platz, Van, Security, Autos), Gesundheitsbalken, Uhr, Kontostand (wird gespeichert), Fahndungssterne, Ortsnamen, Telefonanrufe, Untertitel, Tacho und große Missionsbanner.
+- **Soundtrack:** West-Coast-Trap mit 88 BPM (808-Bass, rollende Hi-Hats, E-Piano), per WebAudio. Die Intensität steigt in der Verfolgung, bei der Flucht kommen Bläser dazu. Außerdem V8, Hupe, Sirenen und Crash-Geräusche.
+
+Steuerung: **WASD**/Pfeiltasten laufen bzw. fahren, **Shift** sprinten, **Leertaste** springen bzw. Handbremse, **F**/Enter ein- und aussteigen, **C** Kamera (Verfolger, weit, Motorhaube), **H** Hupe, **M** Ton, **Esc** Menü. Maus ziehen dreht die Kamera, das Mausrad zoomt. Auf dem Handy: Stick links, rechts 🚗, ▲ Gas, ▼ Bremse, Ⓗ Handbremse, 🏃 Sprint, ⤒ Springen. Wischen dreht die Kamera.
+
 ## Bonusspiel: „Frag den Danny!“
 
 Es brennt im Kundenprojekt, und du bist Feuerwehrmann **Danny**, im Ego-Look mit dem DANNY-Feuerlöscher in der Hand. In der Spielewelt steht dafür statt eines Automaten eine kleine **Feuerwache** mit Rolltor-Bildschirm, Blaulicht, „BONUS“-Schild und Dannys Löscher an der Wand.
@@ -215,6 +231,9 @@ src/
   games/danny/         Bonusspiel „Frag den Danny!“ (shooter.js Ego-Einsatz, danny.js Basis: Tresor, Wache, Menü, Kollegen,
                        models.js Danny/Löscher/Kollegen/SAP/Spaghetti/Stroh, office.js Büro & Feuerwache, fx.js Partikel,
                        content.js Sprüche, voices.json Sprachzeilen, emblem.js, danny.css)
+  games/xcity/         „Ludlein Bay: Operation X“ (world.js Stadt/Meer/X-Platz, actors.js Verkehr/Fußgänger/Van/Security,
+                       xcity.js Spieler, Autos, Kamera & Mission, hud.js Radar & HUD, grade.js Farbkorrektur,
+                       xtile.js das X als 3D-Kachel, fx.js Partikel, content.js Texte)
   hub/firestation.js   Feuerwache als Bonus-Automat in der Spielewelt
   cert/                Dumêz G. Schwetz, Übergabe-Szene, Zertifikat-Rendering
   hub/avatar.js        Avatar und Kleiderschrank (Business-Look-Pflicht)
@@ -227,7 +246,7 @@ public/leadrush/       itmX-Wortmarke für den Lead-Rush-Startbildschirm
 ### Neues Spiel hinzufügen
 
 1. Klasse mit `scene`, `camera`, `enter()`, `exit()`, `update(dt, time)` und `resize(w, h)` anlegen.
-2. In `src/games/registry.js` eintragen (`available: true`). Der Automat erscheint dann automatisch im Büro.
+2. In `src/games/registry.js` eintragen (`available: true`). Der Automat erscheint dann automatisch im Büro. Mit `portal: true` gibt es keinen Automaten, dann ist das X in der Raummitte der Eingang.
 3. Optional für Spiele mit eigenem 2D-Canvas: `overlay = true` setzen. Dann rendert `main.js` die 3D-Szene nicht, solange das Spiel läuft (siehe `games/leadrush/`).
 
 ## Deployment (GitHub Pages)

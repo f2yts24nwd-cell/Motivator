@@ -9,7 +9,7 @@ export default defineConfig({
   define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
   // GitHub Pages build sets BASE_PATH=/<repo>/ (absolute paths survive URLs without trailing slash)
   base: process.env.BASE_PATH || './',
-  build: { chunkSizeWarningLimit: 1500 },
+  build: { chunkSizeWarningLimit: 2000 },
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',

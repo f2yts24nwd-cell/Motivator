@@ -5,7 +5,7 @@ import { sfx, music, isMuted, setMuted, unlockAudio, createEngineSound } from '.
 import { h, mount, clearUI, storeGet, storeSet } from '../../core/ui.js';
 import { loadAvatar } from '../../hub/avatar.js';
 import { buildPlayerRig, animateRig } from './human.js';
-import { Fleet, brandFree } from './vehicles.js';
+import { Fleet, brandFree, i5Def } from './vehicles.js';
 import { attachPost, defaultQuality, saveQuality, QUALITIES, BUDGET } from './post.js';
 import { CarModel } from '../drive/cars.js';
 import { Vehicle } from '../drive/vehicle.js';
@@ -15,19 +15,23 @@ import { Particles } from './fx.js';
 import { Hud } from './hud.js';
 import { buildXTile, buildBeam } from './xtile.js';
 import { createGradePass } from './grade.js';
+import { CarRadio } from './radio.js';
 import { INTRO, LINES, CHASE_CALLS, HIT_LINES, ESCAPE_CALLS, COP_HIT, FAIL, PASSED, CARD, PLACE_NAMES, fmtEuro } from './content.js';
 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const SAVE = 'xcity';
+const VICTIM = ['Aua! Ich bin doch Bestandskunde!', 'Das gibt eine Ein-Sterne-Bewertung!', 'Ich wollte nur ein Angebot!', 'Hilfe! Ein Vertriebler!', 'Mein Anwalt ruft Sie an!', 'Ich kündige meinen Wartungsvertrag!']
 
 // Parked cars you can take (any of them).
 // Brand-free: own model names, own plates, no lettering.
 const PARKED = [
-  { id: 'fuenfer', name: 'Dienstwagen GT', plate: 'LB-IT 5', x: -6, z: 40 - PARK, h: -Math.PI / 2, cfg: { color: 'blau', finish: 'metallic', drop: 30, spoiler: 'lip', parts: ['stripes'] }, main: true },
-  { id: 'passat', name: 'Firmenkombi', plate: 'LB-WK 7', x: ROADS[5] - PARK, z: -18, h: Math.PI, cfg: { color: 'rot', parts: [] } },
-  { id: 'volvo', name: 'Nordic Kombi', plate: 'LB-NK 60', x: -40 - PARK, z: 12, h: 0 },
-  { id: 'skoda', name: 'E-Crossover', plate: 'LB-E 360', x: 80, z: 120 + PARK, h: Math.PI / 2 }
+  // the Dienstwagen: electric business saloon, white, no stripes, plate BI-KS 24
+  { i5: true, plate: 'BI-KS 24', x: -6, z: 40 - PARK, h: -Math.PI / 2, main: true },
+  // Nordic estate (model year 2025) in the "Dark" edition: onyx black, black trim and wheels
+  { id: 'volvo', name: 'Nordic Kombi Dark', plate: 'BI-KS 60', x: 2.5, z: 40 - PARK, h: -Math.PI / 2, cfg: { color: 'schwarz', finish: 'metallic', rim: 'turbine', rimColor: 'schwarz', caliper: 'grau', drop: 10, spoiler: 'none', parts: [], dark: true } },
+  { id: 'passat', name: 'Firmenkombi', plate: 'BI-WK 7', x: ROADS[5] - PARK, z: -18, h: Math.PI, cfg: { color: 'rot', parts: [] } },
+  { id: 'skoda', name: 'E-Crossover', plate: 'BI-E 360', x: 80, z: 120 + PARK, h: Math.PI / 2 }
 ];
 void LANE;
 
@@ -87,7 +91,7 @@ export class XCityGame {
   }
   buildCars() {
     this.cars = PARKED.map((p) => {
-      const def = brandFree(p.id, { name: p.name, plate: p.plate });
+      const def = p.i5 ? i5Def(p.plate) : brandFree(p.id, { name: p.name, plate: p.plate });
       const model = new CarModel(def, { ...def.def, ...(p.cfg || {}) });
       model.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
       this.scene.add(model.root);
@@ -149,6 +153,7 @@ export class XCityGame {
     this.app.gfx.bloom.strength = 0.42;
     this.app.gfx.bloom.threshold = 0.92;
     this.keys.clear();
+    this.radio?.exitCar(); this.radio?.destroy(); this.radio = null;
     this.hud?.destroy();
     clearUI();
   }
@@ -162,9 +167,11 @@ export class XCityGame {
   buildUI() {
     clearUI();
     this.hud = new Hud(this);
+    this.radio?.destroy();
+    this.radio = new CarRadio(this, this.hud.root);
     const mute = mount(h('button.icon-btn.right.xc-mute', { title: 'Ton an/aus', onclick: () => { setMuted(!isMuted()); this.engine?.mute(isMuted()); mute.textContent = isMuted() ? '🔇' : '🔊'; } }, isMuted() ? '🔇' : '🔊'));
     this.hud.setMoney(this.save.money);
-    this.hud.setHint(this.hud.touch ? '' : '<kbd>WASD</kbd> laufen/fahren · <kbd>Shift</kbd> sprinten · <kbd>F</kbd> ein/aussteigen · <kbd>Leertaste</kbd> springen/Handbremse · <kbd>Maus ziehen</kbd> Kamera · <kbd>C</kbd> Kameraperspektive · <kbd>H</kbd> Hupe');
+    this.hud.setHint(this.hud.touch ? '' : '<kbd>WASD</kbd> laufen/fahren · <kbd>Shift</kbd> sprinten · <kbd>F</kbd> ein/aussteigen · <kbd>Leertaste</kbd> springen/Handbremse · <kbd>Maus ziehen</kbd> Kamera · <kbd>C</kbd> Kameraperspektive · <kbd>H</kbd> Hupe · <kbd>Q</kbd> Schläger · <kbd>E</kbd>/Klick zuschlagen · <kbd>P</kbd>/<kbd>N</kbd>/<kbd>R</kbd> Radio');
     setTimeout(() => this.hud?.setHint(''), 14000);
   }
 
@@ -222,16 +229,16 @@ export class XCityGame {
     const H = this.hud;
     H.cinematic(p === 'intro' || p === 'finale');
     this.post?.cinematic(p === 'intro' || p === 'finale');
-    if (p === 'intro') { music.setIntensity(-1); this.introLine = 0; H.setObjective(''); this.fromIntro = true; }
+    if (p === 'intro') { this.setMusic(-1); this.introLine = 0; H.setObjective(''); this.fromIntro = true; }
     if (p === 'getcar') {
-      music.setIntensity(0);
+      this.setMusic(0);
       H.setObjective(LINES.getcar);
       if (!this.fromIntro) H.showBanner('LUDLEIN BAY', 'OPERATION X', 'title', 3.2);
       this.fromIntro = false;
       if (!this.hud.touch) setTimeout(() => this.phase === 'getcar' && H.say('tim', 'Mein Dienstwagen. Na dann.', 3), 3500);
     }
     if (p === 'chase') {
-      music.setIntensity(1);
+      this.setMusic(1);
       this.van.state = 'driving';
       sfx.horn(true);
       H.setObjective(LINES.chase);
@@ -248,7 +255,7 @@ export class XCityGame {
     }
     if (p === 'grab') { this.timeScale = 1; H.setObjective(LINES.grab); }
     if (p === 'escape') {
-      music.setIntensity(2);
+      this.setMusic(2);
       H.setObjective(LINES.escape);
       H.setStars(3, true);
       H.showBanner('SILO-ALARM', '★★★', 'wanted', 2.4);
@@ -259,7 +266,7 @@ export class XCityGame {
       this.sirenT = 3.6;
     }
     if (p === 'finale') {
-      music.setIntensity(0);
+      this.setMusic(0);
       this.check.visible = false;
       H.setObjective('');
       H.setStars(0);
@@ -276,7 +283,7 @@ export class XCityGame {
     if (p === 'free') {
       H.setObjective(LINES.free);
       setTimeout(() => this.phase === 'free' && H.setObjective(''), 7000);
-      music.setIntensity(0);
+      this.setMusic(0);
     }
   }
   skipCutscene() {
@@ -316,11 +323,16 @@ export class XCityGame {
     if (k === 'h') this.horn();
     if (k === 'escape') this.toggleMenu();
     if (k === 'm') { setMuted(!isMuted()); this.engine?.mute(isMuted()); }
+    if (k === 'q' || k === '1') this.toggleBat();
+    if (k === 'e') this.swing();
+    if (k === 'p' && this.mode === 'car') this.radio.toggle();
+    if (k === 'n' && this.mode === 'car') this.radio.step(1);
+    if (k === 'r' && this.mode === 'car') this.radio.togglePanel();
     if ([' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) e.preventDefault();
   }
   onDown(e) {
     unlockAudio();
-    this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t: performance.now() };
   }
   onMove(e) {
     if (!this.drag || e.pointerId !== this.drag.id) return;
@@ -330,7 +342,13 @@ export class XCityGame {
     this.camPitch = clamp(this.camPitch + dy * 0.004, -0.15, 1.1);
     this.camDrag = 2.2;
   }
-  onUp(e) { if (this.drag && e.pointerId === this.drag.id) this.drag = null; }
+  onUp(e) {
+    if (!this.drag || e.pointerId !== this.drag.id) return;
+    // a short click without dragging swings the bat (mouse only; on touch there is a button)
+    const still = Math.hypot(e.clientX - this.drag.sx, e.clientY - this.drag.sy) < 6 && performance.now() - this.drag.t < 350;
+    if (still && e.pointerType === 'mouse' && this.bat?.out) this.swing();
+    this.drag = null;
+  }
   axis() {
     const k = this.keys, T = this.touch;
     let x = (k.has('d') || k.has('arrowright') ? 1 : 0) - (k.has('a') || k.has('arrowleft') ? 1 : 0);
@@ -360,7 +378,9 @@ export class XCityGame {
     if (isMuted()) this.engine?.mute(true);
     sfx.rev?.(0.8);
     this.camYaw = car.V.heading;
+    if (this.bat?.out) this.toggleBat(false);
     this.hud.setMode('car');
+    this.radio.enterCar();
     if (this.phase === 'getcar') setTimeout(() => this.phase === 'getcar' && this.setPhase('chase'), 1200);
   }
   exitCar() {
@@ -379,6 +399,101 @@ export class XCityGame {
     this.active = null;
     this.hud.setMode('foot');
     this.hud.setSpeed(null);
+    this.radio.exitCar();
+  }
+
+  // ================================================================== music + radio
+  setMusic(i) { this.musicI = i; music.setIntensity(i); }
+  resumeTheme() { music.play('xcity'); music.setIntensity(this.musicI ?? 0); }
+
+  // ================================================================== baseball bat
+  buildBat() {
+    const g = new THREE.Group();
+    const wood = new THREE.MeshPhysicalMaterial({ color: 0xc8975a, roughness: 0.35, clearcoat: 0.8 });
+    const tape = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.8 });
+    const pts = [[0, 0], [0.016, 0], [0.017, 0.02], [0.014, 0.03], [0.014, 0.3], [0.022, 0.48], [0.032, 0.66], [0.034, 0.8], [0.03, 0.835], [0, 0.84]].map(([x, y]) => new THREE.Vector2(x, y));
+    const barrel = new THREE.Mesh(new THREE.LatheGeometry(pts, 16), wood);
+    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.0155, 0.0155, 0.22, 10), tape);
+    grip.position.y = 0.13;
+    barrel.castShadow = grip.castShadow = true;
+    g.add(barrel, grip);
+    // grip in the right hand (local frame of the right forearm), bat continues the forearm
+    g.position.set(-0.235, -0.31, 0.02);
+    g.rotation.x = Math.PI - 0.55;
+    g.translateY(-0.06);
+    g.visible = false;
+    this.P.av.J.fore[1].add(g);
+    this.bat = { mesh: g, out: false, t: -1, hit: false };
+  }
+  toggleBat(force) {
+    if (!this.bat) this.buildBat();
+    const out = force ?? !this.bat.out;
+    if (out && this.mode !== 'foot') return;
+    this.bat.out = out;
+    this.bat.mesh.visible = out;
+    this.bat.t = -1;
+    this.hud.setWeapon(out);
+    sfx.whoosh();
+  }
+  swing() {
+    if (!this.bat?.out || this.mode !== 'foot' || this.bat.t >= 0 || this.panel) return;
+    this.bat.t = 0; this.bat.hit = false;
+  }
+  /** overrides the right arm while the bat is out; returns nothing */
+  updateBat(dt) {
+    const B = this.bat;
+    if (!B?.out) return;
+    const J = this.P.av.J;
+    if (B.t < 0) { // carry: bat held forward and up, ready
+      J.upper[1].rotation.x = -0.55; J.upper[1].rotation.z = -0.15;
+      J.fore[1].rotation.x = -0.9;
+      return;
+    }
+    B.t += dt;
+    const D = 0.5, u = B.t / D;
+    const ease = (a, b, k) => a + (b - a) * (k * k * (3 - 2 * k));
+    let ux, fx, twist;
+    if (u < 0.4) { const k = u / 0.4; ux = ease(-0.55, -2.7, k); fx = ease(-0.9, -0.5, k); twist = ease(0, 0.45, k); }
+    else if (u < 0.6) { const k = (u - 0.4) / 0.2; ux = ease(-2.7, -0.4, k); fx = ease(-0.5, -0.15, k); twist = ease(0.45, -0.5, k); }
+    else { const k = Math.min(1, (u - 0.6) / 0.4); ux = ease(-0.4, -0.55, k); fx = ease(-0.15, -0.9, k); twist = ease(-0.5, 0, k); }
+    J.upper[1].rotation.x = ux; J.upper[1].rotation.z = -0.2;
+    J.fore[1].rotation.x = fx;
+    J.upper[0].rotation.x = ux * 0.6;
+    this.P.av.spine.rotation.y += twist;
+    this.P.av.spine.rotation.x += u > 0.4 && u < 0.7 ? 0.25 : 0;
+    if (u > 0.38 && u < 0.42) sfx.whoosh();
+    if (!B.hit && u >= 0.5) { B.hit = true; this.batHit(); }
+    if (u >= 1) B.t = -1;
+  }
+  batHit() {
+    const P = this.P;
+    const f = V3(Math.sin(P.heading), 0, Math.cos(P.heading));
+    let hits = 0;
+    for (const p of this.peds.peds) {
+      if (p.fall > 0) continue;
+      const dx = p.pos.x - P.pos.x, dz = p.pos.z - P.pos.z, d = Math.hypot(dx, dz);
+      if (d > 2.2 || (dx * f.x + dz * f.z) / (d || 1) < 0.35) continue;
+      this.peds.knock(p, dx / (d || 1), dz / (d || 1), P.pos);
+      hits++;
+      this.fx.emit(V3(p.pos.x, CURB + 1.4, p.pos.z), { n: 8, color: 0xffffff, size: 0.35, life: 0.4, speed: 4, additive: true });
+      this.fx.emit(V3(p.pos.x, CURB + 0.2, p.pos.z), { n: 6, color: 0xd8c8b0, size: 1.0, life: 1.0, speed: 1.2, up: 0.5, grow: 1.2, smoke: true, opacity: 0.5 });
+    }
+    // cars get a dent (and the driver hits the brakes)
+    for (const c of this.traffic.cars) {
+      const dx = c.pos.x - P.pos.x, dz = c.pos.z - P.pos.z, d = Math.hypot(dx, dz);
+      if (d < 3 && (dx * f.x + dz * f.z) / (d || 1) > 0.2) { c.stun = 3; sfx.crunch(0.6); hits++; this.fx.sparks(V3(P.pos.x + f.x * 1.2, 1, P.pos.z + f.z * 1.2), 10); }
+    }
+    for (const c of this.cars) if (c !== this.active && c.V.pos.distanceTo(P.pos) < 3.2) { sfx.crunch(0.5); this.fx.sparks(V3(P.pos.x + f.x * 1.2, 1, P.pos.z + f.z * 1.2), 10); hits++; }
+    if (hits) {
+      this.shake = 0.25;
+      sfx.bonk?.(); sfx.thud?.();
+      if (this.peds.peds.some((p) => p.fall > 2.6)) {
+        sfx.scream?.(0.9 + Math.random() * 0.4);
+        if ((this.victimCool || 0) <= 0) { this.hud.say('passant', VICTIM[Math.floor(Math.random() * VICTIM.length)], 2.4); this.victimCool = 3; }
+        this.stats.bonks = (this.stats.bonks || 0) + 1;
+      }
+      this.peds.panic(P.pos.x, P.pos.z, 18);
+    } else sfx.swing?.();
   }
 
   // ================================================================== menu / panels
@@ -394,7 +509,7 @@ export class XCityGame {
       h('div.xc-quality', {}, [h('small', {}, 'Grafikqualität'), ...QUALITIES.map((q) => h('button' + (q.id === this.quality ? '.on' : ''), { onclick: () => { if (q.id === this.quality) return; saveQuality(q.id); location.replace(location.pathname + '?game=xcity'); } }, q.label))]),
       h('div.xc-keys', { html: this.hud.touch
         ? 'Links: Stick zum Laufen/Lenken · rechts: 🚗 ein/aussteigen, ▲ Gas, ▼ Bremse/Rückwärts, Ⓗ Handbremse, 🏃 Sprint, ⤒ Springen · Wischen auf dem Bild dreht die Kamera.'
-        : '<kbd>W A S D</kbd> laufen/fahren · <kbd>Shift</kbd> sprinten · <kbd>Leertaste</kbd> springen/Handbremse · <kbd>F</kbd> ein/aussteigen · <kbd>C</kbd> Kamera · <kbd>H</kbd> Hupe · <kbd>M</kbd> Ton · Maus ziehen: Kamera · Mausrad: Zoom' }),
+        : '<kbd>W A S D</kbd> laufen/fahren · <kbd>Shift</kbd> sprinten · <kbd>Leertaste</kbd> springen/Handbremse · <kbd>F</kbd> ein/aussteigen · <kbd>C</kbd> Kamera · <kbd>H</kbd> Hupe · <kbd>Q</kbd> Baseballschläger · <kbd>E</kbd> oder Klick: zuschlagen · <kbd>P</kbd> Radio an/aus · <kbd>N</kbd> nächster Song · <kbd>R</kbd> Senderliste · <kbd>M</kbd> Ton · Maus ziehen: Kamera · Mausrad: Zoom' }),
       h('button.btn.secondary', { onclick: () => this.app.goHub() }, '⌂ Zur Spielewelt')
     ]);
   }
@@ -540,6 +655,8 @@ export class XCityGame {
     }
     this.animT = (this.animT || 0) + dt;
     animateRig(P.av, { phase: P.phase, amount: P.speed, air: P.y > this.groundY() + 0.25, t: this.animT });
+    this.updateBat(dt);
+    this.victimCool = (this.victimCool || 0) - dt;
   }
 
   allCars() {

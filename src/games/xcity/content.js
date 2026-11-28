@@ -6,7 +6,8 @@ export const WHO = {
   tim: { name: 'Tim X.', color: '#7dffb0', ini: 'TX' },
   tina: { name: 'Tina X.', color: '#ff7ad9', ini: 'TX' },
   cloudius: { name: 'Cloudius von Silo', color: '#9aa3ff', ini: '☁' },
-  funk: { name: 'Silo-Security (Funk)', color: '#ff5a5a', ini: '📻' }
+  funk: { name: 'Silo-Security (Funk)', color: '#ff5a5a', ini: '📻' },
+  passant: { name: 'Passant', color: '#ffb38a', ini: '🙂' }
 };
 
 // intro cutscene: camera shots + subtitles (t = seconds from start)

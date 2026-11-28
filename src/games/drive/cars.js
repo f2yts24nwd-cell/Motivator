@@ -17,6 +17,8 @@ const colorHex = (list, id, fb) => (list.find((c) => c.id === id) || list.find((
 // ------------------------------------------------------------------ shape parameters per style
 const STYLE = {
   fuenfer: { hoodLen: 1.56, ws: 0.86, trunk: 0.98, rw: 0.8, roofEnd: 0.36, roofDrop: 0.07, cl: 0.14, rise: 0.04 },
+  // electric business saloon (current generation): long bonnet, fast roofline, short tail
+  i5: { hoodLen: 1.62, ws: 0.9, trunk: 0.94, rw: 0.86, roofEnd: 0.36, roofDrop: 0.05, cl: 0.13, rise: 0.05 },
   sklasse: { hoodLen: 1.62, ws: 0.88, trunk: 1.02, rw: 0.84, cl: 0.15, rise: 0.03 },
   skoda: { hoodLen: 1.2, ws: 0.82, roofEnd: 0.34, cl: 0.19, rise: 0.05, roofDrop: 0.07 },
   volvo: { hoodLen: 1.44, ws: 0.92, roofEnd: 0.4, cl: 0.13, rise: 0.05, roofDrop: 0.08 },
@@ -469,6 +471,12 @@ export class CarModel {
     this.root.add(sh);
     this.contactShadow = sh;
     this.susp = { pitch: 0, roll: 0, vp: 0, vr: 0, h: 0, vh: 0 };
+    if (this.cfg.dark) this.darkTrim();
+  }
+  /** "Dark" edition: every chrome part becomes gloss black */
+  darkTrim() {
+    const S = shared();
+    this.root.traverse((o) => { if (o.isMesh && o.material === S.chrome) o.material = S.gloss; });
   }
 
   // ---------------------------------------------------------------- body + greenhouse
@@ -622,7 +630,25 @@ export class CarModel {
       this.placeFront(side, s * (d.W / 2 - 0.26), 0.3, -0.002);
       g.add(side);
     }
-    if (st === 'fuenfer') {
+    if (st === 'i5') {
+      // closed, illuminated kidney grille, very slim two-tier LED lights, wide black lower intake
+      const glow = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xe8f0ff, emissiveIntensity: 1.8 });
+      const panel = new THREE.MeshStandardMaterial({ color: 0x15181c, roughness: 0.25, metalness: 0.5 });
+      for (const s of [-1, 1]) {
+        g.add(lamp(s * (hx + 0.04), 0.42, 0.05, 0.02));
+        g.add(bar(s * (hx + 0.05), yH + 0.03, 0.4, 0.012));
+        g.add(bar(s * (hx - 0.14), yH + 0.0, 0.012, 0.05));
+        const kid = rbox(0.3, 0.2, 0.03, 0.08, glow);
+        this.placeFront(kid, s * 0.165, yH - 0.07, 0.004);
+        g.add(kid);
+        const inner = rbox(0.28, 0.18, 0.03, 0.07, panel);
+        this.placeFront(inner, s * 0.165, yH - 0.07, 0.012);
+        g.add(inner);
+        for (let i = 0; i < 4; i++) g.add(bar(s * (0.07 + i * 0.06), yH - 0.07, 0.03, 0.13, S.gloss, 0.5, 0.005));
+        // vertical air curtains at the bumper corners
+        g.add(bar(s * (d.W / 2 - 0.16), 0.42, 0.04, 0.2, S.gloss));
+      }
+    } else if (st === 'fuenfer') {
       // current generation: slim lights, large kidneys with an illuminated contour
       const glow = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xe8f0ff, emissiveIntensity: 1.3 });
       for (const s of [-1, 1]) {
@@ -702,7 +728,10 @@ export class CarModel {
     const red = (x, y, w, h, r = 0.006) => { const m = rbox(w, h, 0.02, r, this.tail); this.placeRear(m, x, y, 0.014); this.lightGroup.add(m); };
     this.lightGroup = new THREE.Group();
     this.body.add(this.lightGroup);
-    if (st === 'fuenfer') {
+    if (st === 'i5') {
+      // slim L-shaped lights reaching into the boot lid
+      for (const s of [-1, 1]) { house(s * (tx - 0.04), yT + 0.02, 0.5, 0.09, 0.02); red(s * (tx + 0.0), yT + 0.045, 0.46, 0.012); red(s * (tx - 0.22), yT + 0.01, 0.012, 0.06); red(s * (tx + 0.18), yT + 0.0, 0.1, 0.012); }
+    } else if (st === 'fuenfer') {
       for (const s of [-1, 1]) { house(s * tx, yT, 0.44, 0.13); red(s * (tx + 0.04), yT + 0.035, 0.32, 0.018); red(s * (tx - 0.11), yT - 0.01, 0.018, 0.08); }
     } else if (st === 'sklasse') {
       for (const s of [-1, 1]) { house(s * tx, yT, 0.48, 0.12); for (let i = 0; i < 3; i++) red(s * tx, yT - 0.035 + i * 0.035, 0.4, 0.012); }

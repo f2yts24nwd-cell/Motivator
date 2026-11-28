@@ -172,6 +172,15 @@ export class Pedestrians {
     this.mtx = new THREE.Matrix4(); this.q = new THREE.Quaternion(); this.e = new THREE.Euler(); this.sc = new THREE.Vector3(1, 1, 1);
     this.range = 110;
   }
+  /** knocked over by the bat: slapstick fall, gets up and runs away */
+  knock(p, dx, dz, from) {
+    p.fall = 2.8; p.vy = 4.2; p.spin = 0; p.pushX = dx * 3.6; p.pushZ = dz * 3.6;
+    p.fleeT = 8; p.fleeFrom = { x: from.x, z: from.z };
+  }
+  /** everyone around runs away */
+  panic(x, z, r = 16) {
+    for (const p of this.peds) if (Math.hypot(p.pos.x - x, p.pos.z - z) < r) { p.fleeT = Math.max(p.fleeT || 0, 5 + Math.random() * 3); p.fleeFrom = { x, z }; }
+  }
   loopPos(p, s, out) {
     const L = p.loop, w = L.x1 - L.x0, d = L.z1 - L.z0;
     s = ((s % p.per) + p.per) % p.per;
@@ -192,11 +201,23 @@ export class Pedestrians {
     this.peds.forEach((p, k) => {
       let base = p.home;
       let inward = [0, 0];
+      const fleeing = p.fleeT > 0 && p.fall <= 0;
+      if (p.fleeT > 0 && p.fall <= 0) p.fleeT -= dt;
       if (p.loop) {
-        if (p.fall <= 0) p.s += p.v * p.dir * dt * (p.dodge > 0.5 ? 0.3 : 1);
+        if (fleeing) { // run away along the sidewalk, in the direction that leads away from the danger
+          const pa = new THREE.Vector3(), pb = new THREE.Vector3();
+          this.loopPos(p, p.s + 2, pa); this.loopPos(p, p.s - 2, pb);
+          const F = p.fleeFrom;
+          p.dir = Math.hypot(pa.x - F.x, pa.z - F.z) > Math.hypot(pb.x - F.x, pb.z - F.z) ? 1 : -1;
+          p.s += 4.3 * p.dir * dt;
+        } else if (p.fall <= 0) p.s += p.v * p.dir * dt * (p.dodge > 0.5 ? 0.3 : 1);
         inward = this.loopPos(p, p.s, tmp);
         base = tmp;
         p.heading = Math.atan2(...(p.dir > 0 ? this.dirAt(p) : this.dirAt(p).map((v) => -v)));
+      } else if (fleeing) {
+        const ax = p.pos.x - p.fleeFrom.x, az = p.pos.z - p.fleeFrom.z, l = Math.hypot(ax, az) || 1;
+        if (p.home.distanceTo(p.origin || (p.origin = p.home.clone())) < 30) { p.home.x += (ax / l) * 4.3 * dt; p.home.z += (az / l) * 4.3 * dt; }
+        p.heading = Math.atan2(ax, az);
       }
       // dodge: jump away from fast cars heading our way
       let want = 0;
@@ -236,7 +257,7 @@ export class Pedestrians {
       KEYS.forEach((key, i) => p.cols[i].toArray(G[key].array, idx * 3));
       const walking = p.loop && p.fall <= 0 && p.dodge < 0.5;
       G.aAnim.array[idx * 2] = p.animPh;
-      G.aAnim.array[idx * 2 + 1] = walking ? p.v / 1.4 : p.dodge > 0.5 && p.fall <= 0 ? 1.6 : 0;
+      G.aAnim.array[idx * 2 + 1] = fleeing ? 1.9 : walking ? p.v / 1.4 : p.dodge > 0.5 && p.fall <= 0 ? 1.6 : 0;
       this.e.set(-p.spin, p.heading, 0, 'YXZ');
       this.q.setFromEuler(this.e);
       this.sc.setScalar(p.scale);

@@ -63,11 +63,11 @@ export const PASSED = {
 
 export const CARD = {
   title: 'Customer 360 – das X in der Mitte',
-  text: 'Im itmX CRM laufen alle Kundendaten zusammen: Angebote und Aufträge aus SAP, Mails und Termine aus Microsoft 365, Service-Tickets, Besuchsberichte und Kampagnen. Keine Insel, kein Silo, kein Export gegen Gebühr. Jeder im Team sieht den ganzen Kunden.',
+  text: 'Im itmX CRM laufen alle Kundendaten zusammen: Angebote und Aufträge aus dem ERP, Mails und Termine aus dem Postfach, Service-Tickets, Besuchsberichte und Kampagnen. Keine Insel, kein Silo, kein Export gegen Gebühr. Jeder im Team sieht den ganzen Kunden.',
   link: 'https://www.itmx.de'
 };
 
-export const NEON = ['itmX', 'CRM', 'SALES 24/7', 'Customer 360', 'DEAL DINER', 'MOTEL PIPELINE', 'LEAD BAR', 'FORECAST', 'OCEAN DRIVE', 'SAP + 365'];
+export const NEON = ['itmX', 'CRM', 'SALES 24/7', 'Customer 360', 'DEAL DINER', 'MOTEL PIPELINE', 'LEAD BAR', 'FORECAST', 'OCEAN DRIVE', 'ERP + MAIL'];
 
 export const PLACE_NAMES = [
   { x: 0, z: 0, name: 'X-Platz' },

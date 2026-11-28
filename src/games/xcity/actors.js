@@ -1,5 +1,9 @@
 import * as THREE from 'three';
-import { trafficGeometry, pedestrianGeometry } from '../drive/cars.js';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { CarModel } from '../drive/cars.js';
+import { PAINTS } from './vehicles.js';
+import { crowdMesh } from './human.js';
+import { signal } from './props.js';
 import { rand, clamp, canvasTexture } from '../../core/gfx.js';
 import { ROADS, RW, LANE, CURB } from './world.js';
 import { buildXTile } from './xtile.js';
@@ -25,45 +29,40 @@ function bez(p0, p1, p2, t, out) {
   return out.set(u * u * p0.x + 2 * u * t * p1.x + t * t * p2.x, 0, u * u * p0.z + 2 * u * t * p1.z + t * t * p2.z);
 }
 
-// ------------------------------------------------------------------ ambient traffic (instanced)
-const PAINT = [0xf2f2f2, 0x1b1d22, 0xb5182b, 0x2e5fa8, 0x9aa1a8, 0xf0c33c, 0x3fb7a6, 0xff8fb1, 0x6a4c9c, 0xe8e2d0, 0x20412f, 0xff6a2a];
-
+// ------------------------------------------------------------------ ambient traffic (detailed, instanced via the Fleet)
 export class Traffic {
-  constructor(scene, count = 28) {
-    this.kinds = ['kompakt', 'limo', 'suv', 'van'];
-    this.meshes = this.kinds.map((k) => {
-      const geo = trafficGeometry(k);
-      const m = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, metalness: 0.45, envMapIntensity: 1.2 }), count);
-      m.castShadow = true;
-      m.frustumCulled = false;
-      m.count = 0;
-      m.userData.dims = geo.userData.dims;
-      scene.add(m);
-      return m;
-    });
+  constructor(scene, count, fleet, parkSpots = []) {
+    this.fleet = fleet;
     this.cars = [];
     const used = new Set();
     for (let k = 0; k < count; k++) {
-      let i, j, n;
-      do { i = Math.floor(rand(0, N)); j = Math.floor(rand(0, N)); const nb = neighbors(i, j); n = nb[Math.floor(rand(0, nb.length))]; } while (used.has(`${i}${j}${n}`) || (Math.abs(ROADS[i]) < 50 && Math.abs(ROADS[j]) < 50 && k < 4));
+      let i, j, n, guard = 0;
+      do { i = Math.floor(rand(0, N)); j = Math.floor(rand(0, N)); const nb = neighbors(i, j); n = nb[Math.floor(rand(0, nb.length))]; guard++; } while (guard < 50 && (used.has(`${i}${j}${n}`) || (Math.abs(ROADS[i]) < 50 && Math.abs(ROADS[j]) < 50)));
       used.add(`${i}${j}${n}`);
-      const kind = Math.floor(rand(0, 1) * (Math.random() < 0.15 ? 4 : 3));
-      const mesh = this.meshes[kind];
-      const car = { kind, idx: mesh.count++, from: [i, j], to: n, next: null, phase: 'seg', d: rand(0, 40), speed: 0, vmax: rand(9, 13), pos: new THREE.Vector3(), heading: 0, stun: 0, r: kind === 3 ? 2.6 : 2.2 };
-      mesh.setColorAt(car.idx, new THREE.Color(PAINT[Math.floor(rand(0, PAINT.length))]));
+      const h = fleet.alloc(undefined, PAINTS[Math.floor(rand(0, PAINTS.length))]);
+      if (!h) break;
+      const car = { h, from: [i, j], to: n, next: null, phase: 'seg', d: rand(0, 40), speed: 0, vmax: rand(9, 13), pos: new THREE.Vector3(), heading: 0, stun: 0, r: 2.3 };
       car.next = this.choose(car.to, car.from);
       this.cars.push(car);
     }
-    for (const m of this.meshes) if (m.instanceColor) m.instanceColor.needsUpdate = true;
-    this.mtx = new THREE.Matrix4(); this.q = new THREE.Quaternion(); this.e = new THREE.Euler(); this.one = new THREE.Vector3(1, 1, 1);
+    // parked cars: static instances of the same fleet
+    this.parked = [];
+    for (const p of parkSpots) {
+      const h = fleet.alloc(undefined, PAINTS[Math.floor(rand(0, PAINTS.length))]);
+      if (!h) break;
+      fleet.set(h, new THREE.Vector3(p.x, 0, p.z), p.heading);
+      this.parked.push({ ...p, h });
+    }
     this.tmp = new THREE.Vector3();
+    this.time = 0;
   }
   choose(at, prev) {
     const nb = neighbors(...at).filter((n) => n[0] !== prev[0] || n[1] !== prev[1]);
     return nb[Math.floor(rand(0, nb.length))];
   }
   /** obstacles: [{pos, r}] other moving things (player, van, cops) */
-  update(dt, obstacles) {
+  update(dt, obstacles, t = 0) {
+    this.time = t;
     for (const c of this.cars) {
       // look ahead for anything in our lane
       const f = this.tmp.set(Math.sin(c.heading), 0, Math.cos(c.heading));
@@ -77,6 +76,13 @@ export class Traffic {
       for (const o of this.cars) if (o !== c) test(o.pos, 1.5);
       let vt = c.vmax;
       if (c.phase === 'turn') vt = Math.min(vt, 6.5);
+      // traffic lights: stop before the line on red (and on yellow when there is room)
+      if (c.phase === 'seg') {
+        const L = laneSeg(c.from, c.to);
+        const left = L.S.distanceTo(L.E) - c.d;
+        const s2 = signal(Math.abs(L.f.z) > 0.5 ? 'ns' : 'ew', t);
+        if ((s2 === 'r' || (s2 === 'y' && left > 9)) && left > 0.5 && left < 30) block = Math.min(block, left + 2.5);
+      }
       if (block < 12) vt = Math.min(vt, Math.max(0, (block - 4) * 1.4));
       if (c.stun > 0) { c.stun -= dt; vt = 0; }
       c.speed += clamp(vt - c.speed, -12 * dt, 4 * dt);
@@ -111,48 +117,60 @@ export class Traffic {
     }
   }
   render() {
-    for (const c of this.cars) {
-      this.e.set(0, c.heading, c.shake ? Math.sin(performance.now() * 0.05) * 0.03 : 0);
-      this.q.setFromEuler(this.e);
-      this.mtx.compose(c.pos, this.q, this.one);
-      this.meshes[c.kind].setMatrixAt(c.idx, this.mtx);
-    }
-    for (const m of this.meshes) m.instanceMatrix.needsUpdate = true;
+    for (const c of this.cars) this.fleet.set(c.h, c.pos, c.heading);
   }
 }
 
 // ------------------------------------------------------------------ pedestrians
 const SHIRTS = [0xffffff, 0xff7aa8, 0x3fd0c9, 0xffd34d, 0x7aa8ff, 0xff8a3d, 0x9ef07a, 0xd18cff, 0x222222, 0xe6e0d0];
+const SKIN = [0xf3d2bb, 0xe8bf9f, 0xe0b08f, 0xc99470, 0xa86f4c, 0x8d5a3c, 0x5c3a26];
+const HAIR = [0x1b1612, 0x2b1d14, 0x4a2f1c, 0x6b4a2a, 0xc9a25e, 0xd8c08a, 0x8e3b1c, 0x9b9b9b, 0xe6e6e6];
+const TOPS = [0xffffff, 0xff7aa8, 0x3fd0c9, 0xffd34d, 0x7aa8ff, 0xff8a3d, 0x9ef07a, 0xd18cff, 0x222222, 0xe6e0d0, 0x1f2c52, 0x8e1622, 0x2f5d50, 0xf4a6c0];
+const BOTTOMS = [0x1f2c52, 0x2a2a2a, 0x3b4a6b, 0xd8c8a8, 0x6b6b6b, 0x223355, 0x8a6a4a, 0xf2f2f2];
+const SHOES = [0x111111, 0xf2f2f2, 0x5a3418, 0x8a1a1a, 0x2b4a8a];
+const pickC = (a) => new THREE.Color(a[Math.floor(Math.random() * a.length)]);
+
 export class Pedestrians {
   constructor(scene, loops, count = 80) {
-    const geo = pedestrianGeometry();
-    this.mesh = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 }), count);
-    this.mesh.castShadow = true;
-    this.mesh.frustumCulled = false;
-    scene.add(this.mesh);
+    // three body variants, each one instanced mesh animated on the GPU
+    this.uniforms = { uTime: { value: 0 } };
+    const per = count;
+    this.variants = [
+      crowdMesh({ suit: false, hair: 'kurz' }, per, this.uniforms),
+      crowdMesh({ female: true, skirt: true, hair: 'lang' }, per, this.uniforms),
+      crowdMesh({ shorts: true, sleeveless: true, hair: 'locken' }, per, this.uniforms)
+    ];
+    for (const m of this.variants) { m.count = 0; scene.add(m); }
     this.peds = [];
+    const assign = (p, v) => {
+      p.v_ = v;
+      p.cols = [pickC(SKIN), pickC(HAIR), pickC(TOPS), pickC(BOTTOMS), pickC(SHOES)];
+      p.animPh = rand(0, 6.28);
+    };
     for (let k = 0; k < count; k++) {
-      const p = { pos: new THREE.Vector3(), heading: 0, dodge: 0, dodgeV: 0, fall: 0, spin: 0, vy: 0, y: 0, hey: 0, phase: rand(0, 6) };
+      const p = { pos: new THREE.Vector3(), heading: 0, dodge: 0, dodgeV: 0, fall: 0, spin: 0, vy: 0, y: 0, hey: 0, phase: rand(0, 6), scale: rand(0.92, 1.08) };
       if (k < 10) { // tourists around the X-Platz
-        const a = rand(0, Math.PI * 2), r = rand(8, 13);
+        const a = rand(0, Math.PI * 2), r = rand(10.5, 13);
         Object.assign(p, { idle: true, home: new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r) });
         p.pos.copy(p.home);
         p.heading = Math.atan2(-p.home.x, -p.home.z);
-      } else if (k < 22) { // beach
+        assign(p, k % 2);
+      } else if (k < 24) { // beach
         Object.assign(p, { idle: true, home: new THREE.Vector3(rand(216, 238), 0, rand(-220, 220)) });
         p.gy = -(p.home.x - 213) * 0.012 - CURB;
         p.pos.copy(p.home);
         p.heading = Math.PI / 2 + rand(-0.6, 0.6);
+        assign(p, 2);
       } else {
         const L = loops[Math.floor(rand(0, loops.length))];
-        Object.assign(p, { loop: L, per: 2 * (L.x1 - L.x0 + L.z1 - L.z0), s: 0, dir: Math.random() < 0.5 ? 1 : -1, v: rand(1.1, 1.7) });
+        Object.assign(p, { loop: L, per: 2 * (L.x1 - L.x0 + L.z1 - L.z0), s: 0, dir: Math.random() < 0.5 ? 1 : -1, v: rand(1.1, 1.6) });
         p.s = rand(0, p.per);
+        assign(p, k % 3 === 2 && Math.random() < 0.5 ? 2 : k % 2);
       }
-      this.mesh.setColorAt(k, new THREE.Color(SHIRTS[k % SHIRTS.length]));
       this.peds.push(p);
     }
-    this.mesh.instanceColor.needsUpdate = true;
     this.mtx = new THREE.Matrix4(); this.q = new THREE.Quaternion(); this.e = new THREE.Euler(); this.sc = new THREE.Vector3(1, 1, 1);
+    this.range = 110;
   }
   loopPos(p, s, out) {
     const L = p.loop, w = L.x1 - L.x0, d = L.z1 - L.z0;
@@ -165,8 +183,12 @@ export class Pedestrians {
     return inward;
   }
   /** danger: [{pos, vel(Vector3), r}] fast things; returns list of peds that were hit this frame */
-  update(dt, t, danger, onHit) {
+  update(dt, t, danger, onHit, camera) {
     const tmp = new THREE.Vector3();
+    // only people near the camera and on screen are written to the GPU buffers
+    if (camera) { this.pv = this.pv || new THREE.Matrix4(); this.fr = this.fr || new THREE.Frustum(); this.sp = this.sp || new THREE.Sphere(new THREE.Vector3(), 1.2); this.pv.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); this.fr.setFromProjectionMatrix(this.pv); }
+    for (const m of this.variants) m.count = 0;
+    const KEYS = ['aSkin', 'aHair', 'aTop', 'aBottom', 'aShoe'];
     this.peds.forEach((p, k) => {
       let base = p.home;
       let inward = [0, 0];
@@ -203,13 +225,27 @@ export class Pedestrians {
         p.pos.x += (tx - p.pos.x) * Math.min(1, dt * 6);
         p.pos.z += (tz - p.pos.z) * Math.min(1, dt * 6);
       }
-      const walk = p.loop && p.fall <= 0 ? Math.abs(Math.sin(t * 7 * p.v + p.phase)) * 0.05 : 0;
+      const m = this.variants[p.v_];
+      if (camera) {
+        const d = Math.hypot(p.pos.x - camera.position.x, p.pos.z - camera.position.z);
+        this.sp.center.set(p.pos.x, 1, p.pos.z);
+        if (d > this.range || (d > 12 && !this.fr.intersectsSphere(this.sp))) return;
+      }
+      const idx = m.count++;
+      const G = m.geometry.attributes;
+      KEYS.forEach((key, i) => p.cols[i].toArray(G[key].array, idx * 3));
+      const walking = p.loop && p.fall <= 0 && p.dodge < 0.5;
+      G.aAnim.array[idx * 2] = p.animPh;
+      G.aAnim.array[idx * 2 + 1] = walking ? p.v / 1.4 : p.dodge > 0.5 && p.fall <= 0 ? 1.6 : 0;
       this.e.set(-p.spin, p.heading, 0, 'YXZ');
       this.q.setFromEuler(this.e);
-      this.mtx.compose(new THREE.Vector3(p.pos.x, CURB + (p.gy || 0) + p.y + walk, p.pos.z), this.q, this.sc);
-      this.mesh.setMatrixAt(k, this.mtx);
+      this.sc.setScalar(p.scale);
+      this.mtx.compose(new THREE.Vector3(p.pos.x, CURB + (p.gy || 0) + p.y, p.pos.z), this.q, this.sc);
+      m.setMatrixAt(idx, this.mtx);
+      void k;
     });
-    this.mesh.instanceMatrix.needsUpdate = true;
+    this.uniforms.uTime.value = t;
+    for (const m of this.variants) { m.instanceMatrix.needsUpdate = true; for (const key of [...KEYS, 'aAnim']) m.geometry.attributes[key].needsUpdate = true; }
   }
   dirAt(p) {
     const L = p.loop, w = L.x1 - L.x0, d = L.z1 - L.z0;
@@ -222,17 +258,56 @@ export class Pedestrians {
 }
 
 // ------------------------------------------------------------------ AI cars (van + security)
-function carMesh(kind, color) {
-  const geo = trafficGeometry(kind);
-  const m = new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ vertexColors: true, color, roughness: 0.28, metalness: 0.5, clearcoat: 0.8 }));
-  m.castShadow = true;
-  return m;
+const SUV_SPEC = { id: 'suv', name: 'Security', type: 'suv', style: 'suvT', plate: 'SILO 112', dims: { L: 4.8, W: 1.95, H: 1.72, wb: 2.85, wr: 0.38, belt: 1.1, hood: 0.98 }, def: { color: 'schwarz', finish: 'metallic', rim: 'aero', rimColor: 'anthrazit', caliper: 'grau', drop: 0, spoiler: 'none', parts: [] } };
+
+/** detailed panel van for Cloudius (own design) */
+function vanModel() {
+  const g = new THREE.Group();
+  const paint = new THREE.MeshPhysicalMaterial({ color: 0xf4f5f7, roughness: 0.3, metalness: 0.15, clearcoat: 1, clearcoatRoughness: 0.08 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x24272b, roughness: 0.6 });
+  const glass = new THREE.MeshPhysicalMaterial({ color: 0x0d141b, roughness: 0.05, metalness: 0.4, clearcoat: 1 });
+  const chrome = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 1, roughness: 0.2 });
+  const add = (geo, m, x, y, z, rx = 0) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.rotation.x = rx; o.castShadow = true; o.receiveShadow = true; g.add(o); return o; };
+  add(new RoundedBoxGeometry(2.02, 1.95, 3.9, 4, 0.18), paint, 0, 1.5, -0.65); // cargo box
+  add(new RoundedBoxGeometry(1.98, 1.0, 1.6, 4, 0.22), paint, 0, 0.98, 1.95); // nose
+  add(new RoundedBoxGeometry(1.96, 0.95, 1.2, 4, 0.2), paint, 0, 1.75, 1.42, -0.42); // cab roof slope
+  add(new THREE.BoxGeometry(1.86, 0.72, 0.05), glass, 0, 1.72, 1.98, -0.55); // windscreen
+  for (const s of [-1, 1]) { const w = add(new THREE.BoxGeometry(0.03, 0.55, 0.95), glass, s * 1.0, 1.72, 1.35); w.rotation.x = 0; }
+  add(new THREE.BoxGeometry(2.06, 0.32, 0.25), dark, 0, 0.42, 2.72); // front bumper
+  add(new THREE.BoxGeometry(2.06, 0.3, 0.2), dark, 0, 0.45, -2.62); // rear bumper
+  add(new THREE.BoxGeometry(1.2, 0.3, 0.04), dark, 0, 0.88, 2.76); // grille
+  for (const s of [-1, 1]) {
+    add(new THREE.BoxGeometry(0.42, 0.16, 0.06), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff2d8, emissiveIntensity: 1.5 }), s * 0.72, 1.08, 2.74);
+    add(new THREE.BoxGeometry(0.16, 0.5, 0.05), new THREE.MeshStandardMaterial({ color: 0xff2020, emissive: 0xff0000, emissiveIntensity: 1.2 }), s * 0.92, 1.25, -2.62);
+    add(new THREE.BoxGeometry(0.12, 0.18, 0.22), dark, s * 1.12, 1.6, 1.75); // mirrors
+    add(new THREE.BoxGeometry(0.04, 1.6, 0.03), dark, s * 0.01, 1.45, -2.61); // rear door gap
+  }
+  add(new THREE.BoxGeometry(0.03, 1.4, 0.02), dark, 0, 1.45, -2.62);
+  for (const [s, z] of [[1, 1.85], [-1, 1.85], [1, -1.75], [-1, -1.75]]) {
+    const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.28, 24), new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.9 }));
+    tire.rotation.z = Math.PI / 2; tire.position.set(s * 0.9, 0.38, z); tire.castShadow = true; g.add(tire);
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.29, 16), chrome); rim.rotation.z = Math.PI / 2; rim.position.copy(tire.position); g.add(rim);
+    const arch = new THREE.Mesh(new THREE.TorusGeometry(0.44, 0.06, 6, 20, Math.PI), dark); arch.rotation.y = Math.PI / 2; arch.position.set(s * 1.0, 0.38, z); g.add(arch);
+  }
+  // roof rack
+  for (const z of [-2, -0.6, 0.8]) add(new THREE.BoxGeometry(1.9, 0.05, 0.06), chrome, 0, 2.52, z);
+  for (const s of [-1, 1]) add(new THREE.BoxGeometry(0.05, 0.05, 3.4), chrome, s * 0.9, 2.55, -0.6);
+  return g;
+}
+
+function carMesh(kind) {
+  if (kind === 'van') return { obj: vanModel(), model: null };
+  const model = new CarModel(SUV_SPEC, SUV_SPEC.def);
+  model.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  return { obj: model.root, model };
 }
 
 export class AICar {
   constructor(scene, kind, color) {
     this.root = new THREE.Group();
-    this.mesh = carMesh(kind, color);
+    const cm = carMesh(kind, color);
+    this.mesh = cm.obj;
+    this.model = cm.model;
     this.root.add(this.mesh);
     scene.add(this.root);
     this.pos = this.root.position;
@@ -268,6 +343,7 @@ export class AICar {
     this.vel.set((this.pos.x - ox) / Math.max(dt, 1e-4), 0, (this.pos.z - oz) / Math.max(dt, 1e-4));
     this.root.rotation.set(0, this.heading, 0);
     this.mesh.rotation.z = -this.lean;
+    this.model?.animate(dt, this.speed, 0, 0, 0);
   }
   shove(dx, dz) { if (!this.push) this.push = new THREE.Vector3(); this.push.x += dx; this.push.z += dz; }
 }
@@ -324,11 +400,13 @@ export class Cop extends AICar {
     const red = new THREE.MeshBasicMaterial({ color: new THREE.Color(5, 0.3, 0.3), toneMapped: false });
     const blue = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.3, 0.6, 6), toneMapped: false });
     this.bar = [new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.16, 0.3), red), new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.16, 0.3), blue)];
-    this.bar[0].position.set(-0.35, 1.78, -0.3); this.bar[1].position.set(0.35, 1.78, -0.3);
+    const ry = (this.model?.roofTop || 1.7) + 0.1;
+    this.bar[0].position.set(-0.35, ry, -0.2); this.bar[1].position.set(0.35, ry, -0.2);
+    const base = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.08, 0.36), new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.5 })); base.position.set(0, ry - 0.08, -0.2); this.root.add(base);
     this.root.add(...this.bar);
     const tex = canvasTexture(512, 128, (g, w, h) => { g.fillStyle = '#ffffff'; g.font = '900 70px "Segoe UI", Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('SILO-SECURITY', w / 2, h / 2); });
     const sm = new THREE.MeshBasicMaterial({ map: tex, transparent: true });
-    for (const s of [1, -1]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.65), sm); p.position.set(s * 0.95, 0.95, 0); p.rotation.y = s * Math.PI / 2; this.root.add(p); }
+    for (const s of [1, -1]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.65), sm); p.position.set(s * 1.02, 0.82, -0.1); p.rotation.y = s * Math.PI / 2; this.root.add(p); }
     this.vmax = rand(23, 27);
     this.node = null;
     this.target = new THREE.Vector3();

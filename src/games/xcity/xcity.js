@@ -3,11 +3,13 @@ import './xcity.css';
 import { clamp, lerp, rand } from '../../core/gfx.js';
 import { sfx, music, isMuted, setMuted, unlockAudio, createEngineSound } from '../../core/audio.js';
 import { h, mount, clearUI, storeGet, storeSet } from '../../core/ui.js';
-import { loadAvatar, buildAvatar } from '../../hub/avatar.js';
+import { loadAvatar } from '../../hub/avatar.js';
+import { buildPlayerRig, animateRig } from './human.js';
+import { Fleet, brandFree } from './vehicles.js';
+import { attachPost, defaultQuality, saveQuality, QUALITIES, BUDGET } from './post.js';
 import { CarModel } from '../drive/cars.js';
-import { carById } from '../drive/content.js';
 import { Vehicle } from '../drive/vehicle.js';
-import { World, ROADS, CURB, LANE } from './world.js';
+import { World, ROADS, CURB, LANE, PARK } from './world.js';
 import { Traffic, Pedestrians, Van, Cop, vanRoute } from './actors.js';
 import { Particles } from './fx.js';
 import { Hud } from './hud.js';
@@ -19,26 +21,46 @@ const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const SAVE = 'xcity';
 
-// Parked cars you can take (any of them, GTA style).
+// Parked cars you can take (any of them).
+// Brand-free: own model names, own plates, no lettering.
 const PARKED = [
-  { id: 'fuenfer', x: -6, z: 40 - LANE, h: -Math.PI / 2, cfg: { color: 'blau', finish: 'metallic', drop: 30, spoiler: 'lip', parts: ['stripes'] }, main: true },
-  { id: 'passat', x: ROADS[5] - LANE, z: -18, h: Math.PI },
-  { id: 'volvo', x: -40 - LANE, z: 12, h: 0 },
-  { id: 'skoda', x: 80, z: 120 + LANE, h: Math.PI / 2 }
+  { id: 'fuenfer', name: 'Dienstwagen GT', plate: 'LB-IT 5', x: -6, z: 40 - PARK, h: -Math.PI / 2, cfg: { color: 'blau', finish: 'metallic', drop: 30, spoiler: 'lip', parts: ['stripes'] }, main: true },
+  { id: 'passat', name: 'Firmenkombi', plate: 'LB-WK 7', x: ROADS[5] - PARK, z: -18, h: Math.PI, cfg: { color: 'rot', parts: [] } },
+  { id: 'volvo', name: 'Nordic Kombi', plate: 'LB-NK 60', x: -40 - PARK, z: 12, h: 0 },
+  { id: 'skoda', name: 'E-Crossover', plate: 'LB-E 360', x: 80, z: 120 + PARK, h: Math.PI / 2 }
 ];
+void LANE;
 
 export class XCityGame {
   constructor(app) {
     this.app = app;
-    this.world = new World(app.gfx.renderer);
+    this.quality = defaultQuality();
+    const B = BUDGET[this.quality];
+    this.world = new World(app.gfx.renderer, this.quality);
     this.scene = this.world.scene;
     this.camera = new THREE.PerspectiveCamera(60, 1, 0.3, 6000);
     this.keys = new Set();
     this.touch = { x: 0, y: 0, gas: false, brake: false, hand: false, sprint: false };
     this.camYaw = 0; this.camPitch = 0.22; this.camDrag = 0; this.camMode = 0;
     this.fx = new Particles(this.scene);
-    this.traffic = new Traffic(this.scene, 30);
-    this.peds = new Pedestrians(this.scene, this.world.pedLoops, 90);
+    // parked cars: keep the spots next to the player's cars free, prefer the inner city
+    const spots = this.world.parkSpots
+      .filter((p) => PARKED.every((q) => Math.hypot(p.x - q.x, p.z - q.z) > 9))
+      .sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z) + (Math.random() - 0.5) * 120)
+      .slice(0, B.parked);
+    this.fleet = new Fleet(this.scene, Math.ceil((B.traffic + B.parked) / 8) + 4, { near: this.quality === 'mobil' ? 45 : this.quality === 'ultra' ? 110 : 75, far: this.quality === 'mobil' ? 180 : 300 });
+    this.traffic = new Traffic(this.scene, B.traffic, this.fleet, spots);
+    for (const p of this.traffic.parked) {
+      const f = [Math.sin(p.heading), Math.cos(p.heading)];
+      for (const k of [1.3, -1.3]) this.world.circles.push({ x: p.x + f[0] * k, z: p.z + f[1] * k, r: 1.05 });
+    }
+    this.world.indexSolids();
+    this.peds = new Pedestrians(this.scene, this.world.pedLoops, B.peds);
+    if (this.world.mirrorHide) {
+      this.world.mirrorHide.push(...this.fleet.meshes());
+      this.world.mirrorHide.push(...this.peds.variants);
+      this.scene.traverse((o) => { if (o.isInstancedMesh && o.count > 200) this.world.mirrorHide.push(o); });
+    }
     this.route = vanRoute();
     this.buildPlayer();
     this.buildCars();
@@ -53,10 +75,7 @@ export class XCityGame {
 
   // ================================================================== setup
   buildPlayer() {
-    const av = buildAvatar(loadAvatar());
-    const box = new THREE.Box3().setFromObject(av.root);
-    const s = 1.8 / Math.max(0.5, box.max.y - box.min.y);
-    av.root.scale.setScalar(s);
+    const av = buildPlayerRig(loadAvatar());
     const root = new THREE.Group();
     root.add(av.root);
     this.scene.add(root);
@@ -68,7 +87,7 @@ export class XCityGame {
   }
   buildCars() {
     this.cars = PARKED.map((p) => {
-      const def = carById(p.id);
+      const def = brandFree(p.id, { name: p.name, plate: p.plate });
       const model = new CarModel(def, { ...def.def, ...(p.cfg || {}) });
       model.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
       this.scene.add(model.root);
@@ -80,7 +99,7 @@ export class XCityGame {
     // mission checkpoint: glowing ring + beam
     const ringM = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.6, 3.2, 0.6), transparent: true, opacity: 0.85, toneMapped: false, depthWrite: false, side: THREE.DoubleSide });
     this.check = new THREE.Group();
-    const ring = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 1.6, 48, 1, true), ringM);
+    const ring = new THREE.Mesh(new THREE.CylinderGeometry(13.5, 13.5, 1.6, 64, 1, true), ringM);
     ring.position.y = 0.8;
     this.check.add(ring, buildBeam(1.2, 40, 0x7dff6a));
     this.check.visible = false;
@@ -108,6 +127,7 @@ export class XCityGame {
     G.bloom.threshold = 0.97;
     if (!this.grade) this.grade = createGradePass();
     G.composer.addPass(this.grade);
+    this.post = attachPost(G, this.scene, this.camera, this.quality);
     this.save = storeGet(SAVE, { money: 0, best: null, done: 0 });
     this.buildUI();
     music.play('xcity');
@@ -124,6 +144,7 @@ export class XCityGame {
     c.removeEventListener('wheel', this.onWheel);
     this.engine?.stop(); this.engine = null;
     this.app.gfx.composer.removePass(this.grade);
+    this.post?.remove(); this.post = null;
     this.app.gfx.renderer.toneMappingExposure = 1.05;
     this.app.gfx.bloom.strength = 0.42;
     this.app.gfx.bloom.threshold = 0.92;
@@ -135,6 +156,7 @@ export class XCityGame {
     this.camera.aspect = w / hh;
     this.baseFov = w / hh < 1 ? 72 : 60;
     this.camera.updateProjectionMatrix();
+    this.post?.resize(w, hh);
   }
 
   buildUI() {
@@ -199,6 +221,7 @@ export class XCityGame {
     this.callIdx = 0;
     const H = this.hud;
     H.cinematic(p === 'intro' || p === 'finale');
+    this.post?.cinematic(p === 'intro' || p === 'finale');
     if (p === 'intro') { music.setIntensity(-1); this.introLine = 0; H.setObjective(''); this.fromIntro = true; }
     if (p === 'getcar') {
       music.setIntensity(0);
@@ -368,6 +391,7 @@ export class XCityGame {
       h('button.btn', { onclick: () => this.closePanel() }, '▶ Weiter'),
       h('button.btn.secondary', { onclick: () => { this.closePanel(); this.startMission(true); } }, '↻ Auftrag neu starten'),
       h('button.btn.secondary', { onclick: () => { this.closePanel(); this.introSeen = false; this.startMission(false); } }, '🎬 Intro ansehen'),
+      h('div.xc-quality', {}, [h('small', {}, 'Grafikqualität'), ...QUALITIES.map((q) => h('button' + (q.id === this.quality ? '.on' : ''), { onclick: () => { if (q.id === this.quality) return; saveQuality(q.id); location.replace(location.pathname + '?game=xcity'); } }, q.label))]),
       h('div.xc-keys', { html: this.hud.touch
         ? 'Links: Stick zum Laufen/Lenken · rechts: 🚗 ein/aussteigen, ▲ Gas, ▼ Bremse/Rückwärts, Ⓗ Handbremse, 🏃 Sprint, ⤒ Springen · Wischen auf dem Bild dreht die Kamera.'
         : '<kbd>W A S D</kbd> laufen/fahren · <kbd>Shift</kbd> sprinten · <kbd>Leertaste</kbd> springen/Handbremse · <kbd>F</kbd> ein/aussteigen · <kbd>C</kbd> Kamera · <kbd>H</kbd> Hupe · <kbd>M</kbd> Ton · Maus ziehen: Kamera · Mausrad: Zoom' }),
@@ -448,13 +472,15 @@ export class XCityGame {
     this.world.update(dt, time);
     if (this.grade) this.grade.uniforms.time.value = time % 10;
     this.fx.update(dt);
-    if (this.phase === 'intro') { this.updateIntro(dt, time); this.updateAmbient(dt, time); this.hud.update(rawDt); return; }
+    if (this.phase === 'intro') { this.updateIntro(dt, time); this.updateAmbient(dt, time); this.camera.updateMatrixWorld(); this.fleet.commit(this.camera); this.hud.update(rawDt); return; }
     if (this.entering) this.updateEntering(dt);
     else if (this.mode === 'foot') this.updateFoot(dt, time);
     this.updateCars(dt);
     this.updateAmbient(dt, time);
     this.updateMission(dt, time);
     this.updateCamera(rawDt, dt);
+    this.camera.updateMatrixWorld();
+    this.fleet.commit(this.camera);
     this.updateHud(dt, time);
     this.hud.update(rawDt);
   }
@@ -505,18 +531,15 @@ export class XCityGame {
     P.root.rotation.y = P.heading;
   }
   animateAvatar(dt, amount, sprint = false) {
-    const P = this.P, av = P.av;
-    P.speed = lerp(P.speed, Math.min(1.6, amount), Math.min(1, dt * 10));
+    const P = this.P;
+    P.speed = lerp(P.speed, Math.min(1.8, amount * (sprint ? 1.15 : 1)), Math.min(1, dt * 8));
     if (amount > 0.05) {
       const prev = Math.sin(P.phase);
-      P.phase += dt * (sprint ? 13 : 9.5);
+      P.phase += dt * (sprint ? 11.5 : 8.2);
       if (prev * Math.sin(P.phase) < 0 && P.y <= this.groundY() + 0.05) sfx.step();
     }
-    const sw = Math.sin(P.phase) * 0.7 * Math.min(1, P.speed);
-    av.legs[0].rotation.x = sw; av.legs[1].rotation.x = -sw;
-    av.arms[0].rotation.x = -sw * 0.9; av.arms[1].rotation.x = sw * 0.9;
-    av.body.position.y = Math.abs(Math.cos(P.phase)) * 0.08 * Math.min(1, P.speed);
-    av.body.rotation.x = sprint ? 0.12 * Math.min(1, P.speed) : 0;
+    this.animT = (this.animT || 0) + dt;
+    animateRig(P.av, { phase: P.phase, amount: P.speed, air: P.y > this.groundY() + 0.25, t: this.animT });
   }
 
   allCars() {
@@ -631,13 +654,13 @@ export class XCityGame {
     if (this.van) obstacles.push({ pos: this.van.pos, r: 2.6 });
     for (const c of this.cops) obstacles.push({ pos: c.pos, r: 2.4 });
     if (this.mode === 'foot') obstacles[0].r = 0.8;
-    this.traffic.update(dt, obstacles);
+    this.traffic.update(dt, obstacles, this.simT = (this.simT || 0) + dt);
     const danger = [];
     if (this.mode === 'car') danger.push({ pos: this.active.V.pos, vel: this.active.V.forward.multiplyScalar(this.active.V.speed), r: 2.3 });
     if (this.van && this.van.state === 'driving') danger.push({ pos: this.van.pos, vel: this.van.vel, r: 2.5 });
     for (const c of this.cops) danger.push({ pos: c.pos, vel: c.vel, r: 2.3 });
     if (this.mode === 'foot') danger.push({ pos: this.P.pos, vel: this.footVel || V3(), r: 0.5 });
-    this.peds.update(dt, time, danger, (p) => { void p; if (this.mode === 'car') { this.stats.knocked++; sfx.bonk(); } });
+    this.peds.update(dt, time, danger, (p) => { void p; if (this.mode === 'car') { this.stats.knocked++; sfx.bonk(); } }, this.camera);
     // the van + cops
     if (this.van && this.phase !== 'intro') this.van.update(dt, time, this.focus());
     else if (this.van) this.van.update(dt, time, V3(9999, 0, 9999));
@@ -703,7 +726,7 @@ export class XCityGame {
       const near = this.cops.some((c) => c.pos.distanceTo(fp) < 140);
       if (this.sirenT <= 0 && near) { sfx.siren(3); this.sirenT = 3.7; }
       H.setStars(3, near);
-      if (Math.hypot(fp.x, fp.z) < 10.5) this.setPhase('finale');
+      if (Math.hypot(fp.x, fp.z) < 14.5) this.setPhase('finale');
     }
     if (ph === 'finale') {
       // the X flies from the player onto the pedestal
@@ -800,8 +823,8 @@ export class XCityGame {
     if (this.phase === 'finale') {
       // orbit the pedestal
       const a = this.phaseT * 0.35 + 0.4;
-      const d = lerp(22, 30, Math.min(1, this.phaseT / 7));
-      C.position.lerp(V3(Math.sin(a) * d, 7 + this.phaseT * 0.8, Math.cos(a) * d), Math.min(1, rawDt * 2.5));
+      const d = lerp(15, 19.5, Math.min(1, this.phaseT / 7)); // between the fountain and the ring of palms
+      C.position.lerp(V3(Math.sin(a) * d, 4 + this.phaseT * 0.7, Math.cos(a) * d), Math.min(1, rawDt * 2.5));
       C.lookAt(0, 5, 0);
       C.fov = fov; C.updateProjectionMatrix();
       W.followSun(V3());

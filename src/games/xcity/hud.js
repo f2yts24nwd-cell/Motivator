@@ -2,7 +2,7 @@ import { h, mount } from '../../core/ui.js';
 import { MAP } from './world.js';
 import { WHO, fmtEuro } from './content.js';
 
-// GTA-style HUD (own design): radar with blips, health, wanted stars, money, clock,
+// Open-world HUD (own design): radar with blips, health, wanted stars, money, clock,
 // objective line, phone calls, subtitles, big mission banners and the touch controls.
 export class Hud {
   constructor(game) {

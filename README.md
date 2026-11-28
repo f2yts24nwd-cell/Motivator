@@ -125,11 +125,27 @@ Ein eigener Ausschnitt im Stil großer Open-World-Actionspiele. Der Eingang ist 
 - **Mission in vier Akten:** zum Dienstwagen, **Verfolgungsjagd** auf den Silo-Van (rammen, bis er liegen bleibt; der Van hat einen Lebensbalken und sagt jedes Mal einen Spruch), aussteigen und das X holen, dann **Silo-Alarm ★★★**: Drei Silo-Security-SUVs mit Blaulicht jagen dich übers Straßennetz zurück zum X-Platz. Im Finale fliegt das X zurück auf den Sockel, mit Lichtsäule und Feuerwerk. Danach kommt **AUFTRAG ERLEDIGT** mit +250.000 €, Zeit, Rammstößen, Spitzentempo und einer Lernkarte zu Customer 360.
 - **Scheitern:** Entkommt der Van (mehr als 230 m Abstand), heißt es „Auftrag gescheitert“. Ist die Gesundheit leer, kommt „AUSGELOGGT“. Danach geht es mit einem Klick wieder los.
 - **Offene Stadt:** Schachbrett-Stadt mit dem X-Platz exakt in der Mitte. Dazu die itmX-Zentrale (128-m-Glasturm mit Logo), der Silo-Tower von Cloudius mit Wolke, Art-déco-Hotels in Pastell am Ocean Drive mit Neonschildern (Deal Diner, Motel Pipeline, Lead Bar …), Werbetafeln, ein Park, Promenade, Strand mit Rettungsschwimmer-Hütten und Sonnenschirmen, Meer mit Brandung. Es gibt Verkehr, der an Kreuzungen abbiegt und vor Hindernissen bremst, und Fußgänger, die beiseitespringen (wer doch umgeschubst wird, steht wieder auf).
-- **Grafik:** Sonnenuntergang mit physikalischem Himmel und Umgebungsreflexionen in Lack und Glasfassaden, weiche Schatten, Fenster, die in der Dämmerung angehen, und Straßenlaternen mit Lichtkegeln. Eigene Farbkorrektur mit warmen Lichtern, Türkis in den Schatten, Vignette und Filmkorn. Alles ist prozedural, mit zusammengefassten bzw. instanzierten Meshes.
+- **Grafik (Version 2):**
+  - **Fassaden statt Kästen:** Läden im Erdgeschoss (16 Geschäfte mit Schild, beleuchtetem Innenraum, Regalen, Lampen und Spiegelungen) mit Markisen. Dazu Gesimse, Eckpilaster, Balkone mit Glasgeländer, Klimageräte, Feuertreppen, Dachaufbauten (Wassertanks, Lüfter, Antennen, Solarpaneele), Glastürme mit Lamellen, Brüstungsbändern und Flugwarnlichtern sowie Art-déco-Hotels mit Sonnenblenden und Neonkanten.
+  - **Materialien:** prozedurale PBR-Texturen mit Farbe, Normal- und Rauheitskarte. Asphalt mit Rissen, Flicken und spiegelnden Pfützen, Gehwegplatten mit Bordstein, Naturstein auf dem Platz, Sand mit Rippeln, Fenster mit Rahmen, Jalousien, Vorhängen und beleuchteten Räumen.
+  - **Straßen:** Ampeln mit echten Phasen (der Verkehr hält bei Rot), Bäume, Hydranten, Mülleimer, Bänke, Zeitungsboxen, Bushaltestellen mit Plakat, Poller, Gullydeckel, Haltelinien, Parkstreifen und geparkte Autos.
+  - **Menschen:** realistische Proportionen mit Gelenken (Hüfte, Knie, Schulter, Ellbogen). Der Spieler läuft, sprintet und springt mit echter Animation, die Kleidung kommt aus dem Kleiderschrank. Passanten sind in drei Körpervarianten mit zufälliger Kleidung unterwegs und werden auf der Grafikkarte animiert.
+  - **Verkehr:** dieselben detaillierten Automodelle wie die Spielerautos. Nahe Autos werden voll, ferne vereinfacht und Autos außerhalb des Bildes gar nicht gezeichnet.
+  - **Küste:** Meer mit echter Spiegelung und Sonnenglitzern (Stufe Hoch/Ultra), mehrlagige Brandung, nasser Sand, Pier, Segel- und Motorboote, Möwen, Wolkendecke im Abendlicht, Linsenreflexe der Sonne, Brunnen mit Fontänen auf dem X-Platz und Palmen mit Kokosnüssen, die sich im Wind bewegen.
+  - **Nachbearbeitung:** Kantenglättung (MSAA), Ambient Occlusion (Ultra), Tiefenschärfe in den Zwischensequenzen, Bloom, eigene Farbkorrektur mit Vignette und Filmkorn.
+  - **Qualitätsstufen** im Menü: **Mobil** (Handy, automatisch), **Hoch** (Desktop, automatisch), **Ultra** (+ Ambient Occlusion, 4K-Schatten, mehr Verkehr und Menschen). Die Stadt ist in Kacheln aufgeteilt, damit nur Sichtbares gezeichnet wird.
+- **Markenfrei:** Alle Autos haben eigene Modellnamen und Fantasie-Kennzeichen, es gibt keine Schriftzüge und keine Herstellerlogos. Läden und Werbung tragen Fantasienamen. In Ludlein Bay kommen keine Fremdmarken vor, nur das itmX-Logo.
 - **HUD:** Rundes Radar mit Blips (X-Platz, Van, Security, Autos), Gesundheitsbalken, Uhr, Kontostand (wird gespeichert), Fahndungssterne, Ortsnamen, Telefonanrufe, Untertitel, Tacho und große Missionsbanner.
 - **Soundtrack:** West-Coast-Trap mit 88 BPM (808-Bass, rollende Hi-Hats, E-Piano), per WebAudio. Die Intensität steigt in der Verfolgung, bei der Flucht kommen Bläser dazu. Außerdem V8, Hupe, Sirenen und Crash-Geräusche.
 
 Steuerung: **WASD**/Pfeiltasten laufen bzw. fahren, **Shift** sprinten, **Leertaste** springen bzw. Handbremse, **F**/Enter ein- und aussteigen, **C** Kamera (Verfolger, weit, Motorhaube), **H** Hupe, **M** Ton, **Esc** Menü. Maus ziehen dreht die Kamera, das Mausrad zoomt. Auf dem Handy: Stick links, rechts 🚗, ▲ Gas, ▼ Bremse, Ⓗ Handbremse, 🏃 Sprint, ⤒ Springen. Wischen dreht die Kamera.
+
+### Ludlein Bay: Rechte und Lizenzen
+
+- Alle Grafiken in Ludlein Bay (Texturen, Modelle, Menschen, Autos, Himmel, Wasser) sind im Code erzeugt. Es werden keine fremden Bild-, 3D- oder Sounddateien geladen. Musik und Geräusche entstehen per WebAudio.
+- Verwendete Bibliotheken: three.js mit seinen Beispiel-Modulen (MIT-Lizenz) und Vite (MIT-Lizenz).
+- Das itmX-Logo und die Namen der Figuren (Danny the Boss, Tim X., Cloudius von Silo) brauchen für einen Verkauf die Freigabe des Rechteinhabers.
+- Die anderen Spiele der Spielewelt enthalten weiterhin Markennamen (z. B. im Fuhrpark von „Ludlein Drive“). Sie sind für die interne Nutzung gedacht.
 
 ## Bonusspiel: „Frag den Danny!“
 
@@ -233,7 +249,9 @@ src/
                        content.js Sprüche, voices.json Sprachzeilen, emblem.js, danny.css)
   games/xcity/         „Ludlein Bay: Operation X“ (world.js Stadt/Meer/X-Platz, actors.js Verkehr/Fußgänger/Van/Security,
                        xcity.js Spieler, Autos, Kamera & Mission, hud.js Radar & HUD, grade.js Farbkorrektur,
-                       xtile.js das X als 3D-Kachel, fx.js Partikel, content.js Texte)
+                       xtile.js das X als 3D-Kachel, fx.js Partikel, content.js Texte, textures.js PBR-Texturen,
+                       facades.js Architektur, props.js Ampeln/Bäume/Möbel/Pier/Boote/Wolken, human.js Menschen,
+                       vehicles.js Verkehrsflotte mit Detailstufen, post.js Qualitätsstufen & Nachbearbeitung)
   hub/firestation.js   Feuerwache als Bonus-Automat in der Spielewelt
   cert/                Dumêz G. Schwetz, Übergabe-Szene, Zertifikat-Rendering
   hub/avatar.js        Avatar und Kleiderschrank (Business-Look-Pflicht)

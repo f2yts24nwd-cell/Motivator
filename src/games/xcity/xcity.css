@@ -142,3 +142,8 @@ body.xc-hit #ui::after { content: ''; position: fixed; inset: 0; pointer-events:
 .xc-hud.touch .xc-hp { width: 90px; margin-top: 6px; }
 .xc-hud.touch .xc-stick { width: 116px; height: 116px; bottom: calc(18px + env(safe-area-inset-bottom)); }
 .xc-hud.touch .xc-stick i { left: 28px; top: 28px; }
+
+.xc-quality { display: flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: wrap; }
+.xc-quality small { width: 100%; opacity: .7; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+.xc-quality button { border: 0; border-radius: 999px; padding: 8px 16px; font: 700 14px system-ui; color: #fff; background: rgba(255,255,255,.1); cursor: pointer; }
+.xc-quality button.on { background: #50af30; color: #08130a; }
